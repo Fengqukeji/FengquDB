@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable><EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <OutputPath>../../../build/business-protobuf-csharp-bin/</OutputPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Google.Protobuf" Version="3.36.2" />
+    <ProjectReference Include="../../../bindings/csharp/FengquDB.csproj" />
+    <Compile Include="Program.cs" /><Compile Include="PlayerSaves.cs" />
+    <Compile Include="$(GeneratedDir)/*.cs" />
+  </ItemGroup>
+  <PropertyGroup Condition="'$(UnityStub)' != ''">
+    <DefineConstants>$(DefineConstants);FQDB_UNITY_SMOKE</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(UnityStub)' != ''">
+    <Compile Include="$(UnityStub)" />
+    <Compile Include="../../unity/TypedFengquSave.cs" />
+  </ItemGroup>
+  <Target Name="RequireGeneratedModels" BeforeTargets="CoreCompile">
+    <Error Condition="'$(GeneratedDir)' == ''" Text="Run protoc, then pass -p:GeneratedDir=ABSOLUTE_GENERATED_CSHARP_DIRECTORY" />
+  </Target>
+</Project>

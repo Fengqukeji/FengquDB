@@ -1,0 +1,13 @@
+syntax = "proto3";
+package fengqudb.api;
+
+// The inner messages are encoded using the application's own protobuf schema.
+// Only a contiguous prefix of index fields belongs in equal. Lower/upper each
+// contain exactly the next indexed field. Presence distinguishes no bound.
+message IndexQuery {
+  bytes equal = 1;
+  optional bytes lower = 2;
+  optional bytes upper = 3;
+  uint32 flags = 4; // 1 lower exclusive, 2 upper inclusive, 4 reverse, 8 values
+  repeated uint32 fields = 5; // top-level projection; packed/unpacked accepted
+}

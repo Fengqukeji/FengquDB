@@ -1,0 +1,51 @@
+{
+  "ok": true,
+  "commands": [
+    {
+      "name": "shared-configure",
+      "code": 0
+    },
+    {
+      "name": "shared-build",
+      "code": 0
+    },
+    {
+      "name": "elf-headers",
+      "code": 0
+    },
+    {
+      "name": "static-configure",
+      "code": 0
+    },
+    {
+      "name": "static-build",
+      "code": 0
+    }
+  ],
+  "abi": "arm64-v8a",
+  "api": 24,
+  "ndk": "Pkg.Desc = Android NDK\nPkg.Revision = 23.1.7779620\n",
+  "runtime_tested": false,
+  "libraries": {
+    "shared": {
+      "path": "D:\\study\\FengquDB\\build\\complex-query-20261110\\android4-shared\\libfengqudb.so",
+      "bytes": 4549112,
+      "sha256": "4de1a9d4532f5929c10a7abe7ba5fb5253bb2f0a0e07eae9c45d3c69e96a7991"
+    },
+    "static": {
+      "path": "D:\\study\\FengquDB\\build\\complex-query-20261110\\android4-static\\libfengqudb.a",
+      "bytes": 2397662,
+      "sha256": "da81fab0206538b9830875b17163f4d64e9eddc0950e0e13a638d5c71c480fd9"
+    }
+  },
+  "load_segment_alignment": [
+    16384,
+    16384,
+    16384
+  ],
+  "source_manifest_sha256": "24e9526d05ee5772ba8f192d16cbadba1a96685d5686dfbac87e0d126fdf3136",
+  "stripped_shared": {
+    "bytes": 1140664,
+    "sha256": "eabaeb8e99fa46e405c7dc15f7139683f30201da7d99229bcca22694503d808c"
+  }
+}

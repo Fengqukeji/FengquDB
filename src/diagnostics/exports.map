@@ -1,0 +1,4 @@
+FENGQUDB_DIAGNOSTICS_1 {
+    global: fqdb_diagnostics_*;
+    local: *;
+};

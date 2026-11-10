@@ -1,0 +1,63 @@
+{
+  "ok": true,
+  "phase": "linux3",
+  "commands": [
+    {
+      "name": "configure",
+      "code": 0
+    },
+    {
+      "name": "build",
+      "code": 0
+    },
+    {
+      "name": "ctest",
+      "code": 0
+    },
+    {
+      "name": "strip",
+      "code": 0
+    },
+    {
+      "name": "python-query",
+      "code": 0
+    },
+    {
+      "name": "sqlite-oracle",
+      "code": 0
+    },
+    {
+      "name": "java-build",
+      "code": 0
+    },
+    {
+      "name": "java-query",
+      "code": 0
+    },
+    {
+      "name": "csharp-query",
+      "code": 0
+    },
+    {
+      "name": "python-policy",
+      "code": 0
+    },
+    {
+      "name": "java-policy",
+      "code": 0
+    },
+    {
+      "name": "csharp-policy",
+      "code": 0
+    },
+    {
+      "name": "shared-python-java",
+      "code": 0
+    }
+  ],
+  "source_manifest_sha256": "24e9526d05ee5772ba8f192d16cbadba1a96685d5686dfbac87e0d126fdf3136",
+  "library": {
+    "bytes": 1199704,
+    "sha256": "734360ee05e7358c1aaafda01a262d61e8d5155cd0ce3dc40f7b6c4bc692f13d"
+  }
+}

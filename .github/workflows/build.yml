@@ -1,0 +1,136 @@
+name: native-and-bindings
+on: [push, pull_request, workflow_dispatch]
+jobs:
+  sanitizers:
+    name: Linux ${{ matrix.sanitizer }} sanitizer
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        sanitizer: [address, thread]
+    env:
+      ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+      UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+      TSAN_OPTIONS: halt_on_error=1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Configure isolated sanitizer build
+        run: >-
+          cmake -S . -B build/sanitizer-${{ matrix.sanitizer }}
+          -DCMAKE_BUILD_TYPE=RelWithDebInfo -DFQDB_SANITIZER=${{ matrix.sanitizer }}
+          -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+          -DFQDB_SHARED=OFF -DFQDB_RELEASE_IPO=OFF -DFQDB_BUILD_TOOLS=OFF
+          -DFQDB_BUILD_DIAGNOSTICS=OFF -DBUILD_TESTING=ON
+      - name: Build concurrency and query regressions
+        run: >-
+          cmake --build build/sanitizer-${{ matrix.sanitizer }} --parallel 2 --target
+          fqdb_header_self_containment fqdb_write_policy_tests fqdb_committed_cache_tests
+          fqdb_atomic_owner_tests fqdb_store_sdk_tests fqdb_store_select_tests fqdb_store_query_tests
+      - name: Run instrumented tests
+        env:
+          FQDB_TEST_PYTHON: python3
+          FQDB_TEST_CLEANER: ${{ github.workspace }}/tests/store_fixture_cleanup.py
+          FQDB_TEST_OWNED_ROOT: ${{ runner.temp }}
+          TMPDIR: ${{ runner.temp }}
+        run: >-
+          ctest --test-dir build/sanitizer-${{ matrix.sanitizer }} --output-on-failure
+          --output-junit results.xml
+          -R '^paged_(write_policy|committed_cache|atomic_owner|store_sdk|select|query)$'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sanitizer-${{ matrix.sanitizer }}-logs
+          path: |
+            build/sanitizer-${{ matrix.sanitizer }}/CMakeCache.txt
+            build/sanitizer-${{ matrix.sanitizer }}/compile_commands.json
+            build/sanitizer-${{ matrix.sanitizer }}/results.xml
+            build/sanitizer-${{ matrix.sanitizer }}/Testing/Temporary/
+  build:
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DFQDB_BUILD_JNI=ON
+      - run: cmake --build build --config Release --parallel
+      - run: ctest --test-dir build -C Release --output-on-failure
+      - name: Bindings and SDK
+        shell: pwsh
+        run: |
+          $native = if ($IsWindows) { "$PWD/build/Release" } else { "$PWD/build" }
+          $lib = if ($IsWindows) { "$native/fengqudb.dll" } else { "$native/libfengqudb.so" }
+          $env:PATH = "$native$([IO.Path]::PathSeparator)$env:PATH"
+          $env:LD_LIBRARY_PATH = $native
+          python scripts/verify-store-bindings.py --library $lib --output "$PWD/build/ci-bindings"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          cmake --install build --config Release --prefix artifacts/sdk
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          cmake -S tests/cmake-consumer -B build/consumer "-DCMAKE_PREFIX_PATH=$PWD/artifacts/sdk" -DCMAKE_BUILD_TYPE=Release
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          cmake --build build/consumer --config Release --parallel
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $consumer = if ($IsWindows) { "$PWD/build/consumer/Release/cpp_consumer.exe" } else { "$PWD/build/consumer/cpp_consumer" }
+          & $consumer "$PWD/artifacts/consumer-example.fdb"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $diagnosticsConsumer = if ($IsWindows) { "$PWD/build/consumer/Release/diagnostics_consumer.exe" } else { "$PWD/build/consumer/diagnostics_consumer" }
+          & $diagnosticsConsumer "$PWD/artifacts/consumer-diagnostics.fdb"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          cmake -S . -B build/static -DCMAKE_BUILD_TYPE=Release -DFQDB_SHARED=OFF -DFQDB_BUILD_JNI=OFF
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          cmake --build build/static --config Release --parallel
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          ctest --test-dir build/static -C Release -R 'paged_store_sdk|shared_c_abi|wire|logging|diagnostics' --output-on-failure
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FengquDB-${{ matrix.os }}
+          path: artifacts/sdk
+  android-compile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: android-actions/setup-android@v3
+      - run: sdkmanager "ndk;27.2.12479018"
+      - name: Android ARM64 shared and static
+        shell: bash
+        run: |
+          for shared in ON OFF; do
+            cmake -S . -B "build/android-$shared" \
+              -DCMAKE_TOOLCHAIN_FILE="$ANDROID_SDK_ROOT/ndk/27.2.12479018/build/cmake/android.toolchain.cmake" \
+              -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-24 \
+              -DCMAKE_BUILD_TYPE=Release -DFQDB_SHARED="$shared" \
+              -DBUILD_TESTING=OFF -DFQDB_BUILD_TOOLS=OFF -DFQDB_BUILD_DIAGNOSTICS=OFF
+            cmake --build "build/android-$shared" --target fengqudb --parallel 2
+          done
+  ios-compile:
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        target:
+          - {sdk: iphoneos, arch: arm64}
+          - {sdk: iphonesimulator, arch: arm64}
+    steps:
+      - uses: actions/checkout@v4
+      - name: iOS static core
+        run: |
+          cmake -S . -B build/ios -G Xcode \
+            -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_SYSROOT=${{ matrix.target.sdk }} \
+            -DCMAKE_OSX_ARCHITECTURES=${{ matrix.target.arch }} -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 \
+            -DCMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED=NO \
+            -DFQDB_SHARED=OFF -DBUILD_TESTING=OFF -DFQDB_BUILD_TOOLS=OFF -DFQDB_BUILD_DIAGNOSTICS=OFF
+          cmake --build build/ios --config Release --target fengqudb --parallel 2

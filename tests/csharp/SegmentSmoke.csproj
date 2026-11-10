@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable><EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <StartupObject>SegmentSmoke</StartupObject><OutputPath>../../build/segment-csharp-bin/</OutputPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="SegmentSmoke.cs"/><Compile Include="StoreSmoke.cs"/>
+    <ProjectReference Include="../../bindings/csharp/FengquDB.csproj"/>
+  </ItemGroup>
+</Project>

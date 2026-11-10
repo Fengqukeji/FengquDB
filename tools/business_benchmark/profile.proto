@@ -1,0 +1,14 @@
+syntax = "proto3";
+package fengqudb.business_benchmark;
+message Profile {
+  fixed64 id = 1;
+  fixed64 revision = 2;
+  sfixed64 credit = 3;
+  uint64 level = 4;
+  uint64 status = 5;
+  string name = 6;
+  string email = 7;
+  string bio = 8;
+  uint64 region = 9;
+  fixed64 last_login = 10;
+}

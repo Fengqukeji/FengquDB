@@ -1,0 +1,23 @@
+syntax = "proto3";
+package fengqudb.api;
+// C ABI: txn_execute operation 53 executes, 54 explains. The request is in
+// FeatureRequest.value; FeatureResult.value contains SelectResult.
+message QueryValue { uint32 kind=1; uint64 uint_value=2; sint64 int_value=3; double real_value=4; bytes bytes_value=5; }
+message QueryField { uint32 source=1; uint32 type=2; repeated uint32 path=3; }
+message QueryExpr { uint32 op=1; QueryField field=2; repeated QueryValue values=3; repeated QueryExpr children=4; optional QueryField right=5; }
+message QueryColumn { QueryField field=1; uint32 aggregate=2; string name=3; bool distinct=4; }
+message QueryOrder { QueryField field=1; bool descending=2; bool nulls_first=3; }
+message QueryJoin { bytes prefix=1; repeated QueryField left=2; repeated QueryField right=3; uint32 kind=4; QueryExpr on=5; }
+// SDK encoders explicitly emit defaults; limits cannot be zero.
+message Select {
+  bytes prefix=1; QueryExpr where=2; repeated QueryColumn columns=3;
+  repeated QueryOrder order=4; repeated QueryField group=5; QueryExpr having=6;
+  repeated QueryJoin joins=7; uint64 limit=8; uint64 offset=9;
+  uint64 memory_bytes=10; uint64 max_candidates=11; uint64 max_work=12;
+  uint64 timeout_ms=13; bool allow_scan=14; bool count_total=15;
+  bool distinct=16; bytes index_hint=17; bytes after=18;
+}
+message QueryRow { bytes key=1; repeated QueryValue values=2; }
+message QueryAccess { uint32 source=1; string strategy=2; string index=3; string reason=4; bool covering=5; bool ordered=6; bool needs_scan=7; uint64 sampled_candidates=8; }
+message QueryStats { uint64 candidates=1; uint64 matched=2; uint64 result_total=3; uint64 work=4; uint64 peak_memory=5; uint64 payload_reads=6; uint64 join_probes=7; bool complete=8; }
+message SelectResult { repeated QueryRow rows=1; repeated QueryAccess access=2; QueryStats stats=3; bytes cursor=4; }

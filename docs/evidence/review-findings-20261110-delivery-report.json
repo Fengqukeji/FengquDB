@@ -1,0 +1,30 @@
+{
+  "ok": true,
+  "source_manifest_sha256": "76b2d5dd0e216d48ba3ba0541879d26702795cd8ac451707c9dcf159696cffc6",
+  "changed_manifest_sha256": "063f448152f93f4d6adaf1ba77fc3d398a91015304c680aed67e5edfa6eae063",
+  "reports": {
+    "windows": {
+      "sha256": "a35ffd06b226f3cd9e032d1fb9c1bce5a6dfbd41e20edd7be9f8b16df1ae777e",
+      "tests": 6
+    },
+    "address": {
+      "sha256": "7a2c64ed51a9fc3f289ca5b6cb6fb1075dfee6db9c9c6635982075b0cc18d0bb",
+      "tests": 6
+    },
+    "thread": {
+      "sha256": "3eb231b2067ac87a1d42f03721a1d6db8d69ab87a341015158e046c2793ea931",
+      "tests": 6
+    }
+  },
+  "tests_executed": 18,
+  "header_self_containment_compiled": [
+    "Windows MSVC",
+    "Linux GCC ASan+UBSan",
+    "Linux GCC TSan"
+  ],
+  "documentation_targets_checked": 191,
+  "workflow_yaml_parsed": true,
+  "remote_ci_executed": false,
+  "git_initialized": false,
+  "historical_builds_removed": false
+}

@@ -1,0 +1,83 @@
+{
+  "ok": true,
+  "source_manifest_sha256": "24e9526d05ee5772ba8f192d16cbadba1a96685d5686dfbac87e0d126fdf3136",
+  "input_count": 198,
+  "reports": {
+    "windows3-report.json": {
+      "sha256": "41d1f44e021b763ccb2536c73ac3dc195a4e33960cc46e9605c8fea33f8e7e41",
+      "commands": 9
+    },
+    "linux3-report.json": {
+      "sha256": "d1c52e87c4191d4bf64cee3161b07dc9f8ed858921abdf4532a5b92fa5694ada",
+      "commands": 13
+    },
+    "android4-report.json": {
+      "sha256": "cb2bfe20e1cd6cfd7436339fa621f23139d1b9012f45c844623178e6204ee91f",
+      "commands": 5
+    },
+    "asan2-report.json": {
+      "sha256": "f96ed05fae92166eba513009979a083742d4309664d307db3a1ab6411b777793",
+      "commands": 7
+    },
+    "tsan2-report.json": {
+      "sha256": "3a7bee840903c510c3f13132a7f92fe03407ce49aff776d2488ee520cc54ae39",
+      "commands": 7
+    },
+    "bench3-report.json": {
+      "sha256": "609a457006d324921675a339a874f5ac36fa0b452f1333a3a58b020de2675bb5",
+      "commands": 15
+    }
+  },
+  "artifacts": {
+    "fengqudb.dll": {
+      "bytes": 1117184,
+      "sha256": "0fa5d1df6121bd666ed8ad64629cb5c52aa428076818e15d81d42bd6e8d3b16b"
+    },
+    "fengqudb.lib": {
+      "bytes": 27712,
+      "sha256": "8003b412dff8b42fc9dc6f1e51d0a8d5e9d740c3689d6be8fe9a2eb4594ae6d2"
+    },
+    "fengqudb_jni.dll": {
+      "bytes": 189440,
+      "sha256": "42a1385778a88d265ba2431cbf8ac6d0a1945567590a14f22594d541f9259b3b"
+    },
+    "libfengqudb.so.0.3.2": {
+      "bytes": 1199704,
+      "sha256": "734360ee05e7358c1aaafda01a262d61e8d5155cd0ce3dc40f7b6c4bc692f13d"
+    },
+    "libfengqudb_jni.so": {
+      "bytes": 100048,
+      "sha256": "032c6a734a2ff20225334babf9584728e4bf5f17487ec6dee9b617bc90ea5eaa"
+    },
+    "libfengqudb-android-arm64.so": {
+      "bytes": 1140664,
+      "sha256": "eabaeb8e99fa46e405c7dc15f7139683f30201da7d99229bcca22694503d808c"
+    },
+    "source-frozen.zip": {
+      "bytes": 574791,
+      "sha256": "772b0c70109245141e46ca2792bf244e8268433206a1c8ce050fa03d0314c45d"
+    },
+    "source-normalized.diff": {
+      "bytes": 230738,
+      "sha256": "61d69213d0e1860816b64cb373f64e3506ed982d49ce8772f37161562500dfd4"
+    },
+    "failed-bench-fixture.tar.gz": {
+      "bytes": 1597729,
+      "sha256": "1cafec895f4e135bef12cdcf7337478e216a7a18a6af719413cfeb21c4ba071f"
+    }
+  },
+  "documents": {
+    "README.md": "902199b2c651859e6be48ce33c5c0b2d01c04d1f96a817c1a59f298b8bd62515",
+    "docs/STORE_SELECT.md": "f0e813a2e8fec6bdb08808a00dc3e7aaaa57e11871f0e3a5b017ae39b2eef9d3",
+    "docs/STORE_SELECT_REVIEW_20261110.md": "2d49c7e9bef7d46f5c681f5c47bad32b6f2e92b3e9cc91458413852e4cfaa948",
+    "docs/STORE_QUERY.md": "9c4dd7657580b580345779ba4f703de578182f5be6395ccf75ddf3f9165531bf",
+    "docs/CAPABILITIES.md": "c7318cb5b27fc87bf4a7c31426575d34af3698a537cc0f8bfcd10af462b39c37"
+  },
+  "ios_tested": false,
+  "android_device_tested": false,
+  "performance_policy": {
+    "mode": "performance",
+    "period_ms": 50,
+    "threshold_bytes": 1048576
+  }
+}

@@ -1,0 +1,240 @@
+{
+  "ok": true,
+  "phase": "bench3",
+  "commands": [
+    {
+      "name": "driver",
+      "code": 0
+    },
+    {
+      "name": "complex",
+      "code": 0
+    },
+    {
+      "name": "old-driver",
+      "code": 0
+    },
+    {
+      "name": "0-baseline-get",
+      "code": 0
+    },
+    {
+      "name": "0-baseline-query",
+      "code": 0
+    },
+    {
+      "name": "0-main-get",
+      "code": 0
+    },
+    {
+      "name": "0-main-query",
+      "code": 0
+    },
+    {
+      "name": "1-main-get",
+      "code": 0
+    },
+    {
+      "name": "1-main-query",
+      "code": 0
+    },
+    {
+      "name": "1-baseline-get",
+      "code": 0
+    },
+    {
+      "name": "1-baseline-query",
+      "code": 0
+    },
+    {
+      "name": "2-baseline-get",
+      "code": 0
+    },
+    {
+      "name": "2-baseline-query",
+      "code": 0
+    },
+    {
+      "name": "2-main-get",
+      "code": 0
+    },
+    {
+      "name": "2-main-query",
+      "code": 0
+    }
+  ],
+  "source_manifest_sha256": "24e9526d05ee5772ba8f192d16cbadba1a96685d5686dfbac87e0d126fdf3136",
+  "query": {
+    "ok": true,
+    "players": 8192,
+    "payload_bytes": 4096,
+    "cases": [
+      {
+        "name": "filtered_top20",
+        "before_ops": 842.611,
+        "after_ops": 44812.7,
+        "speedup": 53.1832,
+        "before_candidates": 8192,
+        "after_candidates": 26,
+        "before_payload": 8192,
+        "after_payload": 26,
+        "plan": "index_range"
+      },
+      {
+        "name": "conditional_aggregate",
+        "before_ops": 972.32,
+        "after_ops": 46973.9,
+        "speedup": 48.3112,
+        "before_candidates": 8192,
+        "after_candidates": 128,
+        "before_payload": 8192,
+        "after_payload": 0,
+        "plan": "index_range"
+      },
+      {
+        "name": "grouped_aggregate",
+        "before_ops": 602.93,
+        "after_ops": 713.72,
+        "speedup": 1.18375,
+        "before_candidates": 8192,
+        "after_candidates": 8192,
+        "before_payload": 8192,
+        "after_payload": 0,
+        "plan": "covering_index_scan"
+      },
+      {
+        "name": "join",
+        "before_ops": 862.395,
+        "after_ops": 5160.78,
+        "speedup": 5.98424,
+        "before_candidates": 4224,
+        "after_candidates": 384,
+        "before_payload": 4224,
+        "after_payload": 128,
+        "plan": "index_join"
+      }
+    ]
+  },
+  "old_paths": [
+    {
+      "round": 0,
+      "variant": "baseline",
+      "kind": "get",
+      "measurement": {
+        "ok": true,
+        "calls": 7023184,
+        "ops_per_second": 14046200.0
+      }
+    },
+    {
+      "round": 0,
+      "variant": "baseline",
+      "kind": "query",
+      "measurement": {
+        "ok": true,
+        "calls": 101600,
+        "ops_per_second": 203178
+      }
+    },
+    {
+      "round": 0,
+      "variant": "main",
+      "kind": "get",
+      "measurement": {
+        "ok": true,
+        "calls": 6893632,
+        "ops_per_second": 13787100.0
+      }
+    },
+    {
+      "round": 0,
+      "variant": "main",
+      "kind": "query",
+      "measurement": {
+        "ok": true,
+        "calls": 98512,
+        "ops_per_second": 197019
+      }
+    },
+    {
+      "round": 1,
+      "variant": "main",
+      "kind": "get",
+      "measurement": {
+        "ok": true,
+        "calls": 6887248,
+        "ops_per_second": 13774300.0
+      }
+    },
+    {
+      "round": 1,
+      "variant": "main",
+      "kind": "query",
+      "measurement": {
+        "ok": true,
+        "calls": 82976,
+        "ops_per_second": 165933
+      }
+    },
+    {
+      "round": 1,
+      "variant": "baseline",
+      "kind": "get",
+      "measurement": {
+        "ok": true,
+        "calls": 6824544,
+        "ops_per_second": 13649000.0
+      }
+    },
+    {
+      "round": 1,
+      "variant": "baseline",
+      "kind": "query",
+      "measurement": {
+        "ok": true,
+        "calls": 89680,
+        "ops_per_second": 179336
+      }
+    },
+    {
+      "round": 2,
+      "variant": "baseline",
+      "kind": "get",
+      "measurement": {
+        "ok": true,
+        "calls": 6721376,
+        "ops_per_second": 13442600.0
+      }
+    },
+    {
+      "round": 2,
+      "variant": "baseline",
+      "kind": "query",
+      "measurement": {
+        "ok": true,
+        "calls": 89472,
+        "ops_per_second": 178938
+      }
+    },
+    {
+      "round": 2,
+      "variant": "main",
+      "kind": "get",
+      "measurement": {
+        "ok": true,
+        "calls": 6460496,
+        "ops_per_second": 12920900.0
+      }
+    },
+    {
+      "round": 2,
+      "variant": "main",
+      "kind": "query",
+      "measurement": {
+        "ok": true,
+        "calls": 82080,
+        "ops_per_second": 164158
+      }
+    }
+  ]
+}

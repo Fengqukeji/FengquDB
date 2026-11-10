@@ -1,0 +1,26 @@
+FROM ubuntu@sha256:f144425ff09be612d6d9ad965196e9cdc23dae1f42110a8a11a3e9a8198759f7
+ENV DEBIAN_FRONTEND=noninteractive
+RUN printf '#!/bin/sh\nexit 101\n' > /usr/sbin/policy-rc.d && chmod +x /usr/sbin/policy-rc.d && \
+    apt-get update && apt-get install -y --no-install-recommends \
+    build-essential cmake pkg-config python3 procps ca-certificates \
+    mysql-server=8.4.11-0ubuntu0.26.04.1 libmysqlclient-dev=8.4.11-0ubuntu0.26.04.1 \
+    libhiredis-dev=1.2.0-6ubuntu4 && \
+    rm -rf /var/lib/apt/lists/* /var/lib/mysql && \
+    mkdir -p /opt/bench/bin /opt/bench/lib /opt/bench/include /opt/bench/licenses
+COPY artifacts/reference/redis-8.10.3.tar.gz /tmp/redis.tar.gz
+RUN echo 'edde778f6bdee7581e42fc139ca9e07e2822212092f7501f99989656e3629d02  /tmp/redis.tar.gz' | sha256sum -c - && \
+    mkdir /tmp/redis && tar xzf /tmp/redis.tar.gz -C /tmp/redis --strip-components=1 && \
+    make -C /tmp/redis/src -j2 BUILD_TLS=no MALLOC=jemalloc && \
+    cp /tmp/redis/src/redis-server /tmp/redis/src/redis-cli /opt/bench/bin/ && \
+    find /tmp/redis -maxdepth 1 -type f \( -iname 'COPYING*' -o -iname 'LICENSE*' \) -exec cp '{}' /opt/bench/licenses/ \; && \
+    rm -rf /tmp/redis /tmp/redis.tar.gz
+COPY artifacts/reference/sqlite-amalgamation-3540100/sqlite3.c /tmp/sqlite3.c
+COPY artifacts/reference/sqlite-amalgamation-3540100/sqlite3.h /opt/bench/include/sqlite3.h
+COPY artifacts/reference/sqlite-amalgamation-3540100/origin.json /opt/bench/licenses/sqlite-origin.json
+RUN echo '0c657666d819f261cc4007526ad57e1669de9949df7a8ea847aa284a2bf0ee52  /tmp/sqlite3.c' | sha256sum -c - && \
+    echo 'd6c84557261893439b341d2e6c35187ae3ea24fbfd843ad94616f72d89242b8c  /opt/bench/include/sqlite3.h' | sha256sum -c - && \
+    gcc -O3 -DNDEBUG -fPIC -shared -DSQLITE_THREADSAFE=1 -DSQLITE_DEFAULT_MEMSTATUS=0 \
+    -I/opt/bench/include /tmp/sqlite3.c -o /opt/bench/lib/libsqlite3_benchmark.so -lm -ldl -pthread && \
+    rm /tmp/sqlite3.c && strip /opt/bench/lib/libsqlite3_benchmark.so /opt/bench/bin/redis-server /opt/bench/bin/redis-cli && \
+    dpkg-query -W > /opt/bench/packages.txt
+ENV PATH="/opt/bench/bin:${PATH}" LD_LIBRARY_PATH="/opt/bench/lib"

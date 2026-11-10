@@ -1,0 +1,8 @@
+**
+!artifacts
+!artifacts/reference
+!artifacts/reference/redis-8.10.3.tar.gz
+!artifacts/reference/sqlite-amalgamation-3540100
+!artifacts/reference/sqlite-amalgamation-3540100/sqlite3.c
+!artifacts/reference/sqlite-amalgamation-3540100/sqlite3.h
+!artifacts/reference/sqlite-amalgamation-3540100/origin.json

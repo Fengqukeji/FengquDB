@@ -1,0 +1,13 @@
+**
+!CMakeLists.txt
+!cmake
+!cmake/**
+!src
+!src/**
+!include
+!include/**
+!tools
+!tools/final_benchmark
+!tools/final_benchmark/**
+**/__pycache__
+**/*.pyc

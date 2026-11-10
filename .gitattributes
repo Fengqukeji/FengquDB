@@ -1,0 +1,11 @@
+* text=auto eol=lf
+
+*.bin -text
+*.gz -text
+*.zip -text
+*.png -text
+*.jpg -text
+*.pdf -text
+
+# Preserve vendored bytes and their upstream whitespace conventions.
+third_party/** -text -whitespace

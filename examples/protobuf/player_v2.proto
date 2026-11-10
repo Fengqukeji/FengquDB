@@ -1,0 +1,23 @@
+syntax = "proto3";
+package fengqudb.example.v2;
+option csharp_namespace = "FengquDB.Examples.V2";
+option java_package = "io.fengqudb.examples.v2";
+option java_outer_classname = "PlayerV2Schema";
+
+// Separate packages allow both schema versions in the verification program.
+// A real application's package need not change when adding fields.
+message PlayerSave {
+  optional uint64 player_id = 1;
+  optional string display_name = 2;
+  optional sint64 coins = 3;
+  repeated string tags = 4;
+  Inventory inventory = 5;
+  map<string, sint64> counters = 6;
+  bytes avatar_token = 7;
+  optional string realm = 8;
+  repeated sint64 milestones = 9 [packed = true];
+  reserved 10;
+  reserved "old_level";
+}
+message Inventory { repeated InventoryItem items = 1; }
+message InventoryItem { uint32 item_id = 1; uint32 count = 2; }

@@ -1,0 +1,35 @@
+{
+  "ok": true,
+  "phase": "asan2",
+  "commands": [
+    {
+      "name": "common",
+      "code": 0
+    },
+    {
+      "name": "logging",
+      "code": 0
+    },
+    {
+      "name": "store",
+      "code": 0
+    },
+    {
+      "name": "store_select_tests-build",
+      "code": 0
+    },
+    {
+      "name": "store_select_tests",
+      "code": 0
+    },
+    {
+      "name": "store_query_tests-build",
+      "code": 0
+    },
+    {
+      "name": "store_query_tests",
+      "code": 0
+    }
+  ],
+  "source_manifest_sha256": "24e9526d05ee5772ba8f192d16cbadba1a96685d5686dfbac87e0d126fdf3136"
+}

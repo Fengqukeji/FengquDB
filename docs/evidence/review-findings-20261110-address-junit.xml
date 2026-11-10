@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="Linux-c++"
+	tests="6"
+	failures="0"
+	disabled="0"
+	skipped="0"
+	hostname="e25e9e15ee4c"
+	time="5"
+	timestamp="2026-11-10T15:38:48"
+	>
+	<testcase name="paged_store_sdk" classname="paged_store_sdk" time="0.0615826" status="run">
+		<properties/>
+		<system-out>PASS shared Store C ABI and C++ SDK, immutable views and restart
+</system-out>
+	</testcase>
+	<testcase name="paged_select" classname="paged_select" time="0.353995" status="run">
+		<properties/>
+		<system-out>PASS generic native query conditions, plans, Top N, groups, joins, patterns, conflicts and budgets
+</system-out>
+	</testcase>
+	<testcase name="paged_query" classname="paged_query" time="0.864829" status="run">
+		<properties/>
+		<system-out>PASS compound typed indexes, range/reverse pagination, private query overlays, raw projections, budgets and crash/restart
+</system-out>
+	</testcase>
+	<testcase name="paged_atomic_owner" classname="paged_atomic_owner" time="0.241961" status="run">
+		<properties/>
+		<system-out>{"case":"quota","segmented":false,"successes":8,"limits":0,"captures_at_publish":6,"final_value":8}
+{"case":"quota","segmented":true,"successes":8,"limits":0,"captures_at_publish":6,"final_value":8}
+PASS private ownership without scheduling changes
+</system-out>
+	</testcase>
+	<testcase name="paged_committed_cache" classname="paged_committed_cache" time="0.796081" status="run">
+		<properties/>
+		<system-out>PASS committed cache, private aliases/budgets, single mutations and reusable completion
+</system-out>
+	</testcase>
+	<testcase name="paged_write_policy" classname="paged_write_policy" time="2.75522" status="run">
+		<properties/>
+		<system-out>PASS performance/reliable, memory visibility, forced prefix, controls and recovery
+</system-out>
+	</testcase>
+</testsuite>

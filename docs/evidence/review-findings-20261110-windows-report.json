@@ -1,0 +1,20 @@
+{
+  "ok": true,
+  "phase": "windows",
+  "commands": [
+    {
+      "name": "configure",
+      "code": 0
+    },
+    {
+      "name": "build",
+      "code": 0
+    },
+    {
+      "name": "ctest",
+      "code": 0
+    }
+  ],
+  "source_manifest_sha256": "76b2d5dd0e216d48ba3ba0541879d26702795cd8ac451707c9dcf159696cffc6",
+  "tests": 6
+}

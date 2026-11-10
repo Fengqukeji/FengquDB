@@ -1,0 +1,8 @@
+syntax = "proto3";
+package fengqudb.bench;
+// The benchmark encodes this fixed envelope directly without a runtime library.
+message Value {
+  fixed64 id = 1;
+  fixed64 revision = 2;
+  bytes padding = 3;
+}

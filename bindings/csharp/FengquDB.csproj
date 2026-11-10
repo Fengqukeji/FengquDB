@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <AssemblyName>FengquDB.Managed</AssemblyName>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <ItemGroup><Compile Include="FengquDB.cs" /><Compile Include="Store.cs" /><Compile Include="StoreFeatures.cs" /><Compile Include="StoreOperations.cs" /><Compile Include="StoreWatch.cs" /><Compile Include="StoreShared.cs" /><Compile Include="StoreWrite.cs" /><Compile Include="StoreSelect.cs" /></ItemGroup>
+</Project>

@@ -1,0 +1,46 @@
+{
+  "ok": true,
+  "commands": [
+    {
+      "name": "csharp-build",
+      "code": 0
+    },
+    {
+      "name": "configure",
+      "code": 0
+    },
+    {
+      "name": "build",
+      "code": 0
+    },
+    {
+      "name": "ctest",
+      "code": 0
+    },
+    {
+      "name": "java-build",
+      "code": 0
+    },
+    {
+      "name": "java-policy",
+      "code": 0
+    },
+    {
+      "name": "python-policy",
+      "code": 0
+    },
+    {
+      "name": "csharp-policy",
+      "code": 0
+    },
+    {
+      "name": "shared-buffers",
+      "code": 0
+    }
+  ],
+  "library": {
+    "bytes": 1117184,
+    "sha256": "0fa5d1df6121bd666ed8ad64629cb5c52aa428076818e15d81d42bd6e8d3b16b"
+  },
+  "source_manifest_sha256": "24e9526d05ee5772ba8f192d16cbadba1a96685d5686dfbac87e0d126fdf3136"
+}

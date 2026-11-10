@@ -1,0 +1,14 @@
+syntax = "proto3";
+package fengqudb.test;
+message WireFixture {
+  uint64 maximum = 1;
+  sint64 minimum = 2;
+  fixed32 bits32 = 3;
+  fixed64 bits64 = 4;
+  bytes binary = 5;
+  float single = 6;
+  double real = 7;
+  repeated uint32 packed = 8;
+  message Child { uint64 value = 1; }
+  Child child = 9;
+}
