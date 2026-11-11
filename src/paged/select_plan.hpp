@@ -502,6 +502,73 @@ inline std::unique_ptr<Plan> primary_plan(const Program &p, const Clause &clause
                           (!out->reverse || out->intervals.size() <= 1);
     return out;
 }
+// 收集过滤表达式引用的字段。只有 AND/OR/NOT 与叶子比较可被索引键判断，其余形态不支持。
+inline bool where_fields(const Expr &e, std::vector<const Field *> &out, unsigned depth = 0) {
+    if (depth > 64)
+        return false;
+    if (e.op == Op::And || e.op == Op::Or || e.op == Op::Not) {
+        for (auto &c : e.children)
+            if (!where_fields(c, out, depth + 1))
+                return false;
+        return true;
+    }
+    if (e.op == Op::True || e.op == Op::False)
+        return true;
+    out.push_back(&e.field);
+    if (e.right)
+        out.push_back(&*e.right);
+    return true;
+}
+// 窄索引过滤扫描：条件无法定界，但用到的字段全部在某个必填、非唯一的复合索引里时，
+// 只顺序扫该索引、不读业务值，在索引键上判断条件，命中后才回主表取整行。
+// 必填索引保证前缀下每条记录都有索引条目，因此不会漏行。
+// 无 ORDER BY 且结果很少（limit+offset<=64）时主键扫描可凑满即停，不走本计划；
+// 两种计划返回相同结果（均按主键取最小的若干行），只是性能取舍。
+inline std::unique_ptr<Plan> filter_scan_plan(const Program &p, const std::vector<IndexRule> &rules,
+                                              const Transaction &tx, Memory &m) {
+    // 事务内有未提交写入时，索引条目尚未反映它们，只能走主记录扫描。
+    if (tx.writes || !p.spec.joins.empty() || p.spec.where.op == Op::True ||
+        !p.spec.index_hint.empty())
+        return {};
+    if (p.spec.order.empty() && !p.aggregated && p.spec.limit + p.spec.offset <= 64)
+        return {};
+    std::vector<const Field *> used;
+    if (!where_fields(p.spec.where, used) || used.empty())
+        return {};
+    const IndexRule *chosen = nullptr;
+    size_t at = 0;
+    for (size_t i = 0; i < rules.size(); ++i) {
+        auto &r = rules[i];
+        if (r.parts.empty() || (r.flags & 1) || !(r.flags & 2) || !begins(p.spec.prefix, r.prefix))
+            continue;
+        bool all = true;
+        for (auto f : used) {
+            bool found = false;
+            if (f->source == 0 && f->path.size() == 1)
+                for (size_t k = 0; k < r.count(); ++k)
+                    found = found || (r.part(k).field == f->path[0] && r.part(k).type == f->type);
+            all = all && found;
+        }
+        if (all && (!chosen || r.count() < chosen->count())) {
+            chosen = &r;
+            at = i;
+        }
+    }
+    if (!chosen)
+        return {};
+    auto out = std::make_unique<Plan>(m);
+    out->rule = at;
+    out->access.strategy = "index_filter_scan";
+    out->access.index = chosen->name;
+    out->access.covering = covering(p, 0, *chosen);
+    out->access.needs_scan = true;
+    out->access.ordered = false;
+    out->access.reason = "no complete compatible index bounds; scan a narrow index and fetch "
+                         "only matching rows";
+    auto root = index_root(*chosen);
+    out->add(root, prefix_end(root));
+    return out;
+}
 inline std::vector<std::unique_ptr<Plan>> root_plans(const Program &p,
                                                      const std::vector<IndexRule> &rules,
                                                      Transaction &tx, Memory &m, Work &w,
@@ -536,6 +603,13 @@ inline std::vector<std::unique_ptr<Plan>> root_plans(const Program &p,
             };
             if (!best || score(*plan) < score(*best))
                 best = std::move(plan);
+        }
+        if (!best && branches.size() == 1) {
+            bool contradictory = false;
+            for (auto &v : constraints(clause))
+                contradictory = contradictory || v.second.empty;
+            if (!contradictory)
+                best = filter_scan_plan(p, rules, tx, m);
         }
         if (!best) {
             auto c = constraints(clause);

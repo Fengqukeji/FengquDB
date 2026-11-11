@@ -470,8 +470,89 @@ static void store_snapshot_path() {
     check(fqdb_store_select(nullptr, {nullptr, 0}, nullptr) == FQDB_INVALID_ARGUMENT,
           "null output select");
 }
+// 窄索引过滤扫描：结果必须等于按主记录逐行判断的模型，且索引更新和私有写入后仍然正确。
+static void filter_scan_matches_model() {
+    Fixture f;
+    Store db(f.name("filter-scan"));
+    seed(db);
+    db.define_compound_index("name", "p/", {{5, 4}}, 2);
+    db.checkpoint();
+    auto q = query();
+    q.where = E::compare(F::field(5, 4), QueryOp::Contains, V::text("1"));
+    q.limit = 4096;
+    auto sorted_ids = [](const StoreQueryResult &r) {
+        auto out = ids(r);
+        std::sort(out.begin(), out.end());
+        return out;
+    };
+    auto model = [](unsigned replaced_key, unsigned replaced_id) {
+        std::vector<uint64_t> out;
+        for (unsigned key = 0; key < 64; ++key) {
+            unsigned id = key == replaced_key ? replaced_id : key;
+            if (std::to_string(id).find('1') != std::string::npos)
+                out.push_back(id);
+        }
+        std::sort(out.begin(), out.end());
+        return out;
+    };
+    auto r = select(db, q);
+    check(r.access[0].strategy == "index_filter_scan", "filter scan was not chosen");
+    check(sorted_ids(r) == model(999, 0), "filter scan result differs from model");
+    // 索引随更新维护：改写一行的名称后，扫描结果必须同步变化。
+    put(db, "p/2", doc(131));
+    r = select(db, q);
+    check(r.access[0].strategy == "index_filter_scan" && sorted_ids(r) == model(2, 131),
+          "filter scan missed an indexed update");
+    // 事务内有私有写入时索引尚未反映，必须改走主记录扫描并看到私有写入。
+    auto tx = db.transaction();
+    tx.put("p/3", doc(141));
+    auto in_tx = select(tx, q);
+    check(in_tx.access[0].strategy != "index_filter_scan", "filter scan used with private writes");
+    auto expected = model(2, 131);
+    expected.push_back(141);
+    std::sort(expected.begin(), expected.end());
+    check(sorted_ids(in_tx) == expected, "private write invisible to filter scan fallback");
+    // 小结果且无排序时仍用主键序扫描，保留凑满即停。
+    auto small = query();
+    small.where = q.where;
+    small.limit = 5;
+    check(select(db, small).access[0].strategy == "prefix_scan", "small limit lost early stop");
+}
+// 规则缓存跨 Program 复用（换字面量的查询）时，目录变更后必须立即看到新的索引集合。
+static void rules_reuse_respects_catalog_epoch() {
+    Fixture f;
+    Store db(f.name("rules-reuse"));
+    seed(db);
+    auto at = [&](unsigned level) {
+        auto q = query();
+        q.where = E::compare(F::field(3, 1), QueryOp::Ge, V::uint(level));
+        return select(db, q);
+    };
+    auto first = at(10);
+    check(first.access[0].strategy != "index_range", "unexpected index before definition");
+    check(at(11).access[0].strategy != "index_range", "reused rules changed the plan");
+    db.define_compound_index("level", "p/", {{3, 1}}, 2);
+    auto indexed = at(12);
+    check(indexed.access[0].strategy == "index_range" && indexed.access[0].index == "level",
+          "reused rules missed a newly defined index");
+    check(at(13).access[0].index == "level", "second query after define lost the index");
+    db.drop_index("level");
+    check(at(14).access[0].strategy != "index_range", "reused rules kept a dropped index");
+    // 不同字面量的结果必须与按主记录逐行判断的模型一致。
+    for (unsigned level : {0u, 7u, 15u, 19u, 20u}) {
+        std::vector<uint64_t> expected;
+        for (unsigned i = 0; i < 64; ++i)
+            if (i % 20 >= level)
+                expected.push_back(i);
+        auto got = ids(at(level));
+        std::sort(got.begin(), got.end());
+        check(got == expected, "literal-varying query result differs from model");
+    }
+}
 int main() {
     try {
+        rules_reuse_respects_catalog_epoch();
+        filter_scan_matches_model();
         conditions_order_and_covering();
         store_snapshot_path();
         sparse_indices_paging_and_conflicts();

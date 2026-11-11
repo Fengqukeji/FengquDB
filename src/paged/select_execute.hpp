@@ -6,9 +6,10 @@ struct CoverScratch {
     std::array<Bytes, 8> values;
     Hold hold;
     explicit CoverScratch(Memory &m) : hold(m) {}
-    void fill(Record &record, const IndexRule &rule, std::string_view index_key,
-              std::string_view owner) {
-        auto root = index_root(rule);
+    // 解码索引键里各字段的编码值到 values，返回字段之后的剩余部分。
+    // 非唯一索引的剩余部分就是主键的 component 编码，因此无需读取索引条目的值。
+    std::string_view decode(const IndexRule &rule, std::string_view root,
+                            std::string_view index_key) {
         require(begins(index_key, root));
         size_t allowance = index_key.size() * 4 + 2048;
         if (allowance > hold.bytes)
@@ -19,6 +20,15 @@ struct CoverScratch {
             values[i] = uncomponent(rest.substr(0, n));
             rest.remove_prefix(n);
         }
+        return rest;
+    }
+    void fill(Record &record, const IndexRule &rule, std::string_view index_key,
+              std::string_view owner) {
+        decode(rule, index_root(rule), index_key);
+        assign(record, rule, owner);
+    }
+    // 把已解码的索引字段写入记录槽位；记录的其余字段保持未设置。
+    void assign(Record &record, const IndexRule &rule, std::string_view owner) {
         record.reset(owner, {});
         for (auto id : record.program.slots[record.source]) {
             const auto &f = record.program.fields[id];
@@ -149,9 +159,12 @@ struct Executor {
         bool cacheable = owner && tx.base->core->options.cache_bytes && !tx.writes;
         auto previous =
             std::atomic_load_explicit(&tx.base->core->select_plan_cache, std::memory_order_acquire);
-        bool reused = cacheable && previous && previous->program.lock().get() == &p &&
-                      previous->epoch == epoch && version >= previous->version &&
-                      version - previous->version < 256;
+        // 索引规则只取决于目录版本，与查询字面量无关：版本窗口内的缓存条目即使属于另一个
+        // Program，也可直接复用其规则而不重读目录；整套计划仍要求是同一个 Program。
+        bool rules_fresh = cacheable && previous && previous->epoch == epoch &&
+                           version >= previous->version && version - previous->version < 256;
+        bool reused = rules_fresh && previous->program.lock().get() == &p;
+        const bool borrow_rules = rules_fresh && !reused;
         if (reused) {
             size_t cost = 2048;
             for (auto &r : previous->rules)
@@ -170,7 +183,16 @@ struct Executor {
                 plans.push_back(std::move(plan));
             }
         } else {
-            load_rules();
+            if (borrow_rules) {
+                size_t cost = 0;
+                for (auto &r : previous->rules)
+                    cost += r.prefix.size() * 2 + r.name.size() * 2 +
+                            r.parts.size() * sizeof(IndexPart) * 2 + 256;
+                memory.take(cost);
+                rules = previous->rules;
+                prepared.resize(rules.size());
+            } else
+                load_rules();
             plans = root_plans(p, rules, tx, m, work, !explain_only);
         }
         for (auto &plan : plans) {
@@ -592,6 +614,38 @@ struct Executor {
                 if (stop)
                     break;
                 tx.range(interval.begin, interval.end);
+                if (plan->access.strategy == "index_filter_scan") {
+                    // 窄索引过滤扫描：不读业务值，在索引键上判断条件，命中后才回主表。
+                    const auto &rule = rules[*plan->rule];
+                    const auto root = index_root(rule);
+                    ReadCursor cursor(read.base, interval.begin, interval.end, false,
+                                      read.writes, true, true);
+                    while (!stop) {
+                        auto row = cursor.next(false);
+                        if (!row)
+                            break;
+                        work.candidate();
+                        auto owner = uncomponent(scratch.decode(
+                            rule, root,
+                            std::string_view(static_cast<const char *>(row->key.data),
+                                             size_t(row->key.size))));
+                        if (!begins(owner, p.spec.prefix) || system_key(owner))
+                            continue;
+                        scratch.assign(record, rule, owner);
+                        eval.records[0] = &record;
+                        eval.next_root();
+                        if (eval.run(p.where) != Truth::True) {
+                            record.reset({}, {});
+                            continue;
+                        }
+                        if (!plan->access.covering)
+                            source(record, owner);
+                        eval.next_root();
+                        walk(0);
+                        record.reset({}, {});
+                    }
+                    continue;
+                }
                 auto begin = interval.begin, end = interval.end;
                 if (has_cursor && p.spec.joins.empty() && !p.aggregated && !p.spec.distinct &&
                     plans.size() == 1 && plan->access.ordered) {

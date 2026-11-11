@@ -512,6 +512,13 @@ int main(int argc, char **argv) {
         bench("fengqudb", "like_prefix", [&](Phase &ph) { run(db, like, ph); });
         auto contains = q_text(Op::Contains, "777");
         bench("fengqudb", "contains_scan", [&](Phase &ph) { run(db, contains, ph); });
+        // 上限参照：同一前缀只数键、不读业务载荷，代表"不取值"的扫描每行成本下限。
+        {
+            fq::StoreQuery q;
+            q.prefix = "p/";
+            q.columns = {col(F::key(), A::CountAll)};
+            bench("fengqudb", "count_keys_only", [&](Phase &ph) { run(db, q, ph); });
+        }
 
         bench_threads("mt_topn_same_params", threads,
                       [&](unsigned, uint64_t, Phase &ph) { run(db, same, ph); });

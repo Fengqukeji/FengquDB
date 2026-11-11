@@ -95,7 +95,7 @@ auto rows = select(db, joined);
 * 自动选择显式创建且 READY 的索引，不自动建索引。支持复合等值/IN 前缀及随后一个范围、字符串前缀、LIKE 字面前缀；更后的条件原生过滤。
 * OR 最多展开 32 分支，IN 最多展开 128 索引区间；超出则退回安全前缀扫描和完整过滤。OR 去重避免重复结果；NOT 通常不能形成有界候选。
 * 可选复合索引缺组件时不建条目，只有证明不会漏结果才选择。覆盖需包含全部已用字段及相同物理类型。
-* `access` 返回 primary_key、primary_key_range、index_range、ordered_index、covering_index_scan、prefix_scan、empty 或关联策略，以及 covering/ordered/needs_scan。sampled_candidates 是有界样本，不是精确行数或全量成本估算。
+* `access` 返回 primary_key、primary_key_range、index_range、ordered_index、covering_index_scan、index_filter_scan、prefix_scan、empty 或关联策略，以及 covering/ordered/needs_scan。sampled_candidates 是有界样本，不是精确行数或全量成本估算。
 * `allow_scan=false` 拒绝完整源扫描/哈希构建，仍允许宽索引范围，因此应同时限制 max_candidates。Explain 可解释被此开关禁止的计划，不执行查询。
 * 每个 Store 最多缓存一个不可变编译程序和一个计划，计入 pin 额度，不保留记录/历史代际。计划校验目录 epoch，数据样本最多复用 255 个提交版本；样本可能过时，不保证始终选择最优计划。
 * 只解析所用字段路径，跳过其余载荷；索引覆盖、顺序提前停止、有界堆、一次哈希构建分别减少读取/排序/关联工作。任意排序、无前缀包含/正则、无索引条件仍可能处理大量候选，不能保证所有查询都胜过其他数据库。
