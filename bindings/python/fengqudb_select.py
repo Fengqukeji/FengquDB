@@ -153,7 +153,10 @@ class PreparedQuery:
     encoded: bytes
     def __post_init__(self): object.__setattr__(self,"encoded",bytes(self.encoded))
     def _run(self, database, explain):
-        response=database.execute(54 if explain else 53,b"",value=self.encoded)
+        operation=54 if explain else 53
+        # Store uses the read-only snapshot entry; transactions keep private-write visibility.
+        response=(database.select_raw(operation,self.encoded) if hasattr(database,"select_raw")
+                  else database.execute(operation,b"",value=self.encoded))
         if response.value is None: raise ValueError("missing query response")
         return Result(response.value)
     def execute(self, database): return self._run(database,False)

@@ -640,6 +640,7 @@ class _StoreNative(_Native):
         signatures["purge_expired"] = [pointer, C.POINTER(StoreExpiryOptions), C.POINTER(StoreExpiryInfo)]
         signatures.update({"hash_get_view": [pointer,Slice,Slice,C.POINTER(pointer)],
             "value_data": [pointer], "value_close": [pointer], "txn_execute": [pointer, Slice, C.POINTER(Slice)],
+            "select": [pointer, Slice, C.POINTER(Slice)],
             "project": [pointer,Slice,C.POINTER(C.c_uint32),C.c_uint32,C.POINTER(Slice)],
             "project_reader_create": [pointer,C.POINTER(Slice),C.c_uint32,C.POINTER(C.c_uint32),C.c_uint32,C.POINTER(pointer)],
             "configure": [pointer, C.POINTER(StoreRuntimeOptions)],
@@ -896,6 +897,16 @@ class Store(_Handle):
                 value = self._native.store_value_data(output)
                 return C.string_at(value.data,value.size) if value.size else b""
             finally: self._native.store_value_close(output)
+    def select_raw(self, operation, value):
+        """Read-only SELECT/EXPLAIN on a fresh snapshot; no transaction or dependencies."""
+        request, owner = _slice(_feature_request(operation, b"", b"", value))
+        with self._lock:
+            output = Slice()
+            try:
+                self._native.check(self._native.store_select(self._live(), request, C.byref(output)))
+                data = C.string_at(output.data, output.size) if output.size else b""
+            finally: self._native.buffer_free(C.byref(output))
+        return _feature_result(data)
     def execute(self, operation, scope, key=b"", value=b"", *,force_reliable=False, **options):
         tx = self.transaction()
         try:
