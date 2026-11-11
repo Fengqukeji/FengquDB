@@ -68,7 +68,8 @@ public sealed class StoreQuery {
 public sealed class PreparedQuery {
     readonly byte[] encoded;
     internal PreparedQuery(byte[] bytes){encoded=bytes;}
-    public StoreQueryResult Execute(Store db,bool explain=false)=>StoreQueryResult.Decode(db.Execute((StoreOperation)(explain?54:53),Array.Empty<byte>(),value:encoded).Value!);
+    // Store runs on a read-only snapshot; a transaction keeps private-write visibility.
+    public StoreQueryResult Execute(Store db,bool explain=false)=>StoreQueryResult.Decode(db.SelectRaw((StoreOperation)(explain?54:53),encoded).Value!);
     public StoreQueryResult Execute(StoreTransaction tx,bool explain=false)=>StoreQueryResult.Decode(tx.Execute((StoreOperation)(explain?54:53),Array.Empty<byte>(),value:encoded).Value!);
 }
 public sealed class QueryRow {public byte[] Key=Array.Empty<byte>();public List<object?> Values=new List<object?>();}
