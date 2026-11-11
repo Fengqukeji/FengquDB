@@ -361,6 +361,11 @@ static void load_sqlite(Sql &sql, uint64_t players) {
     }
     sql.exec("COMMIT; CREATE INDEX p_class_level ON p(class, level); CREATE INDEX p_name ON p(name);"
              "CREATE INDEX o_owner ON o(owner); ANALYZE;");
+#ifdef FQDB_BENCH_COVERING
+    // 与 FengquDB 覆盖索引变体对等：SQLite 二级索引天然带 rowid(=id)，补上 topN 与分组所需的列。
+    sql.exec("CREATE INDEX p_cover_topn ON p(class, level, gold); "
+             "CREATE INDEX p_cover_group ON p(class, gold); ANALYZE;");
+#endif
 }
 #endif
 

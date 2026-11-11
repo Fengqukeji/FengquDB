@@ -371,8 +371,10 @@ struct Executor {
             heap.back() = std::move(row);
             std::push_heap(heap.begin(), heap.end(), cmp);
         } else {
+            // 未达上限前不会淘汰任何行，也不读取堆顶：先线性追加，恰好填满时一次建堆。
             heap.push_back(std::move(row));
-            std::push_heap(heap.begin(), heap.end(), cmp);
+            if (heap.size() == maximum)
+                std::make_heap(heap.begin(), heap.end(), cmp);
         }
         if (early && heap.size() == maximum) {
             stop = true;
