@@ -13,6 +13,9 @@ for w in $workloads; do
     echo "--- self"
     perf report -i "/tmp/$w.data" --no-children --stdio --percent-limit 1.2 -g none --sort symbol 2>/dev/null |
         grep -v '^#' | grep -v '^$' | cut -c1-150 | head -n 28
+    echo "--- query only (samples under select_query, load phase excluded)"
+    perf report -i "/tmp/$w.data" --no-children --stdio -g none -p select_query -x --sort symbol \
+        --percent-limit 1.5 2>/dev/null | grep -v '^#' | grep -v '^$' | cut -c1-150 | head -n 24
     echo "--- inclusive"
     perf report -i "/tmp/$w.data" --children --stdio --percent-limit 4 -g none --sort symbol 2>/dev/null |
         grep -v '^#' | grep -v '^$' | grep fengqudb | cut -c1-150 | head -n 40
