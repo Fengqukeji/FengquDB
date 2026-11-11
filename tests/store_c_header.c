@@ -34,5 +34,11 @@ int fqdb_store_c_header_smoke(void) {
             reader != 0)
             return 7;
     }
+    {
+        fqdb_buffer bytes = {(void *)1, 1};
+        if (fqdb_store_select(0, empty, &bytes) != FQDB_INVALID_ARGUMENT || bytes.data != 0 ||
+            bytes.size != 0)
+            return 8;
+    }
     return 0;
 }

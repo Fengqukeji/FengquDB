@@ -429,9 +429,51 @@ static void cache_schema_and_metadata_only() {
     check(status([&] { select(large, q); }) == FQDB_LIMIT,
           "payload query bypassed tiny pin budget");
 }
+// The Store-level snapshot path must match the transaction path and reject non-query ops.
+static void store_snapshot_path() {
+    Fixture f;
+    Store db(f.name("snapshot-path"));
+    seed(db);
+    auto q = query();
+    q.where = E::all({E::compare(F::field(2, 4), QueryOp::Eq, V::text("mage")),
+                      E::compare(F::field(3, 1), QueryOp::Ge, V::uint(5))});
+    q.columns.push_back({F::field(4, 5), A::None, {}});
+    q.order = {{F::field(4, 5), true, true}, {F::field(1, 1), false, true}};
+    auto tx = db.transaction();
+    auto in_tx = select(tx, q);
+    auto direct = select(db, q);
+    check(!direct.rows.empty() && ids(direct) == ids(in_tx) &&
+              direct.rows[0].values[1].signed_value == in_tx.rows[0].values[1].signed_value,
+          "store snapshot select differs from transaction select");
+    check(direct.stats.payload_reads == in_tx.stats.payload_reads,
+          "snapshot path changed payload reads");
+    auto prepared = fengqudb::StorePreparedQuery(q);
+    check(ids(prepared.execute(db)) == ids(direct), "prepared store select differs");
+    check(!explain(db, q).access.empty(), "store explain lost access plan");
+    // Private writes are visible only through the transaction path.
+    tx.put("p/1000", doc(1001));
+    auto all = query();
+    all.limit = 4096;
+    check(select(tx, all).rows.size() == 65 && select(db, all).rows.size() == 64,
+          "private write visibility differs between paths");
+    // The snapshot path records no dependencies; the transaction path still conflicts.
+    put(db, "p/1", doc(1));
+    check(select(db, all).rows.size() == 64, "snapshot select after write");
+    check(tx.commit().status == Status::conflict, "transaction query lost dependency");
+    fengqudb::StoreCommand bad{FQDB_COLLECTION_SIZE, "h"};
+    check(status([&] { db.select_command(bad); }) == FQDB_INVALID_ARGUMENT,
+          "store select accepted a non-query operation");
+    fqdb_buffer out{reinterpret_cast<void *>(1), 1};
+    check(fqdb_store_select(nullptr, {nullptr, 0}, &out) == FQDB_INVALID_ARGUMENT &&
+              out.data == nullptr && out.size == 0,
+          "null store select");
+    check(fqdb_store_select(nullptr, {nullptr, 0}, nullptr) == FQDB_INVALID_ARGUMENT,
+          "null output select");
+}
 int main() {
     try {
         conditions_order_and_covering();
+        store_snapshot_path();
         sparse_indices_paging_and_conflicts();
         groups_numeric_and_nulls();
         joins_and_patterns();

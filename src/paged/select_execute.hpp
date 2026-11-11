@@ -81,6 +81,9 @@ struct Executor {
     Work work;
     Eval eval;
     Transaction read;
+    // Request-local B-tree page path: primary-key lookups reuse cached upper pages.
+    Charge path_charge;
+    std::optional<Table::ReadPath> path;
     std::vector<IndexRule> rules;
     std::vector<bool> prepared;
     std::vector<std::unique_ptr<Plan>> plans;
@@ -116,6 +119,22 @@ struct Executor {
         read.advanced = true;
         read.has_deadline = t.has_deadline;
         read.deadline = t.deadline;
+        read.track_reads = t.track_reads;
+        if (t.base->core->options.cache_bytes) {
+            // Same allowance as query_index; near the pin limit use plain lookups.
+            constexpr uint64_t allowance = 65536;
+            auto &core = *t.base->core;
+            try {
+                if (core.options.pinned_bytes - core.pin_budget->used() >=
+                    allowance + FQDB_MAX_KEY_BYTES + sizeof(Data)) {
+                    path_charge = Charge(core.pin_budget, {}, allowance);
+                    path.emplace(allowance);
+                }
+            } catch (const Error &e) {
+                if (e.status != FQDB_LIMIT)
+                    throw;
+            }
+        }
         for (unsigned i = 0; i <= p.spec.joins.size(); ++i) {
             memory.take(sizeof(Record) + 64);
             records[i] = std::make_unique<Record>(p, i, m, tx.base->core->pin_budget);
@@ -265,7 +284,7 @@ struct Executor {
         }
     }
     void source(Record &r, std::string_view name) {
-        auto value = read.try_get(Bytes(name));
+        auto value = read.try_get(Bytes(name), nullptr, path ? &*path : nullptr);
         require(bool(value));
         ++work.stats.payload_reads;
         r.reset(name, std::move(value));
@@ -475,7 +494,7 @@ struct Executor {
             auto atom = eval.get(p.left[j][0]);
             if (atom.kind == Kind::Bytes && begins(atom.text, spec.prefix) &&
                 !system_key(atom.text)) {
-                auto value = read.try_get(Bytes(atom.text));
+                auto value = read.try_get(Bytes(atom.text), nullptr, path ? &*path : nullptr);
                 if (value) {
                     ++work.stats.payload_reads;
                     record.reset(atom.text, std::move(value));

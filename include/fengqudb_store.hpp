@@ -886,6 +886,21 @@ class Store {
         } free{bytes};
         return std::string(detail::view({bytes.data, bytes.size}));
     }
+    // Read-only query on a fresh snapshot (FQDB_SELECT / FQDB_SELECT_EXPLAIN only);
+    // creates no committable transaction and records no per-row dependencies.
+    StoreCommandResult select_command(const StoreCommand &command) const {
+        detail::require(handle_.get());
+        auto request = command.encode();
+        fqdb_buffer bytes{};
+        detail::check(fqdb_store_select(handle_.get(), detail::slice(request), &bytes));
+        struct Free {
+            fqdb_buffer &bytes;
+            ~Free() {
+                fqdb_buffer_free(&bytes);
+            }
+        } free{bytes};
+        return StoreCommandResult(detail::view({bytes.data, bytes.size}));
+    }
     StoreCommandResult execute(const StoreCommand &command, bool force_reliable = false) {
         auto tx = transaction();
         auto result = tx.execute(command);

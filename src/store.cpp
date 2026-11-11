@@ -1266,6 +1266,25 @@ fqdb_status FQDB_CALL fqdb_store_txn_execute(fqdb_store_txn *txn, fqdb_slice req
             *out = p::execute_feature(txn->value, parsed).encode();
     });
 }
+// Store-level read-only query on a fresh immutable snapshot: no committable transaction
+// and no per-row dependencies. Same encoding as fqdb_store_txn_execute; SELECT/EXPLAIN only.
+fqdb_status FQDB_CALL fqdb_store_select(fqdb_store *store, fqdb_slice request, fqdb_buffer *out) {
+    if (!out)
+        return FQDB_INVALID_ARGUMENT;
+    *out = {};
+    if (!store || !valid(request, FQDB_MAX_TRANSACTION_BYTES))
+        return FQDB_INVALID_ARGUMENT;
+    return boundary([&] {
+        p::FeatureRequest parsed(view(request));
+        p::require(parsed.operation == FQDB_SELECT || parsed.operation == FQDB_SELECT_EXPLAIN,
+                   FQDB_INVALID_ARGUMENT);
+        p::Transaction tx(store->core, 0);
+        tx.track_reads = false;
+        p::Charge retained;
+        auto result = p::select_query(tx, parsed, retained);
+        *out = result.encode();
+    });
+}
 fqdb_status FQDB_CALL fqdb_store_txn_get(fqdb_store_txn *txn, fqdb_slice k, fqdb_buffer *out) {
     if (!out)
         return FQDB_INVALID_ARGUMENT;

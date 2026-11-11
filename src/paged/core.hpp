@@ -501,6 +501,11 @@ struct Transaction {
     uint64_t next_savepoint = 0;
     bool has_deadline = false, sealed = false, broken = false;
     bool advanced = false, skip_indexes = false;
+    // false only for Store-level read-only queries: the snapshot is immutable and never
+    // committed, so per-key dependencies and ranges are useless. Skipping them saves a map
+    // insertion and budget charge per row. Staging writes is rejected in this mode.
+    bool track_reads = true;
+    Ref untracked_;
     uint64_t imported_time = 0, feature_bits = 0;
     Transaction(std::shared_ptr<Core> core, uint64_t timeout)
         : Transaction(std::make_shared<Capture>(std::move(core)), timeout) {}
@@ -527,6 +532,13 @@ struct Transaction {
     // Keep metadata beside each snapshot dependency. Subsequent reads and
     // edits reuse it; commit still validates against the latest writer view.
     const Ref &depend(const Bytes &key, Table::ReadPath *path = nullptr) {
+        if (!track_reads) {
+            // Read-only snapshot query: look up metadata without retaining a dependency.
+            // The returned reference stays valid only until the next call.
+            untracked_ =
+                (path ? base->view->find(key, *path) : base->view->find(key)).value_or(Ref{});
+            return untracked_;
+        }
         auto position = reads.lower_bound(key);
         if (position == reads.end() || compare(position->first, key) != 0) {
             auto ref =
@@ -570,6 +582,7 @@ struct Transaction {
     }
     void stage(const Bytes &key, Write value) {
         ready();
+        require(track_reads, FQDB_INVALID_ARGUMENT);
         value.original = depend(key);
         try {
             WriteBuilder edit(std::move(writes), budget, base->core->transaction_budget);
@@ -608,6 +621,7 @@ struct Transaction {
     }
     void patch(const Bytes &key, uint64_t offset, uint64_t remove, std::string_view insert) {
         ready();
+        require(track_reads, FQDB_INVALID_ARGUMENT);
         auto source = get(key);
         require(offset <= source->size() && remove <= source->size() - offset,
                 FQDB_INVALID_ARGUMENT);
@@ -679,6 +693,8 @@ struct Transaction {
     void range(Bytes begin, Bytes end) {
         ready();
         require(end.empty() || compare(begin, end) <= 0, FQDB_INVALID_ARGUMENT);
+        if (!track_reads)
+            return;
         require(ranges.size() < 1024, FQDB_LIMIT);
         Charge charge(budget, base->core->transaction_budget,
                       begin.size() + end.size() + sizeof(Range) + 64);

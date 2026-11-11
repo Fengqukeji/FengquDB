@@ -2,6 +2,7 @@
 #define FENGQUDB_SELECT_HPP
 #include "fengqudb_store.hpp"
 #include <cmath>
+#include <type_traits>
 
 namespace fengqudb {
 enum class QueryKind : uint32_t { Null, UInt, Int, Real, Bytes, Bool };
@@ -423,6 +424,18 @@ struct StoreQueryResult {
 };
 // Both Store and StoreTransaction expose execute(). Keep the core C ABI shared
 // with every SDK; no C++ objects cross the library boundary.
+namespace query_wire {
+// Stores (including subclasses) use the read-only snapshot entry; transactions keep the
+// original path so queries see private writes and join conflict checks.
+template <class Database>
+StoreCommandResult run(Database &db, uint32_t operation, std::string_view request) {
+    StoreCommand command{operation, {}, {}, request};
+    if constexpr (std::is_base_of<Store, Database>::value)
+        return db.select_command(command);
+    else
+        return db.execute(command);
+}
+} // namespace query_wire
 class StorePreparedQuery {
     std::string encoded_;
 
@@ -431,7 +444,7 @@ class StorePreparedQuery {
     template <class Database>
     StoreQueryResult execute(Database &db, bool explain_only = false) const {
         auto result =
-            db.execute({explain_only ? FQDB_SELECT_EXPLAIN : FQDB_SELECT, {}, {}, encoded_});
+            query_wire::run(db, explain_only ? FQDB_SELECT_EXPLAIN : FQDB_SELECT, encoded_);
         if (!result.value)
             throw Error(FQDB_CORRUPT);
         return StoreQueryResult(*result.value);
@@ -439,14 +452,14 @@ class StorePreparedQuery {
 };
 template <class Database> StoreQueryResult select(Database &db, const StoreQuery &q) {
     auto request = q.encode();
-    auto result = db.execute({FQDB_SELECT, {}, {}, request});
+    auto result = query_wire::run(db, FQDB_SELECT, request);
     if (!result.value)
         throw Error(FQDB_CORRUPT);
     return StoreQueryResult(*result.value);
 }
 template <class Database> StoreQueryResult explain(Database &db, const StoreQuery &q) {
     auto request = q.encode();
-    auto result = db.execute({FQDB_SELECT_EXPLAIN, {}, {}, request});
+    auto result = query_wire::run(db, FQDB_SELECT_EXPLAIN, request);
     if (!result.value)
         throw Error(FQDB_CORRUPT);
     return StoreQueryResult(*result.value);
