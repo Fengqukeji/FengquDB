@@ -583,8 +583,41 @@ static void like_prefix_fast_path_matches_nfa() {
     check(run("name-1%").empty(), "like prefix must be case sensitive");
     check(status([&] { run("Name-1\\"); }) == FQDB_INVALID_ARGUMENT, "dangling escape accepted");
 }
+// 非唯一复合索引直接从键尾解主键：主键含零字节（需转义）时结果仍必须正确。
+static void index_scan_decodes_owner_from_key() {
+    Fixture f;
+    Store db(f.name("owner-from-key"));
+    seed(db);
+    db.define_compound_index("level", "p/", {{3, 1}}, 2);
+    const std::string odd("p/z\0y\xff", 6);
+    put(db, odd, doc(70));
+    auto q = query();
+    q.columns = {{F::key(), A::None, {}}, {F::field(1, 1), A::None, {}}};
+    q.where = E::compare(F::field(3, 1), QueryOp::Ge, V::uint(10));
+    q.limit = 4096;
+    auto r = select(db, q);
+    check(r.access[0].strategy == "index_range", "owner-from-key query did not use the index");
+    bool found = false;
+    size_t expected = 0;
+    for (unsigned i = 0; i < 64; ++i)
+        expected += (i % 20 >= 10);
+    expected += (70 % 20 >= 10);
+    for (auto &row : r.rows)
+        if (row.values[0].bytes == odd) {
+            found = true;
+            check(row.values[1].unsigned_value == 70, "wrong row for key with zero byte");
+        }
+    check(found && r.rows.size() == expected, "index scan lost or duplicated rows");
+    // 覆盖路径（只取索引字段与主键）同样从键尾取主键。
+    q.columns = {{F::key(), A::None, {}}, {F::field(3, 1), A::None, {}}};
+    auto covered = select(db, q);
+    check(covered.access[0].covering && covered.stats.payload_reads == 0 &&
+              covered.rows.size() == expected,
+          "covering scan with key-tail owner differs");
+}
 int main() {
     try {
+        index_scan_decodes_owner_from_key();
         like_prefix_fast_path_matches_nfa();
         rules_reuse_respects_catalog_epoch();
         filter_scan_matches_model();

@@ -692,27 +692,43 @@ struct Executor {
                 }
                 ReadCursor cursor(read.base, begin, end, plan->reverse, read.writes,
                                   plan->rule.has_value(), true);
+                // 非唯一复合索引的键尾就是 component(主键)，条目的值只是同一主键的副本：
+                // 直接从键解出主键，省掉每行一次缓存取值。唯一索引的键不含主键，仍需取值。
+                const IndexRule *tail_rule = nullptr;
+                Bytes tail_root;
+                if (plan->rule && !rules[*plan->rule].parts.empty() &&
+                    !(rules[*plan->rule].flags & 1)) {
+                    tail_rule = &rules[*plan->rule];
+                    tail_root = index_root(*tail_rule);
+                }
                 while (!stop) {
-                    auto row = cursor.next(plan->rule.has_value() || p.payload[0]);
+                    auto row = cursor.next(!tail_rule && (plan->rule.has_value() || p.payload[0]));
                     if (!row)
                         break;
                     work.candidate();
-                    auto name = plan->rule
-                                    ? std::string_view(static_cast<const char *>(row->value.data),
-                                                       size_t(row->value.size))
-                                    : std::string_view(static_cast<const char *>(row->key.data),
-                                                       size_t(row->key.size));
+                    const std::string_view index_key(static_cast<const char *>(row->key.data),
+                                                     size_t(row->key.size));
+                    Bytes tail_owner;
+                    std::string_view name;
+                    if (tail_rule) {
+                        tail_owner = uncomponent(scratch.decode(*tail_rule, tail_root, index_key));
+                        name = tail_owner;
+                    } else if (plan->rule)
+                        name = std::string_view(static_cast<const char *>(row->value.data),
+                                                size_t(row->value.size));
+                    else
+                        name = index_key;
                     if (!begins(name, p.spec.prefix) || system_key(name))
                         continue;
                     if (union_scan && !seen.insert(text(memory, name)).second)
                         continue;
                     if (plan->rule) {
-                        if (plan->access.covering)
-                            scratch.fill(record, rules[*plan->rule],
-                                         std::string_view(static_cast<const char *>(row->key.data),
-                                                          size_t(row->key.size)),
-                                         name);
-                        else
+                        if (plan->access.covering) {
+                            if (tail_rule)
+                                scratch.assign(record, *tail_rule, name);
+                            else
+                                scratch.fill(record, rules[*plan->rule], index_key, name);
+                        } else
                             source(record, name);
                     } else {
                         record.reset(name, cursor.value_ref(), true);
