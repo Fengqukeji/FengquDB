@@ -82,7 +82,8 @@ struct Program {
     std::string request;
     Charge charge;
     uint64_t reservation;
-    uint64_t signature = 1469598103934665603ull;
+    mutable std::once_flag signature_once_;
+    mutable uint64_t signature_ = 0;
     uint64_t compile_steps = 0;
     Work *compiling = nullptr;
     std::unique_ptr<Memory> compiled_memory;
@@ -167,25 +168,34 @@ struct Program {
         for (auto &t : tries)
             t.finish();
         reservation = compiled_memory->retained();
-        auto logical = spec;
-        logical.after.clear();
-        logical.limit = 1;
-        logical.offset = 0;
-        logical.memory_bytes = 0;
-        logical.max_candidates = 0;
-        logical.max_work = 0;
-        logical.timeout_ms = 0;
-        logical.allow_scan = false;
-        logical.count_total = false;
-        logical.index_hint.clear();
-        auto canonical = logical.encode();
-        for (unsigned char c : canonical) {
-            signature ^= c;
-            signature *= 1099511628211ull;
-        }
         compiler.check();
         compile_steps = compiler.stats.work;
         compiling = nullptr;
+    }
+    // 分页游标签名：逻辑查询（去掉分页与预算参数）规范编码的 FNV-1a 哈希。
+    // 只有解码或生成游标令牌时才需要，因此首次使用时计算一次，避免每次编译都拷贝并重新编码 spec。
+    uint64_t signature() const {
+        std::call_once(signature_once_, [this] {
+            auto logical = spec;
+            logical.after.clear();
+            logical.limit = 1;
+            logical.offset = 0;
+            logical.memory_bytes = 0;
+            logical.max_candidates = 0;
+            logical.max_work = 0;
+            logical.timeout_ms = 0;
+            logical.allow_scan = false;
+            logical.count_total = false;
+            logical.index_hint.clear();
+            auto canonical = logical.encode();
+            uint64_t hash = 1469598103934665603ull;
+            for (unsigned char c : canonical) {
+                hash ^= c;
+                hash *= 1099511628211ull;
+            }
+            signature_ = hash;
+        });
+        return signature_;
     }
     unsigned intern(const Field &f, bool output, bool allow_hidden = false) {
         if (f.source == 255)

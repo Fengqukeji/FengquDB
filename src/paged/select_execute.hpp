@@ -106,7 +106,6 @@ struct Executor {
     Vec<Atom> computed, sort_values;
     Vec<Owned> cursor_sort;
     Text cursor_identity;
-    uint64_t signature = 0;
     std::string_view after;
     bool has_cursor = false, stop = false, early = false;
     std::vector<QueryAccess> access;
@@ -151,7 +150,6 @@ struct Executor {
         }
         computed.resize(p.spec.columns.size());
         sort_values.resize(p.order.size());
-        signature = p.signature;
         if (!after.empty())
             decode_cursor();
         auto epoch = tx.depend(catalog_epoch()).version;
@@ -275,7 +273,7 @@ struct Executor {
             } else
                 throw Error(FQDB_INVALID_ARGUMENT);
         });
-        require(hash == signature && cursor_sort.size() == p.order.size() &&
+        require(hash == p.signature() && cursor_sort.size() == p.order.size() &&
                     (seen_fields & (UINT64_C(1) << 2)),
                 FQDB_INVALID_ARGUMENT);
         has_cursor = true;
@@ -779,7 +777,7 @@ struct Executor {
     }
     Bytes cursor(const Output &row) {
         wire::Writer w;
-        w.fixed64_field(1, signature);
+        w.fixed64_field(1, p.signature());
         w.bytes_field(2, view(row.identity));
         for (auto &v : row.sort)
             atom_message(w, 3, v.ref());
