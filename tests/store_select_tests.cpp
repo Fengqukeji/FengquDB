@@ -549,8 +549,43 @@ static void rules_reuse_respects_catalog_epoch() {
         check(got == expected, "literal-varying query result differs from model");
     }
 }
+// LIKE 的字面量前缀快路径必须与通用 NFA 结果一致。
+static void like_prefix_fast_path_matches_nfa() {
+    Fixture f;
+    Store db(f.name("like-prefix"));
+    seed(db);
+    auto run = [&](const char *pattern) {
+        auto q = query();
+        q.where = E::compare(F::field(5, 4), QueryOp::Like, V::text(pattern));
+        q.limit = 4096;
+        auto got = ids(select(db, q));
+        std::sort(got.begin(), got.end());
+        return got;
+    };
+    auto starting = [](char digit, size_t min_digits) {
+        std::vector<uint64_t> out;
+        for (unsigned i = 0; i < 64; ++i) {
+            auto text = std::to_string(i);
+            if (text[0] == digit && text.size() >= min_digits)
+                out.push_back(i);
+        }
+        return out;
+    };
+    std::vector<uint64_t> all;
+    for (unsigned i = 0; i < 64; ++i)
+        all.push_back(i);
+    check(run("Name-1%") == starting('1', 1), "like prefix fast path");
+    check(run("Name-6%") == starting('6', 1), "like prefix fast path 6");
+    check(run("Name-1_%") == starting('1', 2), "like with underscore uses the pattern engine");
+    check(run("%") == all && run("Name-%") == all, "like match-all prefix");
+    check(run("Name-1\\%%").empty(), "escaped percent must stay literal");
+    check(run("Name-1") == std::vector<uint64_t>{1}, "like without wildcard must match exactly");
+    check(run("name-1%").empty(), "like prefix must be case sensitive");
+    check(status([&] { run("Name-1\\"); }) == FQDB_INVALID_ARGUMENT, "dangling escape accepted");
+}
 int main() {
     try {
+        like_prefix_fast_path_matches_nfa();
         rules_reuse_respects_catalog_epoch();
         filter_scan_matches_model();
         conditions_order_and_covering();

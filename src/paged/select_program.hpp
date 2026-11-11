@@ -50,10 +50,33 @@ struct Predicate {
     std::vector<unsigned> children;
     std::vector<Atom> values;
     std::optional<Pattern> pattern;
+    // LIKE 'abc%'（只有一个未转义的尾部 %，其余全是字面量）等价于字节前缀比较，
+    // 编译期直接降级，匹配时不走 NFA。
+    std::optional<std::string> like_prefix;
     std::vector<size_t> prefix;
     std::vector<uint32_t> fuzzy_points;
     unsigned distance = 0;
 };
+// 若 LIKE 模式是"若干字面量（可用反斜杠转义）加唯一的尾部 %"，返回字面量前缀；
+// 含 _、中间的 %、悬空反斜杠或没有尾部 % 时返回空，继续走通用 NFA（含其参数校验）。
+inline std::optional<std::string> literal_like_prefix(std::string_view pattern) {
+    std::string prefix;
+    for (size_t i = 0; i < pattern.size(); ++i) {
+        char c = pattern[i];
+        if (c == '\\') {
+            if (++i >= pattern.size())
+                return std::nullopt;
+            prefix += pattern[i];
+        } else if (c == '%')
+            return i + 1 == pattern.size() ? std::optional<std::string>(std::move(prefix))
+                                           : std::nullopt;
+        else if (c == '_')
+            return std::nullopt;
+        else
+            prefix += c;
+    }
+    return std::nullopt;
+}
 struct Program {
     Spec spec;
     std::string request;
@@ -268,8 +291,11 @@ struct Program {
                                                                : uint64_t(v.signed_value));
                     p.fuzzy_points = fuzzy_pattern(pattern);
                 }
-                if (e.op == Op::Regex || e.op == Op::IRegex || e.op == Op::Like ||
-                    e.op == Op::ILike)
+                if (e.op == Op::Like)
+                    p.like_prefix = literal_like_prefix(pattern);
+                if ((e.op == Op::Regex || e.op == Op::IRegex || e.op == Op::Like ||
+                     e.op == Op::ILike) &&
+                    !p.like_prefix)
                     p.pattern.emplace(*compiled_memory, pattern,
                                       e.op == Op::IRegex || e.op == Op::ILike,
                                       e.op == Op::Like || e.op == Op::ILike, compiling);
@@ -543,7 +569,12 @@ struct Eval {
             require(a.kind == Kind::Bytes && b.kind == Kind::Bytes, FQDB_CONSTRAINT);
             if (e.op == Op::Fuzzy)
                 result = fuzzy(a.text, e.fuzzy_points, e.distance, w, scratch);
-            else if (e.pattern)
+            else if (e.like_prefix) {
+                const auto &prefix = *e.like_prefix;
+                w.tick(prefix.size() + 1);
+                result = a.text.size() >= prefix.size() &&
+                         a.text.compare(0, prefix.size(), prefix) == 0;
+            } else if (e.pattern)
                 result = e.pattern->matches(a.text, w, scratch);
             else if (e.op == Op::StartsWith || e.op == Op::EndsWith) {
                 w.tick(b.text.size());

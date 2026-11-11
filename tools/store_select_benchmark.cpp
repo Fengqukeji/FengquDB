@@ -396,6 +396,9 @@ static void load_store(fq::Store &db, uint64_t players) {
 #ifdef FQDB_BENCH_COVERING
     // 实验：覆盖 topn 的过滤与输出列（class, level, gold, id），查询无需读业务值。
     db.define_compound_index("cl-gold-id", "p/", {{2, 4}, {3, 1}, {4, 5}, {1, 1}}, 2);
+    // like 与分组查询的覆盖索引：SQLite 的二级索引天然带 rowid，这里显式带上 id / gold。
+    db.define_compound_index("name-id", "p/", {{5, 4}, {1, 1}}, 2);
+    db.define_compound_index("class-gold", "p/", {{2, 4}, {4, 5}}, 2);
 #endif
     db.define_compound_index("name", "p/", {{5, 4}}, 2);
     db.define_compound_index("owner", "o/", {{1, 1}}, 2);
