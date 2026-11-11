@@ -25,6 +25,12 @@ public final class SelectSmoke {
         Q.Builder typed=Q.from("p/").where(cls.eq("mage").and(lvl.ge(5L)).and(lvl.le(15L))).select(id,lvl).orderBy(lvl.desc()).limit(7);
         Select manual=new Select();manual.prefix=b("p/");manual.where=Select.Expr.all(kind.test(Select.Op.EQ,"mage"),level.test(Select.Op.GE,5L),level.test(Select.Op.LE,15L));manual.columns.add(new Select.Column(uid));manual.columns.add(new Select.Column(level));manual.order.add(new Select.Order(level,true));manual.limit=7;
         check(Arrays.equals(typed.build().encode(),manual.encode()));
+        // repeated via the typed builder: same bytes as the raw field, and it runs against the r/ fixture.
+        Q.Col<Long> itemsCol=Q.u64(12);
+        Q.Builder typedAny=Q.from("r/").where(itemsCol.any().eq(5L)).select(id).limit(20);
+        Select manualAny=new Select();manualAny.prefix=b("r/");manualAny.where=new Select.Field(12,1).any().test(Select.Op.EQ,5L);manualAny.columns.add(new Select.Column(uid));manualAny.limit=20;
+        check(Arrays.equals(typedAny.build().encode(),manualAny.encode()));
+        check(typedAny.run(db).size()==2);
         Q.Rows rows=typed.run(db);check(rows.size()==7&&rows.get(0).get(id)==55L);
         for(Q.Row row:rows)check(row.get(lvl)>=5&&row.get(lvl)<=15&&row.get(id)%2==1);
         check(typed.prepare().run(db).size()==7);

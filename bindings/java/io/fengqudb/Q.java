@@ -77,6 +77,8 @@ public final class Q {
         public final Select.Field field;
         final Class<T> kind;
         Col(Select.Field field, Class<T> kind) { this.field = field; this.kind = kind; }
+        /** Same path as a protobuf repeated field: true when any element matches. */
+        public Col<T> any() { return new Col<>(field.any(), kind); }
         public Select.Column column() { return new Select.Column(field); }
         private Cond test(Select.Op op, Object... values) {
             return new Cond(c -> field.test(op, values), false);

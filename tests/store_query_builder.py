@@ -24,6 +24,14 @@ def run(root, library):
                        order=[Order(Field(3, 1), True)], limit=7)
         assert top.build().encode() == manual.encode(), "builder encoding differs"
 
+        # repeated: .any() encodes the same request as a hand-written repeated field.
+        items = u64(12)
+        typed_any = from_("p/").where(items.any() == 5).select(uid).limit(20)
+        manual_any = Query(b"p/", where=Field(12, 1).any().test(Op.EQ, 5), columns=[Column(Field(1, 1))], limit=20)
+        assert typed_any.build().encode() == manual_any.encode(), "repeated builder encoding differs"
+        assert typed_any.build().encode() != from_("p/").where(items == 5).select(uid).limit(20).build().encode(), \
+            "repeated flag missing from builder encoding"
+
         # Typed rows by column object.
         rows = top.run(db)
         expected = sorted([i for i in range(64) if i % 2 and 5 <= i % 20 <= 15],

@@ -59,6 +59,10 @@ class Col:
     def __init__(self, field, cast=None):
         self.field, self._cast = field, cast
 
+    def any(self):
+        """Same path as a protobuf repeated field: true when any element matches."""
+        return Col(self.field.any(), self._cast)
+
     def _test(self, op, *values):
         values = tuple(_literal(self._cast, v) for v in values)
         return Cond(lambda c: Expr(op, self.field, values))

@@ -65,6 +65,8 @@ internal static class QHelp {
 public sealed class QCol<T> : IQColumn, IQOrder {
     public readonly QueryField Field;
     public QCol(QueryField field) { Field = field; }
+    // Same path as a protobuf repeated field: true when any element matches.
+    public QCol<T> Any() => new QCol<T>(Field.Any());
     public QueryColumn Column => new QueryColumn(Field);
     QueryOrder IQOrder.Resolve(IReadOnlyList<QueryColumn> _) => new QueryOrder(Field);
     QCond Cmp(QueryOp op, QCol<T> o) => new QCond(_ => Field.Compare(op, o.Field));

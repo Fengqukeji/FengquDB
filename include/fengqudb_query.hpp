@@ -153,6 +153,8 @@ template <class T> class Col {
     Col(uint32_t number, uint32_t type, uint32_t source = 0)
         : field(QueryField::field(number, type, source)) {}
     explicit Col(QueryField f) : field(std::move(f)) {}
+    // 同一路径的 repeated 版本：条件在任一元素满足时为真（只能用于主源 WHERE 叶子条件）。
+    Col any() const { return Col(field.any()); }
     Cond operator==(const T &v) const { return test(QueryOp::Eq, v); }
     Cond operator!=(const T &v) const { return test(QueryOp::Ne, v); }
     Cond operator<(const T &v) const { return test(QueryOp::Lt, v); }

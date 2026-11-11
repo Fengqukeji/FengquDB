@@ -28,6 +28,12 @@ static class SelectSmoke {
             var typed=Q.From("p/").Where(cls=="mage"&&lvl>=5&&lvl<=15).Select(id,lvl).OrderBy(lvl.Desc()).Limit(7);
             var manual=new StoreQuery{Prefix=B("p/"),Where=QueryExpr.All(kind.Test(QueryOp.Eq,"mage"),level.Test(QueryOp.Ge,5UL),level.Test(QueryOp.Le,15UL)),Columns=new[]{new QueryColumn(uid),new QueryColumn(level)},Order=new[]{new QueryOrder(level,true)},Limit=7};
             Check(typed.Build().Encode().AsSpan().SequenceEqual(manual.Encode()));
+            // repeated via the typed builder: same bytes as the raw field, and it runs against the r/ fixture.
+            var itemsCol=Q.U64(12);
+            var typedAny=Q.From("r/").Where(itemsCol.Any()==5UL).Select(id).Limit(20);
+            var manualAny=new StoreQuery{Prefix=B("r/"),Where=new QueryField(12,1).Any().Test(QueryOp.Eq,5UL),Columns=new[]{new QueryColumn(uid)},Limit=20};
+            Check(typedAny.Build().Encode().AsSpan().SequenceEqual(manualAny.Encode()));
+            Check(typedAny.Run(db).Count==2);
             var rows=typed.Run(db);Check(rows.Count==7&&rows[0].Get(id)==55UL);
             foreach(var row in rows)Check(row.Get(lvl)>=5&&row.Get(lvl)<=15&&row.Get(id)%2==1);
             Check(typed.Prepare().Run(db).Count==7);

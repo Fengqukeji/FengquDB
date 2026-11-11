@@ -70,6 +70,22 @@ int main() {
         manual.limit = 7;
         check(top.build().encode() == manual.encode(), "builder encoding differs from StoreQuery");
 
+        // repeated: .any() encodes the same request as a hand-written repeated field.
+        auto items = q::u64(12);
+        auto typed_any = q::from("p/").where(items.any() == uint64_t(5)).select(id).limit(20);
+        StoreQuery any_manual;
+        any_manual.prefix = "p/";
+        any_manual.where =
+            QueryExpr::compare(QueryField::field(12, 1).any(), QueryOp::Eq, QueryValue::uint(5));
+        any_manual.columns.resize(1);
+        any_manual.columns[0].field = QueryField::field(1, 1);
+        any_manual.limit = 20;
+        check(typed_any.build().encode() == any_manual.encode(),
+              "repeated builder encoding differs from StoreQuery");
+        check(typed_any.build().encode() !=
+                  q::from("p/").where(items == uint64_t(5)).select(id).limit(20).build().encode(),
+              "repeated flag missing from builder encoding");
+
         // Typed rows.
         auto rows = q::run(db, top);
         check(rows.size() == 7, "typed top-N row count");
