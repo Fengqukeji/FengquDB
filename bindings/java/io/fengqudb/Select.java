@@ -75,7 +75,8 @@ public final class Select {
     public Result explain(Store.Transaction tx){return prepare().execute(tx,true);}
     public static final class Prepared {
         private final byte[] bytes;private Prepared(byte[] b){bytes=b;}
-        public Result execute(Store db,boolean explain){return new Result(db.execute(explain?54:53,new byte[0],null,bytes).value);}
+        // Store runs on a read-only snapshot; a transaction keeps private-write visibility.
+public Result execute(Store db,boolean explain){return new Result(db.selectRaw(explain?54:53,bytes).value);}
         public Result execute(Store.Transaction tx,boolean explain){return new Result(tx.execute(explain?54:53,new byte[0],null,bytes).value);}
     }
     public static final class Row {public byte[] key=new byte[0];public List<Value> values=new ArrayList<>();}

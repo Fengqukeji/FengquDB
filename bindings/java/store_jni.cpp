@@ -1368,6 +1368,26 @@ JNIEXPORT jbyteArray JNICALL Java_io_fengqudb_Store_nHashGet(JNIEnv *env, jclass
         return copy(env, fqdb_store_value_data(value));
     });
 }
+// Read-only SELECT/EXPLAIN on a fresh snapshot of the Store handle.
+JNIEXPORT jbyteArray JNICALL Java_io_fengqudb_Store_nSelect(JNIEnv *env, jclass, jlong handle,
+                                                            jbyteArray request) {
+    return guard<jbyteArray>(env, nullptr, [&]() -> jbyteArray {
+        Input input(env, request);
+        if (!input.valid())
+            return nullptr;
+        fqdb_buffer output{};
+        auto status = fqdb_store_select(ptr<fqdb_store>(handle), input.slice(), &output);
+        struct Free {
+            fqdb_buffer *p;
+            ~Free() {
+                fqdb_buffer_free(p);
+            }
+        } free{&output};
+        if (!check(env, status))
+            return nullptr;
+        return copy(env, {output.data, output.size});
+    });
+}
 JNIEXPORT jbyteArray JNICALL Java_io_fengqudb_Store_nExecute(JNIEnv *env, jclass, jlong handle,
                                                              jbyteArray request) {
     return guard<jbyteArray>(env, nullptr, [&]() -> jbyteArray {
