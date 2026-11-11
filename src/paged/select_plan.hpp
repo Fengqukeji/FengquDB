@@ -525,8 +525,9 @@ inline bool where_fields(const Expr &e, std::vector<const Field *> &out, unsigne
 // 窄索引过滤扫描：条件无法定界，但用到的字段全部在某个必填、非唯一的复合索引里时，
 // 只顺序扫该索引、不读业务值，在索引键上判断条件，命中后才回主表取整行。
 // 必填索引保证前缀下每条记录都有索引条目，因此不会漏行。
-// 无 ORDER BY 且结果很少（limit+offset<=64）时主键扫描可凑满即停，不走本计划；
+// 无排序且结果很少（limit+offset<=64）时主键扫描可凑满即停，不走本计划；
 // 两种计划返回相同结果（均按主键取最小的若干行），只是性能取舍。
+// 索引前缀必须与查询前缀完全相同：否则要扫整条索引，范围外条目也会计入候选并消耗预算。
 inline std::unique_ptr<Plan> filter_scan_plan(const Program &p, const std::vector<IndexRule> &rules,
                                               const Transaction &tx, Memory &m) {
     // 事务内有未提交写入时，索引条目尚未反映它们，只能走主记录扫描。
@@ -542,7 +543,7 @@ inline std::unique_ptr<Plan> filter_scan_plan(const Program &p, const std::vecto
     size_t at = 0;
     for (size_t i = 0; i < rules.size(); ++i) {
         auto &r = rules[i];
-        if (r.parts.empty() || (r.flags & 1) || !(r.flags & 2) || !begins(p.spec.prefix, r.prefix))
+        if (r.parts.empty() || (r.flags & 1) || !(r.flags & 2) || r.prefix != p.spec.prefix)
             continue;
         bool all = true;
         for (auto f : used) {

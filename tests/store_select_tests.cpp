@@ -517,6 +517,25 @@ static void filter_scan_matches_model() {
     small.where = q.where;
     small.limit = 5;
     check(select(db, small).access[0].strategy == "prefix_scan", "small limit lost early stop");
+    // 查询前缀比索引前缀更窄时不能扫整条索引（范围外条目会占用候选预算）。
+    auto narrow = query();
+    narrow.prefix = "p/1";
+    narrow.where = q.where;
+    narrow.limit = 4096;
+    auto narrow_result = select(db, narrow);
+    auto narrow_ids = ids(narrow_result);
+    std::sort(narrow_ids.begin(), narrow_ids.end());
+    std::vector<uint64_t> narrow_expected;
+    for (unsigned key = 0; key < 64; ++key) {
+        unsigned id = key == 2 ? 131 : key;
+        auto text = "p/" + std::to_string(key);
+        if (text.rfind("p/1", 0) == 0 && std::to_string(id).find('1') != std::string::npos)
+            narrow_expected.push_back(id);
+    }
+    std::sort(narrow_expected.begin(), narrow_expected.end());
+    check(narrow_result.access[0].strategy != "index_filter_scan" &&
+              narrow_ids == narrow_expected,
+          "narrower query prefix used the wide index scan");
 }
 // 规则缓存跨 Program 复用（换字面量的查询）时，目录变更后必须立即看到新的索引集合。
 static void rules_reuse_respects_catalog_epoch() {
@@ -582,6 +601,9 @@ static void like_prefix_fast_path_matches_nfa() {
     check(run("Name-1") == std::vector<uint64_t>{1}, "like without wildcard must match exactly");
     check(run("name-1%").empty(), "like prefix must be case sensitive");
     check(status([&] { run("Name-1\\"); }) == FQDB_INVALID_ARGUMENT, "dangling escape accepted");
+    // 快路径不能放行超过通用匹配器上限（1024 字节）的模式。
+    const std::string too_long = std::string(1100, 'a') + "%";
+    check(status([&] { run(too_long.c_str()); }) == FQDB_LIMIT, "oversized LIKE prefix accepted");
 }
 // 非唯一复合索引直接从键尾解主键：主键含零字节（需转义）时结果仍必须正确。
 static void index_scan_decodes_owner_from_key() {
@@ -747,6 +769,22 @@ static void repeated_fields_match_any_element() {
     check(run(E::compare(F::field(12, 1), QueryOp::Eq, V::uint(5))) ==
               model([&](unsigned i) { return !unpacked(i).empty() && unpacked(i).back() == 5; }),
           "plain scalar query lost last-value semantics");
+    // 游标分页：repeated 条件参与游标签名，逐页拼接必须等于完整结果。
+    auto page = query();
+    page.where = a;
+    page.order = {{F::field(1, 1), false, true}};
+    page.limit = 5;
+    std::vector<uint64_t> paged;
+    for (int guard = 0; guard < 64; ++guard) {
+        auto part = select(db, page);
+        for (auto id : ids(part))
+            paged.push_back(id);
+        if (part.cursor.empty())
+            break;
+        page.after = part.cursor;
+    }
+    check(paged == model([&](unsigned i) { return has(unpacked(i), 5); }) && paged.size() > 5,
+          "repeated condition broke cursor paging");
     // 不允许的位置与混用：排序、输出列、分组、键、同路径混用。
     q = query();
     q.where = a;

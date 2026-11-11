@@ -311,8 +311,11 @@ struct Program {
                                                                : uint64_t(v.signed_value));
                     p.fuzzy_points = fuzzy_pattern(pattern);
                 }
-                if (e.op == Op::Like)
+                if (e.op == Op::Like) {
+                    // 与通用 NFA 路径保持同一个模式长度上限，快路径不能放行超长模式。
+                    require(pattern.size() <= 1024, FQDB_LIMIT);
                     p.like_prefix = literal_like_prefix(pattern);
+                }
                 if ((e.op == Op::Regex || e.op == Op::IRegex || e.op == Op::Like ||
                      e.op == Op::ILike) &&
                     !p.like_prefix)
