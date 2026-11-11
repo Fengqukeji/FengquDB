@@ -191,12 +191,20 @@ static std::vector<std::string> rows_of(const fq::StoreQueryResult &r) {
     return out;
 }
 
-// FQDB_BENCH_ONLY=名称 时只运行该负载（用于 perf 单独剖析）；为空则全部运行。
+// FQDB_BENCH_ONLY=名称[,名称...] 时只运行这些负载（用于 perf 剖析和快速 A/B）；为空则全部运行。
+// 名称可写成 workload 或 engine:workload。
 static bool selected(const char *engine, const char *name) {
     const char *only = std::getenv("FQDB_BENCH_ONLY");
     if (!only || !*only)
         return true;
-    return std::string(only) == name || std::string(only) == std::string(engine) + ":" + name;
+    std::string list = std::string(",") + only + ",";
+    return list.find("," + std::string(name) + ",") != std::string::npos ||
+           list.find("," + std::string(engine) + ":" + name + ",") != std::string::npos;
+}
+// 过滤列表里没有任何 sqlite 负载时，跳过 SQLite 装数据和结果核对。
+static bool sqlite_selected() {
+    const char *only = std::getenv("FQDB_BENCH_ONLY");
+    return !only || !*only || std::string(only).find("sqlite:") != std::string::npos;
 }
 // 每轮至少 200 ms，取 5 轮中位数；分段耗时为全部调用的平均值。
 template <class Op_> static void bench(const char *engine, const char *name, Op_ &&op) {
@@ -512,6 +520,8 @@ int main(int argc, char **argv) {
         });
 
 #ifdef FQDB_BENCH_SQLITE
+        if (!sqlite_selected())
+            return 0;
         auto path = (root / "sqlite.db").u8string();
         Sql sql(path);
         load_sqlite(sql, players);
