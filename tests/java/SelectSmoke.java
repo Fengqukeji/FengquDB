@@ -14,6 +14,12 @@ public final class SelectSmoke {
         q=new Select();q.prefix=b("p/");q.where=new Select.Field(5,4).test(Select.Op.REGEX,"^Name-1[0-9]$");q.columns.add(new Select.Column(uid));check(q.execute(db).rows.size()==10);
         Select.Join join=new Select.Join();join.prefix=b("o/");join.left.add(uid);join.right.add(new Select.Field(2,1,1));q.joins.add(join);q.where=new Select.Expr();q.columns.add(new Select.Column(new Select.Field(3,1,1)));check(q.execute(db).rows.size()==32);
         try(Store.Transaction tx=db.begin()){check(q.execute(tx).rows.size()==32);}
+        // repeated: fixture r/ is written by the Python run (field 12 holds 5,9 / 9 / 5 / none).
+        Select.Field items=new Select.Field(12,1);
+        Select rq=new Select();rq.prefix=b("r/");rq.columns.add(new Select.Column(uid));
+        rq.where=items.any().test(Select.Op.EQ,5);check(rq.execute(db).rows.size()==2);
+        rq.where=items.any().test(Select.Op.EXISTS);check(rq.execute(db).rows.size()==3);
+        rq.where=items.test(Select.Op.EQ,5);check(rq.execute(db).rows.size()==1);
         // Typed builder: same request bytes as the hand-written query, typed rows and aggregates.
         Q.Col<Long> id=Q.u64(1),lvl=Q.u64(3),gold=Q.s64(4),opt=Q.u64(10);Q.Col<String> cls=Q.text(2);
         Q.Builder typed=Q.from("p/").where(cls.eq("mage").and(lvl.ge(5L)).and(lvl.le(15L))).select(id,lvl).orderBy(lvl.desc()).limit(7);

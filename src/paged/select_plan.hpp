@@ -187,7 +187,7 @@ inline std::vector<Clause> dnf(const Expr &e, unsigned depth = 0) {
 inline std::map<uint32_t, Constraint> constraints(const Clause &clause) {
     std::map<uint32_t, Constraint> out;
     for (auto e : clause) {
-        if (e->field.source || e->field.path.size() != 1 || e->right)
+        if (e->field.source || e->field.path.size() != 1 || e->right || e->field.repeated)
             continue;
         auto op = uint32_t(e->op);
         if ((op < 5 || op > 13 || e->op == Op::IsNull) && e->op != Op::StartsWith &&
@@ -262,7 +262,7 @@ inline bool covering(const Program &p, unsigned source, const IndexRule &r) {
                 continue;
             return false;
         }
-        if (f.path.size() != 1)
+        if (f.path.size() != 1 || f.repeated)
             return false;
         bool found = false;
         for (size_t i = 0; i < r.count(); ++i)
@@ -514,6 +514,9 @@ inline bool where_fields(const Expr &e, std::vector<const Field *> &out, unsigne
     }
     if (e.op == Op::True || e.op == Op::False)
         return true;
+    // 索引只记录标量的最后一个值，repeated 条件必须读取整行元素，不能由索引键判断。
+    if (e.field.repeated)
+        return false;
     out.push_back(&e.field);
     if (e.right)
         out.push_back(&*e.right);

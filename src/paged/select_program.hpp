@@ -10,6 +10,7 @@ struct Trie {
     struct Node {
         int slot = -1;
         uint32_t type = 0;
+        bool repeated = false;
         std::vector<Edge> edges;
     };
     std::vector<Node> nodes{1};
@@ -31,9 +32,11 @@ struct Trie {
             }
         }
         auto &n = nodes[current];
-        require(n.slot < 0 || n.type == f.type, FQDB_INVALID_ARGUMENT);
+        require(n.slot < 0 || (n.type == f.type && n.repeated == f.repeated),
+                FQDB_INVALID_ARGUMENT);
         n.slot = int(slot);
         n.type = f.type;
+        n.repeated = f.repeated;
     }
     void finish() {
         for (auto &n : nodes) {
@@ -99,7 +102,7 @@ struct Program {
     std::vector<unsigned> on, columns, order, group;
     std::vector<std::vector<unsigned>> left, right;
     bool aggregated = false;
-    std::array<bool, 8> hidden{}, payload{};
+    std::array<bool, 8> hidden{}, payload{}, has_repeated{};
     Program(std::string_view bytes, Charge allocation, uint64_t reserved, Transaction &tx,
             std::chrono::steady_clock::time_point started)
         : spec(specification(bytes)), request(bytes), charge(std::move(allocation)),
@@ -197,7 +200,8 @@ struct Program {
         });
         return signature_;
     }
-    unsigned intern(const Field &f, bool output, bool allow_hidden = false) {
+    unsigned intern(const Field &f, bool output, bool allow_hidden = false,
+                    bool repeatable = false) {
         if (f.source == 255)
             require(output && f.type == 0 && f.path.size() == 1 && f.path[0] <= spec.columns.size(),
                     FQDB_INVALID_ARGUMENT);
@@ -207,12 +211,16 @@ struct Program {
             require(f.path.empty() ? (f.type == 0 || f.type == 4) : (f.type >= 1 && f.type <= 11),
                     FQDB_INVALID_ARGUMENT);
         }
+        // repeated 字段只能是主源 WHERE 叶子条件的左侧：排序、分组、输出列、关联键、
+        // HAVING/ON 和字段间比较的右侧都没有"哪个元素"的确定含义。
+        require(!f.repeated || (repeatable && f.source == 0 && !f.path.empty()),
+                FQDB_INVALID_ARGUMENT);
         for (unsigned i = 0; i < fields.size(); ++i) {
             auto &old = fields[i].field;
             if (old == f)
                 return i;
             if (!old.path.empty() && old.source == f.source && old.path == f.path)
-                require(old.type == f.type, FQDB_INVALID_ARGUMENT);
+                require(old.type == f.type && old.repeated == f.repeated, FQDB_INVALID_ARGUMENT);
         }
         require(fields.size() < 256, FQDB_LIMIT);
         unsigned id = unsigned(fields.size()), slot = 0;
@@ -222,6 +230,8 @@ struct Program {
             tries[f.source].add(f, slot);
             if (!f.path.empty() || f.type == 0)
                 payload[f.source] = true;
+            if (f.repeated)
+                has_repeated[f.source] = true;
         }
         fields.push_back({f, slot});
         return id;
@@ -253,7 +263,7 @@ struct Program {
             if (allow_hidden && e.field.source != 255)
                 require(!hidden[e.field.source] || e.field.source == max_source,
                         FQDB_INVALID_ARGUMENT);
-            p.field = intern(e.field, output, allow_hidden);
+            p.field = intern(e.field, output, allow_hidden, !output && !allow_hidden);
             p.root_only = e.field.source == 0;
             if (e.right) {
                 require(op >= 5 && op <= 10 && e.values.empty() &&
@@ -391,24 +401,62 @@ struct StoredRecord {
     Vec<Owned> fields;
     StoredRecord(Memory &m, std::string_view k) : key(text(m, k)), fields(Alloc<Owned>(m)) {}
 };
+// 该标量类型在 protobuf 线上的单元素编码类型（用于解析打包的 repeated 标量）。
+inline wire::Type scalar_wire_type(uint32_t type) {
+    return type == 1 || type == 2 || type == 5 || type == 11 ? wire::Type::Varint
+           : type == 6 || type == 9 || type == 10            ? wire::Type::Fixed32
+                                                             : wire::Type::Fixed64;
+}
+// 单个 repeated 字段每行最多保留的元素数，防止恶意或异常记录耗尽工作内存。
+constexpr size_t max_repeated_elements = 65536;
 struct Record {
     const Program &program;
     unsigned source;
     Value bytes;
     std::string_view key;
     Vec<Atom> values;
+    // repeated 字段的元素，按槽位下标；仅当该源含 repeated 字段时才分配。
+    // 字节类元素借用记录载荷，生命周期与本行一致。
+    Vec<Vec<Atom>> lists;
     const StoredRecord *stored = nullptr;
     Charge pins;
     Record(const Program &p, unsigned source, Memory &m, std::shared_ptr<Budget> pin_budget)
-        : program(p), source(source), values(Alloc<Atom>(m)), pins(std::move(pin_budget), {}, 0) {
+        : program(p), source(source), values(Alloc<Atom>(m)), lists(Alloc<Vec<Atom>>(m)),
+          pins(std::move(pin_budget), {}, 0) {
         values.resize(p.slots[source].size());
+        if (p.has_repeated[source]) {
+            lists.reserve(values.size());
+            for (size_t i = 0; i < values.size(); ++i)
+                lists.emplace_back(Alloc<Atom>(m));
+        }
     }
     void reset(std::string_view k, Value v, bool already_pinned = false) {
         pins.resize(v && !already_pinned ? sizeof(Data) + v->capacity() + 64 : 0);
         std::fill(values.begin(), values.end(), Atom{});
+        for (auto &l : lists)
+            l.clear();
         bytes = std::move(v);
         key = k;
         stored = nullptr;
+    }
+    // 追加一个 repeated 元素；数值类型同时接受未打包（每元素一个标签）和打包（一个字节串）。
+    void append(wire::Reader &r, wire::Field f, const Trie::Node &node, Work &w) {
+        auto &list = lists[size_t(node.slot)];
+        auto push = [&](const Atom &a) {
+            require(list.size() < max_repeated_elements, FQDB_LIMIT);
+            list.push_back(a);
+        };
+        if (node.type != 4 && f.type == wire::Type::Bytes) {
+            std::string_view packed;
+            require(r.bytes(packed), FQDB_CONSTRAINT);
+            wire::Reader items(packed);
+            const wire::Field element{f.number, scalar_wire_type(node.type)};
+            while (!items.done()) {
+                w.tick();
+                push(read_scalar(items, element, node.type));
+            }
+        } else
+            push(read_scalar(r, f, node.type));
     }
     void scan(std::string_view input, unsigned at, Work &w) {
         wire::Reader r(input);
@@ -426,12 +474,22 @@ struct Record {
             if (!child.edges.empty()) {
                 std::string_view nested;
                 require(f.type == wire::Type::Bytes && r.bytes(nested), FQDB_CONSTRAINT);
-                if (child.slot >= 0)
-                    values[size_t(child.slot)] = {Kind::Bytes, 0, 0, 0, nested};
+                if (child.slot >= 0) {
+                    const Atom whole{Kind::Bytes, 0, 0, 0, nested};
+                    if (child.repeated) {
+                        require(lists[size_t(child.slot)].size() < max_repeated_elements,
+                                FQDB_LIMIT);
+                        lists[size_t(child.slot)].push_back(whole);
+                    } else
+                        values[size_t(child.slot)] = whole;
+                }
                 scan(nested, p->child, w);
             } else {
                 require(child.slot >= 0);
-                values[size_t(child.slot)] = read_scalar(r, f, child.type);
+                if (child.repeated)
+                    append(r, f, child, w);
+                else
+                    values[size_t(child.slot)] = read_scalar(r, f, child.type);
             }
         }
         require(r.done(), FQDB_CONSTRAINT);
@@ -539,11 +597,37 @@ struct Eval {
             auto r = run(e.children[0]);
             return r == Truth::Unknown ? r : r == Truth::True ? Truth::False : Truth::True;
         }
+        if (p.fields[e.field].field.repeated)
+            return evaluate_repeated(e);
         auto a = get(e.field);
         if (e.op == Op::Exists)
             return a.kind != Kind::Null ? Truth::True : Truth::False;
         if (e.op == Op::IsNull)
             return a.kind == Kind::Null ? Truth::True : Truth::False;
+        return test(e, a);
+    }
+    // repeated 字段：Exists = 至少一个元素；IsNull = 没有元素；其余条件在任一元素满足时为真。
+    // 元素本身不为 Null，无元素时条件为 False（不是 Unknown），因此 NOT 对"没有元素等于 X"成立。
+    Truth evaluate_repeated(const Predicate &e) {
+        const auto &info = p.fields[e.field];
+        auto *r = records[info.field.source];
+        const Vec<Atom> *list = r && info.slot < r->lists.size() ? &r->lists[info.slot] : nullptr;
+        const bool empty = !list || list->empty();
+        if (e.op == Op::Exists)
+            return empty ? Truth::False : Truth::True;
+        if (e.op == Op::IsNull)
+            return empty ? Truth::True : Truth::False;
+        if (empty)
+            return Truth::False;
+        for (const auto &a : *list) {
+            w.tick();
+            if (test(e, a) == Truth::True)
+                return Truth::True;
+        }
+        return Truth::False;
+    }
+    // 对单个标量值 a 求值叶子条件（a 非 Exists/IsNull 场景）。
+    Truth test(const Predicate &e, const Atom &a) {
         if (e.op == Op::In && e.values.empty() && !e.has_null)
             return Truth::False;
         if (a.kind == Kind::Null)

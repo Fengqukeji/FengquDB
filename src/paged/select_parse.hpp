@@ -61,9 +61,15 @@ inline Field field(std::string_view bytes) {
                 }
             } else
                 append(num(r, f));
+        } else if (f.number == 4) {
+            // repeated 只对带路径的字段有意义；键和完整二进制没有"元素"。
+            auto n = num(r, f);
+            require(n <= 1, FQDB_INVALID_ARGUMENT);
+            v.repeated = n == 1;
         } else
             throw Error(FQDB_INVALID_ARGUMENT);
     });
+    require(!v.repeated || !v.path.empty(), FQDB_INVALID_ARGUMENT);
     return v;
 }
 inline Scalar scalar(std::string_view bytes) {

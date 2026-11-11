@@ -8,6 +8,7 @@
 | --- | --- | --- |
 | 比较、字段间比较、嵌套 AND / OR / NOT / IN | 红队且等级 20～60，或者 VIP；排除封禁玩家 | 索引找候选，C++ 短路过滤剩余条件 |
 | 多字段独立范围、存在性 | 等级 20～60 且金币 100～5000；找缺手机号的人 | 范围残余过滤；Exists / IsNull 检查存在性 |
+| repeated 字段（任一元素匹配） | 背包里有某件物品；任一标签包含“VIP”；有任一订单金额超过 1000 | 字段标记 repeated 后逐元素判断；不走磁盘索引，按残余过滤 |
 | 独立多字段排序、Top N、分页 | 按金币降序、ID 升序取前 20 人 | 兼容索引顺序时提前停止；否则有界 Top N 堆 |
 | COUNT / SUM / MIN / MAX / AVG | 付费人数、总收入、平均订单金额 | 原生增量聚合；覆盖时只读索引 |
 | GROUP BY、HAVING、DISTINCT | 按职业统计人数，只保留人数超过 100 的职业 | 有界哈希分组/去重，支持聚合参数 DISTINCT |
@@ -105,7 +106,19 @@ auto rows = select(db, joined);
 
 物理类型 1～10 同 [复合索引](STORE_QUERY.md)，11 为 bool（仅 0/1）。查询路径最多 8 层，可过滤嵌套 message；磁盘索引只支持顶层标量。空路径 type4 为键，type0 为完整二进制。source0 为主源，1～7 为关联源；`QueryField::column(n)` / `Field.column(n)` 在排序和 HAVING 中引用从 0 开始的结果列。
 
-缺字段返回 Null，不补 proto3 默认值；应使用 optional 或显式编码零值。重复标量标签取最后一个，嵌套匹配子字段按出现顺序覆盖；不展开 repeated，不模拟生成器的所有 message 合并规则。Null 比较得到 Unknown，WHERE/HAVING 只保留 True；AND/OR/NOT 使用三值逻辑。空 IN 始终 False；IN 含 Null 且无匹配项为 Unknown。Exists/IsNull 检查存在性。
+缺字段返回 Null，不补 proto3 默认值；应使用 optional 或显式编码零值。未标记 repeated 的字段遇到重复标量标签取最后一个，嵌套匹配子字段按出现顺序覆盖，不模拟生成器的所有 message 合并规则。Null 比较得到 Unknown，WHERE/HAVING 只保留 True；AND/OR/NOT 使用三值逻辑。空 IN 始终 False；IN 含 Null 且无匹配项为 Unknown。Exists/IsNull 检查存在性。
+
+### repeated 字段（任一元素匹配）
+
+对 protobuf `repeated` 字段，把查询字段标记为 repeated：C++ `F::field(12, 1).any()`，Python `Field(12, 1).any()`，C# `new QueryField(12, 1).Any()`，Java `new Select.Field(12, 1).any()`。路径可经过 repeated 嵌套消息，例如背包物品 `items.id` 用路径 `{14, 1}` 再标记 repeated。
+
+* 比较、IN、字符串匹配在任一元素满足时为真。Exists 表示至少有一个元素，IsNull 表示没有元素。
+* 元素不为 Null，没有元素时条件为 False，不是 Unknown。因此 `NOT (items == 5)` 的含义是没有任何元素等于 5，空列表也成立。
+* 同时支持未打包（每个元素一个标签）和打包（一个字节串）的数值标量，以及字符串、字节和嵌套消息。每行每个 repeated 字段最多 65536 个元素，超出报 LIMIT。
+* 多个条件各自独立判断“任一元素”，不要求落在同一个元素上。例如 `items.id == 3 AND items.count >= 5` 可由两个不同物品分别满足。需要同一元素同时满足时，不要用本功能，也不要假设有 `$elemMatch` 语义。
+* repeated 条件不使用磁盘索引：索引只保存最后一个值，用它判断会漏行。同一字段上的其他普通条件仍可走索引。
+* 只能用于主源 WHERE 的叶子条件。用于排序、分组、输出列、关联键、HAVING、ON、字段间比较的右侧，或同一路径既用 repeated 又用普通方式，都会返回 INVALID_ARGUMENT。键和完整二进制不能标记 repeated。
+* 不返回元素列表本身；如需取回，读取整条记录后在调用方解析。
 
 uint64/int64/double 比较避免转 double 丢失大整数精度；去重、分组、哈希关联采用一致的数值规范键。整数 SUM 精确且越界报 CONSTRAINT，实数 SUM 使用补偿求和，AVG 为 double。COUNT 忽略 Null，COUNT_ALL 不忽略；空集 COUNT 为 0，其余聚合为 Null。
 

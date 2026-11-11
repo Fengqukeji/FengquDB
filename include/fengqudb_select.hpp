@@ -72,6 +72,9 @@ struct QueryValue {
 struct QueryField {
     uint32_t source = 0, type = 4;
     std::vector<uint32_t> path;
+    // true 表示 path 指向 protobuf repeated 字段（可经过 repeated 嵌套消息）：
+    // 条件在任一元素满足时为真，只能用于主源 WHERE 的叶子条件，且不会使用磁盘索引。
+    bool repeated = false;
     static QueryField key(uint32_t source = 0) {
         return {source, 4, {}};
     }
@@ -84,8 +87,14 @@ struct QueryField {
     static QueryField field(uint32_t number, uint32_t type, uint32_t source = 0) {
         return {source, type, {number}};
     }
+    // 返回同一路径的 repeated 版本，例如 F::field(8, 1).any() 或带嵌套路径的字段。
+    QueryField any() const {
+        auto copy = *this;
+        copy.repeated = true;
+        return copy;
+    }
     bool operator==(const QueryField &o) const {
-        return source == o.source && type == o.type && path == o.path;
+        return source == o.source && type == o.type && path == o.path && repeated == o.repeated;
     }
     bool operator!=(const QueryField &o) const {
         return !(*this == o);
@@ -96,6 +105,8 @@ struct QueryField {
         w.uint_field(2, type);
         for (auto n : path)
             w.uint_field(3, n);
+        if (repeated)
+            w.uint_field(4, 1);
         return w.take();
     }
 };

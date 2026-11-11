@@ -615,8 +615,163 @@ static void index_scan_decodes_owner_from_key() {
               covered.rows.size() == expected,
           "covering scan with key-tail owner differs");
 }
+// repeated 字段：条件在任一元素满足时为真；打包/未打包标量、嵌套消息子字段和字符串都按元素匹配。
+static void repeated_fields_match_any_element() {
+    Fixture f;
+    Store db(f.name("repeated"));
+    constexpr unsigned count = 64;
+    auto unpacked = [](unsigned i) {
+        return i % 4 == 0 ? std::vector<uint64_t>{}
+                          : std::vector<uint64_t>{i % 7, (i * 3) % 11, 20 + i % 5};
+    };
+    auto packed = [](unsigned i) {
+        return i % 5 == 0 ? std::vector<uint64_t>{} : std::vector<uint64_t>{i % 9, (i * 2) % 13};
+    };
+    auto messages = [](unsigned i) {
+        std::vector<std::pair<uint64_t, uint64_t>> out;
+        for (unsigned k = 0; k < i % 3; ++k)
+            out.push_back({(i * 5 + k) % 17, (k + i) % 6});
+        return out;
+    };
+    auto tags = [](unsigned i) {
+        return i % 6 == 0 ? std::vector<std::string>{}
+                          : std::vector<std::string>{"tag-" + std::to_string(i % 10),
+                                                     "tag-" + std::to_string((i + 3) % 10)};
+    };
+    {
+        auto tx = db.transaction();
+        for (unsigned i = 0; i < count; ++i) {
+            wire::Writer w;
+            w.uint_field(1, i);
+            for (auto v : unpacked(i))
+                w.uint_field(12, v);
+            if (!packed(i).empty()) {
+                wire::Writer inner;
+                for (auto v : packed(i))
+                    inner.varint(v);
+                w.bytes_field(13, inner.data());
+            }
+            for (auto &m : messages(i)) {
+                wire::Writer inner;
+                inner.uint_field(1, m.first);
+                inner.uint_field(2, m.second);
+                w.bytes_field(14, inner.data());
+            }
+            for (auto &t : tags(i))
+                w.bytes_field(15, t);
+            tx.put("p/" + std::to_string(i), w.take());
+        }
+        commit(tx);
+    }
+    auto rep = [](uint32_t number, uint32_t type) { return F::field(number, type).any(); };
+    auto nested = [](uint32_t sub) {
+        auto field = F::field(14, 1);
+        field.path = {14, sub};
+        return field.any();
+    };
+    auto run = [&](const E &where) {
+        auto q = query();
+        q.where = where;
+        q.limit = 4096;
+        auto got = ids(select(db, q));
+        std::sort(got.begin(), got.end());
+        return got;
+    };
+    auto model = [&](auto predicate) {
+        std::vector<uint64_t> out;
+        for (unsigned i = 0; i < count; ++i)
+            if (predicate(i))
+                out.push_back(i);
+        return out;
+    };
+    auto has = [](const std::vector<uint64_t> &list, uint64_t v) {
+        return std::find(list.begin(), list.end(), v) != list.end();
+    };
+    auto item_is = [&](unsigned i, uint64_t v) {
+        for (auto &m : messages(i))
+            if (m.first == v)
+                return true;
+        return false;
+    };
+    auto tag_is = [&](unsigned i, const std::string &v) {
+        auto list = tags(i);
+        return std::find(list.begin(), list.end(), v) != list.end();
+    };
+    auto a = E::compare(rep(12, 1), QueryOp::Eq, V::uint(5));
+    check(run(a) == model([&](unsigned i) { return has(unpacked(i), 5); }) && !run(a).empty(),
+          "unpacked repeated equality");
+    auto b = E::compare(rep(13, 1), QueryOp::Eq, V::uint(7));
+    check(run(b) == model([&](unsigned i) { return has(packed(i), 7); }) && !run(b).empty(),
+          "packed repeated equality");
+    auto c = E::compare(nested(1), QueryOp::Eq, V::uint(3));
+    check(run(c) == model([&](unsigned i) { return item_is(i, 3); }) && !run(c).empty(),
+          "repeated nested message field");
+    auto d = E::compare(rep(15, 4), QueryOp::Eq, V::text("tag-3"));
+    check(run(d) == model([&](unsigned i) { return tag_is(i, "tag-3"); }) && !run(d).empty(),
+          "repeated string equality");
+    auto contains = E::compare(rep(15, 4), QueryOp::Contains, V::text("g-7"));
+    check(run(contains) == model([&](unsigned i) { return tag_is(i, "tag-7"); }),
+          "repeated string contains");
+    check(run(E::compare(rep(12, 1), QueryOp::Ge, V::uint(20))) ==
+              model([&](unsigned i) { return !unpacked(i).empty(); }),
+          "repeated range comparison");
+    check(run(E::negate(a)) == model([&](unsigned i) { return !has(unpacked(i), 5); }),
+          "NOT over a repeated condition means no element matches");
+    check(run(E::any({a, b})) ==
+              model([&](unsigned i) { return has(unpacked(i), 5) || has(packed(i), 7); }),
+          "OR of repeated conditions");
+    check(run(E::all({a, E::compare(F::field(1, 1), QueryOp::Lt, V::uint(30))})) ==
+              model([&](unsigned i) { return i < 30 && has(unpacked(i), 5); }),
+          "repeated combined with a plain condition");
+    check(run(E::one_of(rep(12, 1), {V::uint(1), V::uint(2)})) ==
+              model([&](unsigned i) { return has(unpacked(i), 1) || has(unpacked(i), 2); }),
+          "repeated IN");
+    check(run(E::test(rep(12, 1), QueryOp::Exists)) ==
+                  model([&](unsigned i) { return !unpacked(i).empty(); }) &&
+              run(E::test(rep(12, 1), QueryOp::IsNull)) ==
+                  model([&](unsigned i) { return unpacked(i).empty(); }),
+          "repeated Exists / IsNull mean non-empty / empty");
+    // 磁盘索引只记录标量的最后一个值：repeated 条件不能由索引判断，否则会漏行。
+    db.define_compound_index("rep-last", "p/", {{12, 1}}, 0);
+    db.checkpoint();
+    auto q = query();
+    q.where = a;
+    q.limit = 4096;
+    auto indexed = select(db, q);
+    auto got = ids(indexed);
+    std::sort(got.begin(), got.end());
+    check(got == model([&](unsigned i) { return has(unpacked(i), 5); }) &&
+              indexed.access[0].strategy != "index_range",
+          "repeated condition used a scalar index");
+    // 对照：同一字段按普通标量查询仍只看最后一个值，并可走索引。
+    check(run(E::compare(F::field(12, 1), QueryOp::Eq, V::uint(5))) ==
+              model([&](unsigned i) { return !unpacked(i).empty() && unpacked(i).back() == 5; }),
+          "plain scalar query lost last-value semantics");
+    // 不允许的位置与混用：排序、输出列、分组、键、同路径混用。
+    q = query();
+    q.where = a;
+    q.order = {{rep(12, 1), false, true}};
+    check(status([&] { select(db, q); }) == FQDB_INVALID_ARGUMENT, "repeated accepted in ORDER BY");
+    q = query();
+    q.columns = {{rep(12, 1), A::None, {}}};
+    check(status([&] { select(db, q); }) == FQDB_INVALID_ARGUMENT, "repeated accepted as a column");
+    q = query();
+    q.group = {rep(12, 1)};
+    q.columns = {{rep(12, 1), A::None, {}}};
+    check(status([&] { select(db, q); }) == FQDB_INVALID_ARGUMENT, "repeated accepted in GROUP BY");
+    q = query();
+    q.where = E::all({a, E::compare(F::field(12, 1), QueryOp::Eq, V::uint(5))});
+    check(status([&] { select(db, q); }) == FQDB_INVALID_ARGUMENT,
+          "same path used as repeated and plain");
+    q = query();
+    auto key_repeated = F::key();
+    key_repeated.repeated = true;
+    q.where = E::compare(key_repeated, QueryOp::Eq, V::text("p/1"));
+    check(status([&] { select(db, q); }) == FQDB_INVALID_ARGUMENT, "repeated key accepted");
+}
 int main() {
     try {
+        repeated_fields_match_any_element();
         index_scan_decodes_owner_from_key();
         like_prefix_fast_path_matches_nfa();
         rules_reuse_respects_catalog_epoch();

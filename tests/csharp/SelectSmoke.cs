@@ -17,6 +17,12 @@ static class SelectSmoke {
             q=new StoreQuery{Prefix=B("p/"),Where=new QueryField(5,4).Test(QueryOp.Regex,"^Name-1[0-9]$"),Columns=new[]{new QueryColumn(uid)}};Check(db.Select(q).Rows.Count==10);
             q.Joins=new[]{new QueryJoin{Prefix=B("o/"),Left=new[]{uid},Right=new[]{new QueryField(2,1,1)}}};q.Where=new QueryExpr();q.Columns=new[]{new QueryColumn(uid),new QueryColumn(new QueryField(3,1,1))};Check(db.Select(q).Rows.Count==32);
             using(var tx=db.Begin()){Check(tx.Select(q).Rows.Count==32);}
+            // repeated: fixture r/ is written by the Python run (field 12 holds 5,9 / 9 / 5 / none).
+            var items=new QueryField(12,1);
+            var rq=new StoreQuery{Prefix=B("r/"),Columns=new[]{new QueryColumn(uid)}};
+            rq.Where=items.Any().Test(QueryOp.Eq,5);Check(db.Select(rq).Rows.Count==2);
+            rq.Where=items.Any().Test(QueryOp.Exists);Check(db.Select(rq).Rows.Count==3);
+            rq.Where=items.Test(QueryOp.Eq,5);Check(db.Select(rq).Rows.Count==1);
             // Typed builder: same request bytes as the hand-written query, typed rows and aggregates.
             var id=Q.U64(1);var lvl=Q.U64(3);var cls=Q.Text(2);var gold=Q.S64(4);var opt=Q.U64(10);
             var typed=Q.From("p/").Where(cls=="mage"&&lvl>=5&&lvl<=15).Select(id,lvl).OrderBy(lvl.Desc()).Limit(7);

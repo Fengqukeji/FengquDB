@@ -29,13 +29,16 @@ public final class Select {
     }
     public static final class Field {
         public int source,type=4;public int[] path=new int[0];
+        // true：path 指向 protobuf repeated 字段，条件在任一元素满足时为真（仅主源 WHERE 叶子条件）。
+        public boolean repeated;
         public Field(){}
         public Field(int number,int type){this(number,type,0);}
         public Field(int number,int type,int source){this.source=source;this.type=type;path=new int[]{number};}
         public static Field key(int source){Field f=new Field();f.source=source;return f;}
         public static Field record(int source){Field f=key(source);f.type=0;return f;}
         public static Field column(int index){return new Field(index+1,0,255);}
-        byte[] encode(){return wire(w->{w.u(1,source);w.u(2,type);for(int n:path)w.u(3,n);});}
+        public Field any(){Field f=new Field();f.source=source;f.type=type;f.path=path;f.repeated=true;return f;}
+        byte[] encode(){return wire(w->{w.u(1,source);w.u(2,type);for(int n:path)w.u(3,n);if(repeated)w.u(4,1);});}
         public Expr test(Op op,Object... values){Expr e=new Expr();e.op=op;e.field=this;for(Object v:values)e.values.add(Value.of(v));return e;}
         public Expr compare(Op op,Field right){Expr e=new Expr();e.op=op;e.field=this;e.right=right;return e;}
     }

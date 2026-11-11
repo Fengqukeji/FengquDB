@@ -3,7 +3,7 @@
 Matching is bytewise; i-operators fold ASCII. Missing fields use SQL three-valued
 logic. See docs/STORE_SELECT.md for budgets, joins and pagination contracts.
 """
-from dataclasses import dataclass, field as factory
+from dataclasses import dataclass, field as factory, replace as _dc_replace
 from enum import IntEnum
 import math
 import struct
@@ -59,9 +59,13 @@ class Field:
     type: int = 4
     source: int = 0
     path: tuple = ()
+    # True 表示该路径是 protobuf repeated 字段：条件在任一元素满足时为真，只能用于主源 WHERE 叶子条件。
+    repeated: bool = False
     def encode(self):
         path = self.path or ((self.number,) if self.number else ())
-        return _u(1, self.source) + _u(2, self.type) + b"".join(_u(3, n) for n in path)
+        return (_u(1, self.source) + _u(2, self.type) + b"".join(_u(3, n) for n in path) +
+                (_u(4, 1) if self.repeated else b""))
+    def any(self): return _dc_replace(self, repeated=True)
     @staticmethod
     def key(source=0): return Field(source=source)
     @staticmethod
