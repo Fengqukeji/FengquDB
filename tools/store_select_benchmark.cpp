@@ -393,6 +393,10 @@ static void load_store(fq::Store &db, uint64_t players) {
     db.define_compound_index("class-level", "p/", {{2, 4}, {3, 1}}, 2);
     // SQLite 的 id 是 rowid 天然有序；为公平起见 FengquDB 也提供 id 有序索引。
     db.define_compound_index("id", "p/", {{1, 1}}, 3);
+#ifdef FQDB_BENCH_COVERING
+    // 实验：覆盖 topn 的过滤与输出列（class, level, gold, id），查询无需读业务值。
+    db.define_compound_index("cl-gold-id", "p/", {{2, 4}, {3, 1}, {4, 5}, {1, 1}}, 2);
+#endif
     db.define_compound_index("name", "p/", {{5, 4}}, 2);
     db.define_compound_index("owner", "o/", {{1, 1}}, 2);
     db.checkpoint();
