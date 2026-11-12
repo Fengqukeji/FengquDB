@@ -1,0 +1,15 @@
+[workspace]
+resolver = "2"
+members = ["fengqudb-sys", "fengqudb"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+rust-version = "1.70"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+debug = false

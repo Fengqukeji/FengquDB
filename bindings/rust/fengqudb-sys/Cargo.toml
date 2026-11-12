@@ -1,0 +1,11 @@
+[package]
+name = "fengqudb-sys"
+description = "Raw extern \"C\" declarations for libfengqudb (include/fengqudb_store.h)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+build = "build.rs"
+links = "fengqudb"
+
+[dependencies]
