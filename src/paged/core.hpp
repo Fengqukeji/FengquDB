@@ -97,34 +97,62 @@ struct CommitWaiter {
 class WriterGate {
     std::mutex mutex_;
     std::condition_variable changed_;
-    bool busy_ = false;
+    std::atomic<bool> busy_{false};
+    std::atomic<uint32_t> parked_{0};
+
+    // 单次原子抢占；只有观察到空闲时才发起交换，避免无谓的缓存行独占。
+    bool acquire() noexcept {
+        return !busy_.load(std::memory_order_relaxed) &&
+               !busy_.exchange(true, std::memory_order_acquire);
+    }
+    // 有界自旋：持锁区通常只有几微秒，短暂等待比停车再唤醒便宜。
+    // 单 CPU 时持有者无法同时运行，自旋只会空耗，因此直接放弃。
+    bool spin() noexcept {
+        static const bool parallel = AdaptiveCommitWait::parallel_execution();
+        if (!parallel)
+            return false;
+        for (unsigned i = 0; i < 1024; ++i) {
+            if (acquire())
+                return true;
+            commit_pause();
+        }
+        return false;
+    }
 
   public:
     void lock() {
-        std::unique_lock<std::mutex> lock(mutex_);
-        changed_.wait(lock, [&] { return !busy_; });
-        busy_ = true;
+        if (acquire() || spin())
+            return;
+        parked_.fetch_add(1, std::memory_order_seq_cst);
+        {
+            std::unique_lock<std::mutex> lock(mutex_);
+            changed_.wait(lock, [&] { return acquire(); });
+        }
+        parked_.fetch_sub(1, std::memory_order_relaxed);
     }
     bool try_lock() {
-        std::unique_lock<std::mutex> lock(mutex_, std::try_to_lock);
-        if (!lock.owns_lock() || busy_)
-            return false;
-        busy_ = true;
-        return true;
+        return acquire();
     }
     template <class R, class P> bool try_lock_for(std::chrono::duration<R, P> duration) {
-        std::unique_lock<std::mutex> lock(mutex_);
-        if (!changed_.wait_for(lock, duration, [&] { return !busy_; }))
-            return false;
-        busy_ = true;
-        return true;
+        if (acquire() || spin())
+            return true;
+        parked_.fetch_add(1, std::memory_order_seq_cst);
+        bool got;
+        {
+            std::unique_lock<std::mutex> lock(mutex_);
+            got = changed_.wait_for(lock, duration, [&] { return acquire(); });
+        }
+        parked_.fetch_sub(1, std::memory_order_relaxed);
+        return got;
     }
     void unlock() {
-        {
-            std::lock_guard<std::mutex> lock(mutex_);
-            busy_ = false;
+        busy_.store(false, std::memory_order_seq_cst);
+        // 先登记 parked_ 再在互斥量内复查 busy_，所以这里读到 0 时不会丢失唤醒；
+        // 读到非 0 时经互斥量串行化，保证等待者要么已看到空闲要么已进入等待。
+        if (parked_.load(std::memory_order_seq_cst)) {
+            { std::lock_guard<std::mutex> lock(mutex_); }
+            changed_.notify_one();
         }
-        changed_.notify_one();
     }
 };
 struct WatchLease {
