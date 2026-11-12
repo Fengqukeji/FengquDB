@@ -1,0 +1,29 @@
+{
+  "name": "fengqudb",
+  "version": "0.3.2",
+  "description": "Node.js / TypeScript binding for the FengquDB embedded key-value database (N-API, zero-copy shared reads, typed query builder).",
+  "license": "UNLICENSED",
+  "private": true,
+  "main": "dist/src/index.js",
+  "types": "dist/src/index.d.ts",
+  "files": [
+    "dist/src",
+    "native",
+    "CMakeLists.txt",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18.17"
+  },
+  "scripts": {
+    "build:native": "cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build --config Release",
+    "build:ts": "tsc -p tsconfig.json",
+    "build": "npm run build:native && npm run build:ts",
+    "test": "node --test \"dist/test/*.test.js\"",
+    "bench": "node dist/bench/bench.js"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.6.0"
+  }
+}

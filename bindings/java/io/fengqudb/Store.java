@@ -989,6 +989,11 @@ public final class Store implements AutoCloseable {
     public byte[] hashGet(byte[] scope, byte[] key) {
         return resource.call(h -> nHashGet(h, scope, key));
     }
+    /** Read-only SELECT (53) / EXPLAIN (54) on a fresh snapshot; no transaction or dependencies. */
+    public CommandResult selectRaw(int operation, byte[] value) {
+        byte[] request = FeatureWire.request(operation, new byte[0], null, value, 0, 0, 256, 0);
+        return resource.call(h -> FeatureWire.result(nSelect(h, request)));
+    }
     public CommandResult execute(int operation, byte[] scope, byte[] key, byte[] value,
                                  boolean... forceReliable) {
         return execute(operation, scope, key, value, 0, 0, 256, 0, forceReliable);
@@ -1556,6 +1561,7 @@ public final class Store implements AutoCloseable {
     private static native void nCancelMaintenance(long handle);
     private static native byte[] nHashGet(long handle, byte[] scope, byte[] key);
     private static native byte[] nExecute(long handle, byte[] request);
+    private static native byte[] nSelect(long handle, byte[] request);
     private static native long nOpenAt(byte[] root, byte[] name, boolean buffered, boolean create,
                                        long[] limits);
     private static native byte[] nPathAt(byte[] root, byte[] name);

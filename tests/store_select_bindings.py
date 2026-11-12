@@ -66,6 +66,21 @@ def run(root,library):
         q=Query(b"p/",max_candidates=1,order=[Order(gold)])
         try:q.execute(db);raise AssertionError("query candidate budget ignored")
         except Error as e: assert e.code==9
+        # repeated：任一元素匹配；普通标量查询仍只看最后一个值；repeated 不能用于排序。
+        db.put_many([(b"r/1",_u(1,1)+_u(12,5)+_u(12,9)),(b"r/2",_u(1,2)+_u(12,9)),
+                     (b"r/3",_u(1,3)+_u(12,5)),(b"r/4",_u(1,4))],force_reliable=True)
+        items=Field(12,1)
+        q=Query(b"r/",where=items.any().test(Op.EQ,5),columns=[Column(uid)],order=[Order(uid)])
+        assert [r["values"][0] for r in q.execute(db).rows]==[1,3],q.execute(db).rows
+        q=Query(b"r/",where=~items.any().test(Op.EQ,5),columns=[Column(uid)],order=[Order(uid)])
+        assert [r["values"][0] for r in q.execute(db).rows]==[2,4]
+        q=Query(b"r/",where=items.test(Op.EQ,5),columns=[Column(uid)],order=[Order(uid)])
+        assert [r["values"][0] for r in q.execute(db).rows]==[3]
+        q=Query(b"r/",where=items.any().test(Op.EXISTS),columns=[Column(uid)],order=[Order(uid)])
+        assert [r["values"][0] for r in q.execute(db).rows]==[1,2,3]
+        q=Query(b"r/",columns=[Column(uid)],order=[Order(items.any())])
+        try:q.execute(db);raise AssertionError("repeated accepted in ORDER BY")
+        except Error as e: assert e.code!=0
         db.sync();db.verify()
     with Store(root/"main",library=library) as db:
         assert len(Query(b"p/",columns=[Column(uid)]).execute(db).rows)==64

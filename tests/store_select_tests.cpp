@@ -429,9 +429,393 @@ static void cache_schema_and_metadata_only() {
     check(status([&] { select(large, q); }) == FQDB_LIMIT,
           "payload query bypassed tiny pin budget");
 }
+// The Store-level snapshot path must match the transaction path and reject non-query ops.
+static void store_snapshot_path() {
+    Fixture f;
+    Store db(f.name("snapshot-path"));
+    seed(db);
+    auto q = query();
+    q.where = E::all({E::compare(F::field(2, 4), QueryOp::Eq, V::text("mage")),
+                      E::compare(F::field(3, 1), QueryOp::Ge, V::uint(5))});
+    q.columns.push_back({F::field(4, 5), A::None, {}});
+    q.order = {{F::field(4, 5), true, true}, {F::field(1, 1), false, true}};
+    auto tx = db.transaction();
+    auto in_tx = select(tx, q);
+    auto direct = select(db, q);
+    check(!direct.rows.empty() && ids(direct) == ids(in_tx) &&
+              direct.rows[0].values[1].signed_value == in_tx.rows[0].values[1].signed_value,
+          "store snapshot select differs from transaction select");
+    check(direct.stats.payload_reads == in_tx.stats.payload_reads,
+          "snapshot path changed payload reads");
+    auto prepared = fengqudb::StorePreparedQuery(q);
+    check(ids(prepared.execute(db)) == ids(direct), "prepared store select differs");
+    check(!explain(db, q).access.empty(), "store explain lost access plan");
+    // Private writes are visible only through the transaction path.
+    tx.put("p/1000", doc(1001));
+    auto all = query();
+    all.limit = 4096;
+    check(select(tx, all).rows.size() == 65 && select(db, all).rows.size() == 64,
+          "private write visibility differs between paths");
+    // The snapshot path records no dependencies; the transaction path still conflicts.
+    put(db, "p/1", doc(1));
+    check(select(db, all).rows.size() == 64, "snapshot select after write");
+    check(tx.commit().status == Status::conflict, "transaction query lost dependency");
+    fengqudb::StoreCommand bad{FQDB_COLLECTION_SIZE, "h"};
+    check(status([&] { db.select_command(bad); }) == FQDB_INVALID_ARGUMENT,
+          "store select accepted a non-query operation");
+    fqdb_buffer out{reinterpret_cast<void *>(1), 1};
+    check(fqdb_store_select(nullptr, {nullptr, 0}, &out) == FQDB_INVALID_ARGUMENT &&
+              out.data == nullptr && out.size == 0,
+          "null store select");
+    check(fqdb_store_select(nullptr, {nullptr, 0}, nullptr) == FQDB_INVALID_ARGUMENT,
+          "null output select");
+}
+// 窄索引过滤扫描：结果必须等于按主记录逐行判断的模型，且索引更新和私有写入后仍然正确。
+static void filter_scan_matches_model() {
+    Fixture f;
+    Store db(f.name("filter-scan"));
+    seed(db);
+    db.define_compound_index("name", "p/", {{5, 4}}, 2);
+    db.checkpoint();
+    auto q = query();
+    q.where = E::compare(F::field(5, 4), QueryOp::Contains, V::text("1"));
+    q.limit = 4096;
+    auto sorted_ids = [](const StoreQueryResult &r) {
+        auto out = ids(r);
+        std::sort(out.begin(), out.end());
+        return out;
+    };
+    auto model = [](unsigned replaced_key, unsigned replaced_id) {
+        std::vector<uint64_t> out;
+        for (unsigned key = 0; key < 64; ++key) {
+            unsigned id = key == replaced_key ? replaced_id : key;
+            if (std::to_string(id).find('1') != std::string::npos)
+                out.push_back(id);
+        }
+        std::sort(out.begin(), out.end());
+        return out;
+    };
+    auto r = select(db, q);
+    check(r.access[0].strategy == "index_filter_scan", "filter scan was not chosen");
+    check(sorted_ids(r) == model(999, 0), "filter scan result differs from model");
+    // 索引随更新维护：改写一行的名称后，扫描结果必须同步变化。
+    put(db, "p/2", doc(131));
+    r = select(db, q);
+    check(r.access[0].strategy == "index_filter_scan" && sorted_ids(r) == model(2, 131),
+          "filter scan missed an indexed update");
+    // 事务内有私有写入时索引尚未反映，必须改走主记录扫描并看到私有写入。
+    auto tx = db.transaction();
+    tx.put("p/3", doc(141));
+    auto in_tx = select(tx, q);
+    check(in_tx.access[0].strategy != "index_filter_scan", "filter scan used with private writes");
+    auto expected = model(2, 131);
+    expected.push_back(141);
+    std::sort(expected.begin(), expected.end());
+    check(sorted_ids(in_tx) == expected, "private write invisible to filter scan fallback");
+    // 小结果且无排序时仍用主键序扫描，保留凑满即停。
+    auto small = query();
+    small.where = q.where;
+    small.limit = 5;
+    check(select(db, small).access[0].strategy == "prefix_scan", "small limit lost early stop");
+    // 查询前缀比索引前缀更窄时不能扫整条索引（范围外条目会占用候选预算）。
+    auto narrow = query();
+    narrow.prefix = "p/1";
+    narrow.where = q.where;
+    narrow.limit = 4096;
+    auto narrow_result = select(db, narrow);
+    auto narrow_ids = ids(narrow_result);
+    std::sort(narrow_ids.begin(), narrow_ids.end());
+    std::vector<uint64_t> narrow_expected;
+    for (unsigned key = 0; key < 64; ++key) {
+        unsigned id = key == 2 ? 131 : key;
+        auto text = "p/" + std::to_string(key);
+        if (text.rfind("p/1", 0) == 0 && std::to_string(id).find('1') != std::string::npos)
+            narrow_expected.push_back(id);
+    }
+    std::sort(narrow_expected.begin(), narrow_expected.end());
+    check(narrow_result.access[0].strategy != "index_filter_scan" &&
+              narrow_ids == narrow_expected,
+          "narrower query prefix used the wide index scan");
+}
+// 规则缓存跨 Program 复用（换字面量的查询）时，目录变更后必须立即看到新的索引集合。
+static void rules_reuse_respects_catalog_epoch() {
+    Fixture f;
+    Store db(f.name("rules-reuse"));
+    seed(db);
+    auto at = [&](unsigned level) {
+        auto q = query();
+        q.where = E::compare(F::field(3, 1), QueryOp::Ge, V::uint(level));
+        return select(db, q);
+    };
+    auto first = at(10);
+    check(first.access[0].strategy != "index_range", "unexpected index before definition");
+    check(at(11).access[0].strategy != "index_range", "reused rules changed the plan");
+    db.define_compound_index("level", "p/", {{3, 1}}, 2);
+    auto indexed = at(12);
+    check(indexed.access[0].strategy == "index_range" && indexed.access[0].index == "level",
+          "reused rules missed a newly defined index");
+    check(at(13).access[0].index == "level", "second query after define lost the index");
+    db.drop_index("level");
+    check(at(14).access[0].strategy != "index_range", "reused rules kept a dropped index");
+    // 不同字面量的结果必须与按主记录逐行判断的模型一致。
+    for (unsigned level : {0u, 7u, 15u, 19u, 20u}) {
+        std::vector<uint64_t> expected;
+        for (unsigned i = 0; i < 64; ++i)
+            if (i % 20 >= level)
+                expected.push_back(i);
+        auto got = ids(at(level));
+        std::sort(got.begin(), got.end());
+        check(got == expected, "literal-varying query result differs from model");
+    }
+}
+// LIKE 的字面量前缀快路径必须与通用 NFA 结果一致。
+static void like_prefix_fast_path_matches_nfa() {
+    Fixture f;
+    Store db(f.name("like-prefix"));
+    seed(db);
+    auto run = [&](const char *pattern) {
+        auto q = query();
+        q.where = E::compare(F::field(5, 4), QueryOp::Like, V::text(pattern));
+        q.limit = 4096;
+        auto got = ids(select(db, q));
+        std::sort(got.begin(), got.end());
+        return got;
+    };
+    auto starting = [](char digit, size_t min_digits) {
+        std::vector<uint64_t> out;
+        for (unsigned i = 0; i < 64; ++i) {
+            auto text = std::to_string(i);
+            if (text[0] == digit && text.size() >= min_digits)
+                out.push_back(i);
+        }
+        return out;
+    };
+    std::vector<uint64_t> all;
+    for (unsigned i = 0; i < 64; ++i)
+        all.push_back(i);
+    check(run("Name-1%") == starting('1', 1), "like prefix fast path");
+    check(run("Name-6%") == starting('6', 1), "like prefix fast path 6");
+    check(run("Name-1_%") == starting('1', 2), "like with underscore uses the pattern engine");
+    check(run("%") == all && run("Name-%") == all, "like match-all prefix");
+    check(run("Name-1\\%%").empty(), "escaped percent must stay literal");
+    check(run("Name-1") == std::vector<uint64_t>{1}, "like without wildcard must match exactly");
+    check(run("name-1%").empty(), "like prefix must be case sensitive");
+    check(status([&] { run("Name-1\\"); }) == FQDB_INVALID_ARGUMENT, "dangling escape accepted");
+    // 快路径不能放行超过通用匹配器上限（1024 字节）的模式。
+    const std::string too_long = std::string(1100, 'a') + "%";
+    check(status([&] { run(too_long.c_str()); }) == FQDB_LIMIT, "oversized LIKE prefix accepted");
+}
+// 非唯一复合索引直接从键尾解主键：主键含零字节（需转义）时结果仍必须正确。
+static void index_scan_decodes_owner_from_key() {
+    Fixture f;
+    Store db(f.name("owner-from-key"));
+    seed(db);
+    db.define_compound_index("level", "p/", {{3, 1}}, 2);
+    const std::string odd("p/z\0y\xff", 6);
+    put(db, odd, doc(70));
+    auto q = query();
+    q.columns = {{F::key(), A::None, {}}, {F::field(1, 1), A::None, {}}};
+    q.where = E::compare(F::field(3, 1), QueryOp::Ge, V::uint(10));
+    q.limit = 4096;
+    auto r = select(db, q);
+    check(r.access[0].strategy == "index_range", "owner-from-key query did not use the index");
+    bool found = false;
+    size_t expected = 0;
+    for (unsigned i = 0; i < 64; ++i)
+        expected += (i % 20 >= 10);
+    expected += (70 % 20 >= 10);
+    for (auto &row : r.rows)
+        if (row.values[0].bytes == odd) {
+            found = true;
+            check(row.values[1].unsigned_value == 70, "wrong row for key with zero byte");
+        }
+    check(found && r.rows.size() == expected, "index scan lost or duplicated rows");
+    // 覆盖路径（只取索引字段与主键）同样从键尾取主键。
+    q.columns = {{F::key(), A::None, {}}, {F::field(3, 1), A::None, {}}};
+    auto covered = select(db, q);
+    check(covered.access[0].covering && covered.stats.payload_reads == 0 &&
+              covered.rows.size() == expected,
+          "covering scan with key-tail owner differs");
+}
+// repeated 字段：条件在任一元素满足时为真；打包/未打包标量、嵌套消息子字段和字符串都按元素匹配。
+static void repeated_fields_match_any_element() {
+    Fixture f;
+    Store db(f.name("repeated"));
+    constexpr unsigned count = 64;
+    auto unpacked = [](unsigned i) {
+        return i % 4 == 0 ? std::vector<uint64_t>{}
+                          : std::vector<uint64_t>{i % 7, (i * 3) % 11, 20 + i % 5};
+    };
+    auto packed = [](unsigned i) {
+        return i % 5 == 0 ? std::vector<uint64_t>{} : std::vector<uint64_t>{i % 9, (i * 2) % 13};
+    };
+    auto messages = [](unsigned i) {
+        std::vector<std::pair<uint64_t, uint64_t>> out;
+        for (unsigned k = 0; k < i % 3; ++k)
+            out.push_back({(i * 5 + k) % 17, (k + i) % 6});
+        return out;
+    };
+    auto tags = [](unsigned i) {
+        return i % 6 == 0 ? std::vector<std::string>{}
+                          : std::vector<std::string>{"tag-" + std::to_string(i % 10),
+                                                     "tag-" + std::to_string((i + 3) % 10)};
+    };
+    {
+        auto tx = db.transaction();
+        for (unsigned i = 0; i < count; ++i) {
+            wire::Writer w;
+            w.uint_field(1, i);
+            for (auto v : unpacked(i))
+                w.uint_field(12, v);
+            if (!packed(i).empty()) {
+                wire::Writer inner;
+                for (auto v : packed(i))
+                    inner.varint(v);
+                w.bytes_field(13, inner.data());
+            }
+            for (auto &m : messages(i)) {
+                wire::Writer inner;
+                inner.uint_field(1, m.first);
+                inner.uint_field(2, m.second);
+                w.bytes_field(14, inner.data());
+            }
+            for (auto &t : tags(i))
+                w.bytes_field(15, t);
+            tx.put("p/" + std::to_string(i), w.take());
+        }
+        commit(tx);
+    }
+    auto rep = [](uint32_t number, uint32_t type) { return F::field(number, type).any(); };
+    auto nested = [](uint32_t sub) {
+        auto field = F::field(14, 1);
+        field.path = {14, sub};
+        return field.any();
+    };
+    auto run = [&](const E &where) {
+        auto q = query();
+        q.where = where;
+        q.limit = 4096;
+        auto got = ids(select(db, q));
+        std::sort(got.begin(), got.end());
+        return got;
+    };
+    auto model = [&](auto predicate) {
+        std::vector<uint64_t> out;
+        for (unsigned i = 0; i < count; ++i)
+            if (predicate(i))
+                out.push_back(i);
+        return out;
+    };
+    auto has = [](const std::vector<uint64_t> &list, uint64_t v) {
+        return std::find(list.begin(), list.end(), v) != list.end();
+    };
+    auto item_is = [&](unsigned i, uint64_t v) {
+        for (auto &m : messages(i))
+            if (m.first == v)
+                return true;
+        return false;
+    };
+    auto tag_is = [&](unsigned i, const std::string &v) {
+        auto list = tags(i);
+        return std::find(list.begin(), list.end(), v) != list.end();
+    };
+    auto a = E::compare(rep(12, 1), QueryOp::Eq, V::uint(5));
+    check(run(a) == model([&](unsigned i) { return has(unpacked(i), 5); }) && !run(a).empty(),
+          "unpacked repeated equality");
+    auto b = E::compare(rep(13, 1), QueryOp::Eq, V::uint(7));
+    check(run(b) == model([&](unsigned i) { return has(packed(i), 7); }) && !run(b).empty(),
+          "packed repeated equality");
+    auto c = E::compare(nested(1), QueryOp::Eq, V::uint(3));
+    check(run(c) == model([&](unsigned i) { return item_is(i, 3); }) && !run(c).empty(),
+          "repeated nested message field");
+    auto d = E::compare(rep(15, 4), QueryOp::Eq, V::text("tag-3"));
+    check(run(d) == model([&](unsigned i) { return tag_is(i, "tag-3"); }) && !run(d).empty(),
+          "repeated string equality");
+    auto contains = E::compare(rep(15, 4), QueryOp::Contains, V::text("g-7"));
+    check(run(contains) == model([&](unsigned i) { return tag_is(i, "tag-7"); }),
+          "repeated string contains");
+    check(run(E::compare(rep(12, 1), QueryOp::Ge, V::uint(20))) ==
+              model([&](unsigned i) { return !unpacked(i).empty(); }),
+          "repeated range comparison");
+    check(run(E::negate(a)) == model([&](unsigned i) { return !has(unpacked(i), 5); }),
+          "NOT over a repeated condition means no element matches");
+    check(run(E::any({a, b})) ==
+              model([&](unsigned i) { return has(unpacked(i), 5) || has(packed(i), 7); }),
+          "OR of repeated conditions");
+    check(run(E::all({a, E::compare(F::field(1, 1), QueryOp::Lt, V::uint(30))})) ==
+              model([&](unsigned i) { return i < 30 && has(unpacked(i), 5); }),
+          "repeated combined with a plain condition");
+    check(run(E::one_of(rep(12, 1), {V::uint(1), V::uint(2)})) ==
+              model([&](unsigned i) { return has(unpacked(i), 1) || has(unpacked(i), 2); }),
+          "repeated IN");
+    check(run(E::test(rep(12, 1), QueryOp::Exists)) ==
+                  model([&](unsigned i) { return !unpacked(i).empty(); }) &&
+              run(E::test(rep(12, 1), QueryOp::IsNull)) ==
+                  model([&](unsigned i) { return unpacked(i).empty(); }),
+          "repeated Exists / IsNull mean non-empty / empty");
+    // 磁盘索引只记录标量的最后一个值：repeated 条件不能由索引判断，否则会漏行。
+    db.define_compound_index("rep-last", "p/", {{12, 1}}, 0);
+    db.checkpoint();
+    auto q = query();
+    q.where = a;
+    q.limit = 4096;
+    auto indexed = select(db, q);
+    auto got = ids(indexed);
+    std::sort(got.begin(), got.end());
+    check(got == model([&](unsigned i) { return has(unpacked(i), 5); }) &&
+              indexed.access[0].strategy != "index_range",
+          "repeated condition used a scalar index");
+    // 对照：同一字段按普通标量查询仍只看最后一个值，并可走索引。
+    check(run(E::compare(F::field(12, 1), QueryOp::Eq, V::uint(5))) ==
+              model([&](unsigned i) { return !unpacked(i).empty() && unpacked(i).back() == 5; }),
+          "plain scalar query lost last-value semantics");
+    // 游标分页：repeated 条件参与游标签名，逐页拼接必须等于完整结果。
+    auto page = query();
+    page.where = a;
+    page.order = {{F::field(1, 1), false, true}};
+    page.limit = 5;
+    std::vector<uint64_t> paged;
+    for (int guard = 0; guard < 64; ++guard) {
+        auto part = select(db, page);
+        for (auto id : ids(part))
+            paged.push_back(id);
+        if (part.cursor.empty())
+            break;
+        page.after = part.cursor;
+    }
+    check(paged == model([&](unsigned i) { return has(unpacked(i), 5); }) && paged.size() > 5,
+          "repeated condition broke cursor paging");
+    // 不允许的位置与混用：排序、输出列、分组、键、同路径混用。
+    q = query();
+    q.where = a;
+    q.order = {{rep(12, 1), false, true}};
+    check(status([&] { select(db, q); }) == FQDB_INVALID_ARGUMENT, "repeated accepted in ORDER BY");
+    q = query();
+    q.columns = {{rep(12, 1), A::None, {}}};
+    check(status([&] { select(db, q); }) == FQDB_INVALID_ARGUMENT, "repeated accepted as a column");
+    q = query();
+    q.group = {rep(12, 1)};
+    q.columns = {{rep(12, 1), A::None, {}}};
+    check(status([&] { select(db, q); }) == FQDB_INVALID_ARGUMENT, "repeated accepted in GROUP BY");
+    q = query();
+    q.where = E::all({a, E::compare(F::field(12, 1), QueryOp::Eq, V::uint(5))});
+    check(status([&] { select(db, q); }) == FQDB_INVALID_ARGUMENT,
+          "same path used as repeated and plain");
+    q = query();
+    auto key_repeated = F::key();
+    key_repeated.repeated = true;
+    q.where = E::compare(key_repeated, QueryOp::Eq, V::text("p/1"));
+    check(status([&] { select(db, q); }) == FQDB_INVALID_ARGUMENT, "repeated key accepted");
+}
 int main() {
     try {
+        repeated_fields_match_any_element();
+        index_scan_decodes_owner_from_key();
+        like_prefix_fast_path_matches_nfa();
+        rules_reuse_respects_catalog_epoch();
+        filter_scan_matches_model();
         conditions_order_and_covering();
+        store_snapshot_path();
         sparse_indices_paging_and_conflicts();
         groups_numeric_and_nulls();
         joins_and_patterns();

@@ -1,0 +1,17 @@
+[package]
+name = "fengqudb"
+description = "Safe Rust binding for the FengquDB embedded key-value database"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+fengqudb-sys = { path = "../fengqudb-sys" }
+
+[dev-dependencies]
+serde_json = "1"
+
+[[example]]
+name = "bench"
+path = "examples/bench.rs"

@@ -11,12 +11,15 @@ public enum QueryJoinKind : uint { Inner, Left, Semi, Anti }
 public sealed class QueryField {
     public uint Source, Type=4;
     public uint[] Path=Array.Empty<uint>();
+    // true：Path 指向 protobuf repeated 字段，条件在任一元素满足时为真（仅主源 WHERE 叶子条件）。
+    public bool Repeated;
     public QueryField() {}
     public QueryField(uint number,uint type,uint source=0) { Source=source;Type=type;Path=new[]{number}; }
     public static QueryField Key(uint source=0)=>new QueryField{Source=source};
     public static QueryField Record(uint source=0)=>new QueryField{Source=source,Type=0};
     public static QueryField Column(uint index)=>new QueryField(index+1,0,255);
-    internal byte[] Encode()=>QueryWire.Encode(w=>{QueryWire.UInt(w,1,Source);QueryWire.UInt(w,2,Type);foreach(var n in Path)QueryWire.UInt(w,3,n);});
+    public QueryField Any()=>new QueryField{Source=Source,Type=Type,Path=Path,Repeated=true};
+    internal byte[] Encode()=>QueryWire.Encode(w=>{QueryWire.UInt(w,1,Source);QueryWire.UInt(w,2,Type);foreach(var n in Path)QueryWire.UInt(w,3,n);if(Repeated)QueryWire.UInt(w,4,1);});
     public QueryExpr Test(QueryOp op,params object?[] values)=>new QueryExpr{Op=op,Field=this,Values=values};
     public QueryExpr Compare(QueryOp op,QueryField right)=>new QueryExpr{Op=op,Field=this,Right=right};
 }
@@ -68,7 +71,8 @@ public sealed class StoreQuery {
 public sealed class PreparedQuery {
     readonly byte[] encoded;
     internal PreparedQuery(byte[] bytes){encoded=bytes;}
-    public StoreQueryResult Execute(Store db,bool explain=false)=>StoreQueryResult.Decode(db.Execute((StoreOperation)(explain?54:53),Array.Empty<byte>(),value:encoded).Value!);
+    // Store runs on a read-only snapshot; a transaction keeps private-write visibility.
+    public StoreQueryResult Execute(Store db,bool explain=false)=>StoreQueryResult.Decode(db.SelectRaw((StoreOperation)(explain?54:53),encoded).Value!);
     public StoreQueryResult Execute(StoreTransaction tx,bool explain=false)=>StoreQueryResult.Decode(tx.Execute((StoreOperation)(explain?54:53),Array.Empty<byte>(),value:encoded).Value!);
 }
 public sealed class QueryRow {public byte[] Key=Array.Empty<byte>();public List<object?> Values=new List<object?>();}

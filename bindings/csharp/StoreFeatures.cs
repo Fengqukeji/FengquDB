@@ -219,6 +219,8 @@ internal static partial class StoreNative {
     internal static extern int fqdb_store_txn_execute(StoreHandle h, Slice request,
                                                       out Slice result);
     [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int fqdb_store_select(StoreHandle h, Slice request, out Slice result);
+    [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int fqdb_store_configure(StoreHandle h, ref StoreRuntimeNative options);
     [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int fqdb_store_runtime_info_get(StoreHandle h,
@@ -306,6 +308,17 @@ public sealed partial class Store {
             return Native.Copy(StoreNative.fqdb_store_value_data(value));
         } finally {
             StoreNative.fqdb_store_value_close(value);
+        }
+    }
+    // Read-only SELECT/EXPLAIN on a fresh snapshot: no transaction, no conflict dependencies.
+    internal unsafe StoreCommandResult SelectRaw(StoreOperation operation, byte[] value) {
+        var request = StoreFeatureWire.Request(operation, Array.Empty<byte>(), null, value, 0, 0,
+                                               256, 0);
+        fixed(byte *p = request) {
+            int status = StoreNative.fqdb_store_select(
+                handle, new Slice((IntPtr)p, (ulong)request.Length), out var result);
+            Native.Check(status);
+            return StoreFeatureWire.Result(Native.Read(status, result)!);
         }
     }
     public StoreCommandResult Execute(StoreOperation operation, byte[] scope, byte[]? key = null,

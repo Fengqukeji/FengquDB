@@ -117,6 +117,13 @@ enum {
    Allocate/read the result BEFORE committing to avoid post-commit OOM ambiguity. */
 FQDB_API fqdb_status FQDB_CALL fqdb_store_txn_execute(fqdb_store_txn *txn, fqdb_slice request,
                                                       fqdb_buffer *out);
+/* Read-only FQDB_SELECT / FQDB_SELECT_EXPLAIN on a fresh immutable snapshot.
+   Same request/response encoding as fqdb_store_txn_execute; creates no
+   committable transaction and records no conflict dependencies. Use
+   fqdb_store_txn_execute when the query must see private writes or join a
+   transaction's conflict checks. Any other operation is INVALID_ARGUMENT. */
+FQDB_API fqdb_status FQDB_CALL fqdb_store_select(fqdb_store *store, fqdb_slice request,
+                                                 fqdb_buffer *out);
 /* Scalar top-level protobuf fields: use the type numbers documented below.
    flags: 1 unique,2 required. Existing data is built in bounded online batches;
    failure leaves a BUILDING definition, resumable with the same arguments.

@@ -3,7 +3,7 @@
 Matching is bytewise; i-operators fold ASCII. Missing fields use SQL three-valued
 logic. See docs/STORE_SELECT.md for budgets, joins and pagination contracts.
 """
-from dataclasses import dataclass, field as factory
+from dataclasses import dataclass, field as factory, replace as _dc_replace
 from enum import IntEnum
 import math
 import struct
@@ -59,9 +59,13 @@ class Field:
     type: int = 4
     source: int = 0
     path: tuple = ()
+    # True 表示该路径是 protobuf repeated 字段：条件在任一元素满足时为真，只能用于主源 WHERE 叶子条件。
+    repeated: bool = False
     def encode(self):
         path = self.path or ((self.number,) if self.number else ())
-        return _u(1, self.source) + _u(2, self.type) + b"".join(_u(3, n) for n in path)
+        return (_u(1, self.source) + _u(2, self.type) + b"".join(_u(3, n) for n in path) +
+                (_u(4, 1) if self.repeated else b""))
+    def any(self): return _dc_replace(self, repeated=True)
     @staticmethod
     def key(source=0): return Field(source=source)
     @staticmethod
@@ -153,26 +157,102 @@ class PreparedQuery:
     encoded: bytes
     def __post_init__(self): object.__setattr__(self,"encoded",bytes(self.encoded))
     def _run(self, database, explain):
-        response=database.execute(54 if explain else 53,b"",value=self.encoded)
+        operation=54 if explain else 53
+        # Store uses the read-only snapshot entry; transactions keep private-write visibility.
+        response=(database.select_raw(operation,self.encoded) if hasattr(database,"select_raw")
+                  else database.execute(operation,b"",value=self.encoded))
         if response.value is None: raise ValueError("missing query response")
         return Result(response.value)
     def execute(self, database): return self._run(database,False)
     def explain(self, database): return self._run(database,True)
 
+_double_at = struct.Struct("<d").unpack_from
+
+def _var(data, p):
+    # Inline single-byte fast path; at most 10 bytes like _feature_fields.
+    b = data[p]
+    if b < 128: return b, p + 1
+    x = b & 127; s = 7; p += 1
+    while True:
+        b = data[p]; p += 1; x |= (b & 127) << s
+        if b < 128: return x, p
+        s += 7
+        if s >= 70: raise ValueError("invalid feature response")
+
+def _skip(data, p, wire):
+    if wire == 0: return _var(data, p)[1]
+    if wire == 1: return p + 8
+    if wire == 5: return p + 4
+    if wire == 2:
+        length, p = _var(data, p); return p + length
+    raise ValueError("invalid feature response")
+
+def _value_at(data, p, end):
+    """Decode one QueryValue in data[p:end] without slicing; same rules as _decode_value."""
+    kind = u = i = 0; real = 0.0; raw = b""
+    while p < end:
+        tag, p = _var(data, p); number = tag >> 3; wire = tag & 7
+        if wire == 0:
+            x, p = _var(data, p)
+            if number == 1: kind = x
+            elif number == 2: u = x
+            elif number == 3: i = x
+        elif wire == 1:
+            if number == 4: real = _double_at(data, p)[0]
+            p += 8
+        elif wire == 2:
+            length, p = _var(data, p)
+            if number == 5: raw = data[p:p + length]
+            p += length
+        else: p = _skip(data, p, wire)
+    if p != end: raise ValueError("truncated feature response")
+    if kind == 0: return None
+    if kind == 1: return u
+    if kind == 2: return (i >> 1) ^ -(i & 1)
+    if kind == 3: return real
+    if kind == 4: return raw
+    if kind == 5: return bool(u)
+    raise ValueError("invalid query value kind")
+
+def _row_at(data, p, end):
+    key = b""; values = []
+    while p < end:
+        tag, p = _var(data, p)
+        if tag & 7 != 2:
+            p = _skip(data, p, tag & 7); continue
+        length, p = _var(data, p); stop = p + length
+        if stop > end: raise ValueError("truncated feature response")
+        if tag >> 3 == 1: key = data[p:stop]
+        elif tag >> 3 == 2: values.append(_value_at(data, p, stop))
+        p = stop
+    if p != end: raise ValueError("truncated feature response")
+    return {"key": key, "values": values}
+
 class Result:
     def __init__(self,data):
         self.rows=[];self.access=[];self.stats={};self.cursor=b""
-        for n,v in _feature_fields(data):
-            if n==1:
-                row={"key":b"","values":[]}
-                for k,x in _feature_fields(v):
-                    if k==1: row["key"]=x
-                    elif k==2: row["values"].append(_decode_value(x))
-                self.rows.append(row)
-            elif n==2:
-                names={1:"source",2:"strategy",3:"index",4:"reason",5:"covering",6:"ordered",7:"needs_scan",8:"sampled_candidates"}
-                self.access.append({names[k]:x.decode("utf8") if k in (2,3,4) else bool(x) if k in (5,6,7) else x for k,x in _feature_fields(v) if k in names})
-            elif n==3:
-                names={1:"candidates",2:"matched",3:"result_total",4:"work",5:"peak_memory",6:"payload_reads",7:"join_probes",8:"complete"}
-                self.stats={names[k]:bool(x) if k==8 else x for k,x in _feature_fields(v) if k in names}
-            elif n==4: self.cursor=v
+        try:
+            self._decode(bytes(data))
+        except IndexError:
+            raise ValueError("truncated feature response") from None
+    def _decode(self,data):
+        # Single pass over the response: rows are decoded in place instead of
+        # slicing every nested message (about 3x faster for large results).
+        size=len(data);p=0;rows=self.rows
+        while p<size:
+            tag,p=_var(data,p);n=tag>>3
+            if tag&7!=2:
+                p=_skip(data,p,tag&7);continue
+            length,p=_var(data,p);end=p+length
+            if end>size: raise ValueError("truncated feature response")
+            if n==1: rows.append(_row_at(data,p,end))
+            else: self._section(n,data[p:end])
+            p=end
+    def _section(self,n,v):
+        if n==2:
+            names={1:"source",2:"strategy",3:"index",4:"reason",5:"covering",6:"ordered",7:"needs_scan",8:"sampled_candidates"}
+            self.access.append({names[k]:x.decode("utf8") if k in (2,3,4) else bool(x) if k in (5,6,7) else x for k,x in _feature_fields(v) if k in names})
+        elif n==3:
+            names={1:"candidates",2:"matched",3:"result_total",4:"work",5:"peak_memory",6:"payload_reads",7:"join_probes",8:"complete"}
+            self.stats={names[k]:bool(x) if k==8 else x for k,x in _feature_fields(v) if k in names}
+        elif n==4: self.cursor=v

@@ -1,5 +1,6 @@
 import io.fengqudb.Store;
 import io.fengqudb.Select;
+import io.fengqudb.Q;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 public final class SelectSmoke {
@@ -13,5 +14,37 @@ public final class SelectSmoke {
         q=new Select();q.prefix=b("p/");q.where=new Select.Field(5,4).test(Select.Op.REGEX,"^Name-1[0-9]$");q.columns.add(new Select.Column(uid));check(q.execute(db).rows.size()==10);
         Select.Join join=new Select.Join();join.prefix=b("o/");join.left.add(uid);join.right.add(new Select.Field(2,1,1));q.joins.add(join);q.where=new Select.Expr();q.columns.add(new Select.Column(new Select.Field(3,1,1)));check(q.execute(db).rows.size()==32);
         try(Store.Transaction tx=db.begin()){check(q.execute(tx).rows.size()==32);}
+        // repeated: fixture r/ is written by the Python run (field 12 holds 5,9 / 9 / 5 / none).
+        Select.Field items=new Select.Field(12,1);
+        Select rq=new Select();rq.prefix=b("r/");rq.columns.add(new Select.Column(uid));
+        rq.where=items.any().test(Select.Op.EQ,5);check(rq.execute(db).rows.size()==2);
+        rq.where=items.any().test(Select.Op.EXISTS);check(rq.execute(db).rows.size()==3);
+        rq.where=items.test(Select.Op.EQ,5);check(rq.execute(db).rows.size()==1);
+        // Typed builder: same request bytes as the hand-written query, typed rows and aggregates.
+        Q.Col<Long> id=Q.u64(1),lvl=Q.u64(3),gold=Q.s64(4),opt=Q.u64(10);Q.Col<String> cls=Q.text(2);
+        Q.Builder typed=Q.from("p/").where(cls.eq("mage").and(lvl.ge(5L)).and(lvl.le(15L))).select(id,lvl).orderBy(lvl.desc()).limit(7);
+        Select manual=new Select();manual.prefix=b("p/");manual.where=Select.Expr.all(kind.test(Select.Op.EQ,"mage"),level.test(Select.Op.GE,5L),level.test(Select.Op.LE,15L));manual.columns.add(new Select.Column(uid));manual.columns.add(new Select.Column(level));manual.order.add(new Select.Order(level,true));manual.limit=7;
+        check(Arrays.equals(typed.build().encode(),manual.encode()));
+        // repeated via the typed builder: same bytes as the raw field, and it runs against the r/ fixture.
+        Q.Col<Long> itemsCol=Q.u64(12);
+        Q.Builder typedAny=Q.from("r/").where(itemsCol.any().eq(5L)).select(id).limit(20);
+        Select manualAny=new Select();manualAny.prefix=b("r/");manualAny.where=new Select.Field(12,1).any().test(Select.Op.EQ,5L);manualAny.columns.add(new Select.Column(uid));manualAny.limit=20;
+        check(Arrays.equals(typedAny.build().encode(),manualAny.encode()));
+        check(typedAny.run(db).size()==2);
+        Q.Rows rows=typed.run(db);check(rows.size()==7&&rows.get(0).get(id)==55L);
+        for(Q.Row row:rows)check(row.get(lvl)>=5&&row.get(lvl)<=15&&row.get(id)%2==1);
+        check(typed.prepare().run(db).size()==7);
+        Q.Rows groups=Q.from("p/").groupBy(cls).select(cls,Q.count(),Q.sum(gold)).having(Q.sum(gold).gt(8000L)).orderBy(cls).run(db);
+        check(groups.size()==1&&groups.get(0).get(cls).equals("mage")&&groups.get(0).get(Q.count())==32L&&groups.get(0).get(Q.sum(gold))==8064L);
+        Q.Rows byAvg=Q.from("p/").groupBy(cls).select(cls,Q.avg(gold)).orderBy(Q.avg(gold).desc()).run(db);
+        check(byAvg.size()>=2);for(int i=1;i<byAvg.size();i++)check(byAvg.get(i-1).get(Q.avg(gold))>=byAvg.get(i).get(Q.avg(gold)));
+        Q.Rows missing=Q.from("p/").where(opt.isNull()).select(id,opt).limit(100).run(db);
+        check(missing.size()==22&&missing.get(0).get(opt)==null);
+        check(Q.from("p/").where(id.in(3L,8L,3L)).select(id).run(db).size()==2);
+        check(Q.from("p/").where(cls.eq("mage").not()).select(id).run(db).size()==32);
+        Q.Builder page=Q.from("p/").select(id).orderBy(gold.desc()).limit(9);java.util.List<Long> seen=new java.util.ArrayList<>();
+        for(;;){Q.Rows r=page.run(db);for(Q.Row row:r)seen.add(row.get(id));if(r.cursor().length==0)break;page.after(r.cursor());}
+        check(seen.size()==64&&seen.get(0)==63L&&seen.get(63)==0L);
+        try{Q.from("p/").where(Q.count().gt(1L));check(false);}catch(IllegalArgumentException e){}
     }System.out.println("PASS Java query builders, prepared requests, cursor, patterns, aggregates and joins");}
 }

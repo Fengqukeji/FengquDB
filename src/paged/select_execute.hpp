@@ -6,9 +6,10 @@ struct CoverScratch {
     std::array<Bytes, 8> values;
     Hold hold;
     explicit CoverScratch(Memory &m) : hold(m) {}
-    void fill(Record &record, const IndexRule &rule, std::string_view index_key,
-              std::string_view owner) {
-        auto root = index_root(rule);
+    // 解码索引键里各字段的编码值到 values，返回字段之后的剩余部分。
+    // 非唯一索引的剩余部分就是主键的 component 编码，因此无需读取索引条目的值。
+    std::string_view decode(const IndexRule &rule, std::string_view root,
+                            std::string_view index_key) {
         require(begins(index_key, root));
         size_t allowance = index_key.size() * 4 + 2048;
         if (allowance > hold.bytes)
@@ -19,6 +20,15 @@ struct CoverScratch {
             values[i] = uncomponent(rest.substr(0, n));
             rest.remove_prefix(n);
         }
+        return rest;
+    }
+    void fill(Record &record, const IndexRule &rule, std::string_view index_key,
+              std::string_view owner) {
+        decode(rule, index_root(rule), index_key);
+        assign(record, rule, owner);
+    }
+    // 把已解码的索引字段写入记录槽位；记录的其余字段保持未设置。
+    void assign(Record &record, const IndexRule &rule, std::string_view owner) {
         record.reset(owner, {});
         for (auto id : record.program.slots[record.source]) {
             const auto &f = record.program.fields[id];
@@ -81,6 +91,9 @@ struct Executor {
     Work work;
     Eval eval;
     Transaction read;
+    // Request-local B-tree page path: primary-key lookups reuse cached upper pages.
+    Charge path_charge;
+    std::optional<Table::ReadPath> path;
     std::vector<IndexRule> rules;
     std::vector<bool> prepared;
     std::vector<std::unique_ptr<Plan>> plans;
@@ -93,7 +106,6 @@ struct Executor {
     Vec<Atom> computed, sort_values;
     Vec<Owned> cursor_sort;
     Text cursor_identity;
-    uint64_t signature = 0;
     std::string_view after;
     bool has_cursor = false, stop = false, early = false;
     std::vector<QueryAccess> access;
@@ -116,13 +128,28 @@ struct Executor {
         read.advanced = true;
         read.has_deadline = t.has_deadline;
         read.deadline = t.deadline;
+        read.track_reads = t.track_reads;
+        if (t.base->core->options.cache_bytes) {
+            // Same allowance as query_index; near the pin limit use plain lookups.
+            constexpr uint64_t allowance = 65536;
+            auto &core = *t.base->core;
+            try {
+                if (core.options.pinned_bytes - core.pin_budget->used() >=
+                    allowance + FQDB_MAX_KEY_BYTES + sizeof(Data)) {
+                    path_charge = Charge(core.pin_budget, {}, allowance);
+                    path.emplace(allowance);
+                }
+            } catch (const Error &e) {
+                if (e.status != FQDB_LIMIT)
+                    throw;
+            }
+        }
         for (unsigned i = 0; i <= p.spec.joins.size(); ++i) {
             memory.take(sizeof(Record) + 64);
             records[i] = std::make_unique<Record>(p, i, m, tx.base->core->pin_budget);
         }
         computed.resize(p.spec.columns.size());
         sort_values.resize(p.order.size());
-        signature = p.signature;
         if (!after.empty())
             decode_cursor();
         auto epoch = tx.depend(catalog_epoch()).version;
@@ -130,9 +157,12 @@ struct Executor {
         bool cacheable = owner && tx.base->core->options.cache_bytes && !tx.writes;
         auto previous =
             std::atomic_load_explicit(&tx.base->core->select_plan_cache, std::memory_order_acquire);
-        bool reused = cacheable && previous && previous->program.lock().get() == &p &&
-                      previous->epoch == epoch && version >= previous->version &&
-                      version - previous->version < 256;
+        // 索引规则只取决于目录版本，与查询字面量无关：版本窗口内的缓存条目即使属于另一个
+        // Program，也可直接复用其规则而不重读目录；整套计划仍要求是同一个 Program。
+        bool rules_fresh = cacheable && previous && previous->epoch == epoch &&
+                           version >= previous->version && version - previous->version < 256;
+        bool reused = rules_fresh && previous->program.lock().get() == &p;
+        const bool borrow_rules = rules_fresh && !reused;
         if (reused) {
             size_t cost = 2048;
             for (auto &r : previous->rules)
@@ -151,7 +181,16 @@ struct Executor {
                 plans.push_back(std::move(plan));
             }
         } else {
-            load_rules();
+            if (borrow_rules) {
+                size_t cost = 0;
+                for (auto &r : previous->rules)
+                    cost += r.prefix.size() * 2 + r.name.size() * 2 +
+                            r.parts.size() * sizeof(IndexPart) * 2 + 256;
+                memory.take(cost);
+                rules = previous->rules;
+                prepared.resize(rules.size());
+            } else
+                load_rules();
             plans = root_plans(p, rules, tx, m, work, !explain_only);
         }
         for (auto &plan : plans) {
@@ -234,7 +273,7 @@ struct Executor {
             } else
                 throw Error(FQDB_INVALID_ARGUMENT);
         });
-        require(hash == signature && cursor_sort.size() == p.order.size() &&
+        require(hash == p.signature() && cursor_sort.size() == p.order.size() &&
                     (seen_fields & (UINT64_C(1) << 2)),
                 FQDB_INVALID_ARGUMENT);
         has_cursor = true;
@@ -265,7 +304,7 @@ struct Executor {
         }
     }
     void source(Record &r, std::string_view name) {
-        auto value = read.try_get(Bytes(name));
+        auto value = read.try_get(Bytes(name), nullptr, path ? &*path : nullptr);
         require(bool(value));
         ++work.stats.payload_reads;
         r.reset(name, std::move(value));
@@ -330,8 +369,10 @@ struct Executor {
             heap.back() = std::move(row);
             std::push_heap(heap.begin(), heap.end(), cmp);
         } else {
+            // 未达上限前不会淘汰任何行，也不读取堆顶：先线性追加，恰好填满时一次建堆。
             heap.push_back(std::move(row));
-            std::push_heap(heap.begin(), heap.end(), cmp);
+            if (heap.size() == maximum)
+                std::make_heap(heap.begin(), heap.end(), cmp);
         }
         if (early && heap.size() == maximum) {
             stop = true;
@@ -475,7 +516,7 @@ struct Executor {
             auto atom = eval.get(p.left[j][0]);
             if (atom.kind == Kind::Bytes && begins(atom.text, spec.prefix) &&
                 !system_key(atom.text)) {
-                auto value = read.try_get(Bytes(atom.text));
+                auto value = read.try_get(Bytes(atom.text), nullptr, path ? &*path : nullptr);
                 if (value) {
                     ++work.stats.payload_reads;
                     record.reset(atom.text, std::move(value));
@@ -573,6 +614,38 @@ struct Executor {
                 if (stop)
                     break;
                 tx.range(interval.begin, interval.end);
+                if (plan->access.strategy == "index_filter_scan") {
+                    // 窄索引过滤扫描：不读业务值，在索引键上判断条件，命中后才回主表。
+                    const auto &rule = rules[*plan->rule];
+                    const auto root = index_root(rule);
+                    ReadCursor cursor(read.base, interval.begin, interval.end, false,
+                                      read.writes, true, true);
+                    while (!stop) {
+                        auto row = cursor.next(false);
+                        if (!row)
+                            break;
+                        work.candidate();
+                        auto owner = uncomponent(scratch.decode(
+                            rule, root,
+                            std::string_view(static_cast<const char *>(row->key.data),
+                                             size_t(row->key.size))));
+                        if (!begins(owner, p.spec.prefix) || system_key(owner))
+                            continue;
+                        scratch.assign(record, rule, owner);
+                        eval.records[0] = &record;
+                        eval.next_root();
+                        if (eval.run(p.where) != Truth::True) {
+                            record.reset({}, {});
+                            continue;
+                        }
+                        if (!plan->access.covering)
+                            source(record, owner);
+                        eval.next_root();
+                        walk(0);
+                        record.reset({}, {});
+                    }
+                    continue;
+                }
                 auto begin = interval.begin, end = interval.end;
                 if (has_cursor && p.spec.joins.empty() && !p.aggregated && !p.spec.distinct &&
                     plans.size() == 1 && plan->access.ordered) {
@@ -619,27 +692,43 @@ struct Executor {
                 }
                 ReadCursor cursor(read.base, begin, end, plan->reverse, read.writes,
                                   plan->rule.has_value(), true);
+                // 非唯一复合索引的键尾就是 component(主键)，条目的值只是同一主键的副本：
+                // 直接从键解出主键，省掉每行一次缓存取值。唯一索引的键不含主键，仍需取值。
+                const IndexRule *tail_rule = nullptr;
+                Bytes tail_root;
+                if (plan->rule && !rules[*plan->rule].parts.empty() &&
+                    !(rules[*plan->rule].flags & 1)) {
+                    tail_rule = &rules[*plan->rule];
+                    tail_root = index_root(*tail_rule);
+                }
                 while (!stop) {
-                    auto row = cursor.next(plan->rule.has_value() || p.payload[0]);
+                    auto row = cursor.next(!tail_rule && (plan->rule.has_value() || p.payload[0]));
                     if (!row)
                         break;
                     work.candidate();
-                    auto name = plan->rule
-                                    ? std::string_view(static_cast<const char *>(row->value.data),
-                                                       size_t(row->value.size))
-                                    : std::string_view(static_cast<const char *>(row->key.data),
-                                                       size_t(row->key.size));
+                    const std::string_view index_key(static_cast<const char *>(row->key.data),
+                                                     size_t(row->key.size));
+                    Bytes tail_owner;
+                    std::string_view name;
+                    if (tail_rule) {
+                        tail_owner = uncomponent(scratch.decode(*tail_rule, tail_root, index_key));
+                        name = tail_owner;
+                    } else if (plan->rule)
+                        name = std::string_view(static_cast<const char *>(row->value.data),
+                                                size_t(row->value.size));
+                    else
+                        name = index_key;
                     if (!begins(name, p.spec.prefix) || system_key(name))
                         continue;
                     if (union_scan && !seen.insert(text(memory, name)).second)
                         continue;
                     if (plan->rule) {
-                        if (plan->access.covering)
-                            scratch.fill(record, rules[*plan->rule],
-                                         std::string_view(static_cast<const char *>(row->key.data),
-                                                          size_t(row->key.size)),
-                                         name);
-                        else
+                        if (plan->access.covering) {
+                            if (tail_rule)
+                                scratch.assign(record, *tail_rule, name);
+                            else
+                                scratch.fill(record, rules[*plan->rule], index_key, name);
+                        } else
                             source(record, name);
                     } else {
                         record.reset(name, cursor.value_ref(), true);
@@ -688,7 +777,7 @@ struct Executor {
     }
     Bytes cursor(const Output &row) {
         wire::Writer w;
-        w.fixed64_field(1, signature);
+        w.fixed64_field(1, p.signature());
         w.bytes_field(2, view(row.identity));
         for (auto &v : row.sort)
             atom_message(w, 3, v.ref());

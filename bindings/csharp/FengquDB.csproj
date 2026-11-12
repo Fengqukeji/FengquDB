@@ -7,5 +7,5 @@
     <LangVersion>latest</LangVersion>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
   </PropertyGroup>
-  <ItemGroup><Compile Include="FengquDB.cs" /><Compile Include="Store.cs" /><Compile Include="StoreFeatures.cs" /><Compile Include="StoreOperations.cs" /><Compile Include="StoreWatch.cs" /><Compile Include="StoreShared.cs" /><Compile Include="StoreWrite.cs" /><Compile Include="StoreSelect.cs" /></ItemGroup>
+  <ItemGroup><Compile Include="FengquDB.cs" /><Compile Include="Store.cs" /><Compile Include="StoreFeatures.cs" /><Compile Include="StoreOperations.cs" /><Compile Include="StoreWatch.cs" /><Compile Include="StoreShared.cs" /><Compile Include="StoreWrite.cs" /><Compile Include="StoreSelect.cs" /><Compile Include="StoreQueryBuilder.cs" /></ItemGroup>
 </Project>

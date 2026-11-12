@@ -6,8 +6,123 @@
 #include <memory>
 #include <mutex>
 #include <unordered_map>
+#include <vector>
 
 namespace fengqudb::paged {
+// Open-addressing key -> node map for the cache shards. Nodes keep stable
+// addresses for the LRU links; probing compares keys inside the contiguous slot
+// array, so a hit touches one slot line and its node instead of a bucket, the
+// preceding list node and the node. Load factor <= 1/2, backward-shift erase.
+template <class Entry> class EntryIndex {
+    struct Slot {
+        uint64_t key;
+        Entry *entry;
+    };
+    std::vector<Slot> slots_;
+    size_t size_ = 0;
+    static size_t hash(uint64_t k) noexcept {
+        k ^= k >> 33;
+        k *= UINT64_C(0xff51afd7ed558ccd);
+        k ^= k >> 33;
+        return static_cast<size_t>(k);
+    }
+    size_t mask() const noexcept {
+        return slots_.size() - 1;
+    }
+    void place(Slot s) noexcept {
+        for (size_t i = hash(s.key) & mask();; i = (i + 1) & mask())
+            if (!slots_[i].entry) {
+                slots_[i] = s;
+                return;
+            }
+    }
+    // Allocates before changing anything, so a failure leaves the index intact.
+    void rebuild(size_t capacity) {
+        std::vector<Slot> old(capacity, Slot{0, nullptr});
+        old.swap(slots_);
+        for (const auto &s : old)
+            if (s.entry)
+                place(s);
+    }
+
+  public:
+    EntryIndex() = default;
+    EntryIndex(const EntryIndex &) = delete;
+    EntryIndex &operator=(const EntryIndex &) = delete;
+    ~EntryIndex() {
+        clear();
+    }
+    size_t size() const noexcept {
+        return size_;
+    }
+    size_t capacity() const noexcept {
+        return slots_.size();
+    }
+    Entry *find(uint64_t key) const noexcept {
+        if (!size_)
+            return nullptr;
+        for (size_t i = hash(key) & mask();; i = (i + 1) & mask()) {
+            const auto &s = slots_[i];
+            if (!s.entry)
+                return nullptr;
+            if (s.key == key)
+                return s.entry;
+        }
+    }
+    // Returns {existing, false} for a duplicate key; throws before any change.
+    std::pair<Entry *, bool> emplace(uint64_t key, Entry value) {
+        if (auto existing = find(key))
+            return {existing, false};
+        auto node = std::make_unique<Entry>(std::move(value));
+        if ((size_ + 1) * 2 > slots_.size())
+            rebuild(std::max<size_t>(16, slots_.size() * 2));
+        place({key, node.get()});
+        ++size_;
+        return {node.release(), true};
+    }
+    void erase(uint64_t key) noexcept {
+        if (!size_)
+            return;
+        size_t i = hash(key) & mask();
+        for (;; i = (i + 1) & mask()) {
+            if (!slots_[i].entry)
+                return;
+            if (slots_[i].key == key)
+                break;
+        }
+        delete slots_[i].entry;
+        slots_[i] = {0, nullptr};
+        --size_;
+        // Close the hole: move a later entry back when the hole lies between
+        // its home slot and its current slot.
+        for (size_t j = (i + 1) & mask(); slots_[j].entry; j = (j + 1) & mask()) {
+            const size_t home = hash(slots_[j].key) & mask();
+            if (((j - home) & mask()) >= ((j - i) & mask())) {
+                slots_[i] = slots_[j];
+                slots_[j] = {0, nullptr};
+                i = j;
+            }
+        }
+    }
+    void clear() noexcept {
+        for (auto &s : slots_)
+            delete s.entry;
+        std::vector<Slot>().swap(slots_);
+        size_ = 0;
+    }
+    // Shrink a mostly emptied table; allocation failure keeps the old one.
+    void compact() noexcept {
+        if (slots_.size() <= size_ * 16 + 64)
+            return;
+        size_t capacity = 16;
+        while (capacity < size_ * 4)
+            capacity *= 2;
+        try {
+            rebuild(capacity);
+        } catch (...) {
+        }
+    }
+};
 // Shards bound contention as well as retained memory. Borrowers own immutable
 // objects independently: eviction drops only the cache's reference, never data.
 template <class T> class Cache {
@@ -21,7 +136,7 @@ template <class T> class Cache {
     };
     struct Shard {
         mutable std::mutex mutex;
-        std::unordered_map<uint64_t, Entry> entries;
+        EntryIndex<Entry> entries;
         Entry *first = nullptr, *last = nullptr;
         uint64_t bytes = 0, hits = 0, misses = 0, evictions = 0;
     };
@@ -67,27 +182,22 @@ template <class T> class Cache {
         compact(s);
     }
     static void compact(Shard &s) noexcept {
-        // A mostly emptied map must not keep an old large bucket allocation
+        // A mostly emptied index must not keep an old large slot allocation
         // after its entries have stopped being charged to the cache budget.
-        if (s.entries.bucket_count() > s.entries.size() * 16 + 64) {
-            try {
-                s.entries.rehash(std::max<size_t>(1, s.entries.size() * 2));
-            } catch (...) {
-            }
-        }
+        s.entries.compact();
     }
     void insert(Shard &s, uint64_t key, std::shared_ptr<const T> value, uint64_t cost, uint64_t tag,
                 bool read) {
         // The caller already reserved global capacity. Allocation failure must
-        // return it if map insertion cannot finish. Standard unordered_map node
-        // references survive rehash; link only after successful allocation.
+        // return it if index insertion cannot finish. Index nodes keep stable
+        // addresses across growth; link only after successful allocation.
         try {
             auto result = s.entries.emplace(key, Entry{std::move(value), cost, tag, key, read});
             if (!result.second) {
                 retained_.fetch_sub(cost, std::memory_order_relaxed);
                 return;
             }
-            prepend(s, result.first->second);
+            prepend(s, *result.first);
         } catch (...) {
             retained_.fetch_sub(cost, std::memory_order_relaxed);
             throw;
@@ -106,7 +216,7 @@ template <class T> class Cache {
         if (cost > budget)
             return false;
         auto &target = shard(key);
-        if (target.entries.find(key) != target.entries.end())
+        if (target.entries.find(key))
             return true;
         while (retained_.load(std::memory_order_relaxed) > budget - cost) {
             for (auto &s : shards_) {
@@ -149,10 +259,6 @@ template <class T> class Cache {
             s.entries.clear();
             s.first = s.last = nullptr;
             s.bytes = 0;
-            try {
-                s.entries.rehash(1);
-            } catch (...) {
-            }
         }
         retained_.store(0, std::memory_order_relaxed);
         budget_.store(budget, std::memory_order_relaxed);
@@ -161,26 +267,26 @@ template <class T> class Cache {
         auto &s = shard(key);
         std::lock_guard<std::mutex> lock(s.mutex);
         auto found = s.entries.find(key);
-        if (found == s.entries.end()) {
+        if (!found) {
             ++s.misses;
             return {};
         }
         ++s.hits;
         if (tag)
-            *tag = found->second.tag;
-        auto &entry = found->second;
+            *tag = found->tag;
+        auto &entry = *found;
         entry.read = true;
         if (s.first != &entry) {
             detach(s, entry);
             prepend(s, entry);
         }
-        return found->second.value;
+        return entry.value;
     }
     bool recently_read(uint64_t key) {
         auto &s = shard(key);
         std::lock_guard<std::mutex> lock(s.mutex);
         auto found = s.entries.find(key);
-        return found != s.entries.end() && found->second.read;
+        return found && found->read;
     }
     bool put(uint64_t key, std::shared_ptr<const T> value, uint64_t allocation_bytes,
              uint64_t tag = 0, bool read = true) {
@@ -202,7 +308,7 @@ template <class T> class Cache {
         const auto current_allowance = budget_.load(std::memory_order_relaxed) / shards_.size();
         if (cost > current_allowance)
             return false;
-        if (s.entries.find(key) != s.entries.end())
+        if (s.entries.find(key))
             return true;
         // Preserve an admitted large object in this shard. Small misses must
         // not immediately evict it merely because of the per-shard allowance.
@@ -224,11 +330,11 @@ template <class T> class Cache {
         auto &s = shard(key);
         std::lock_guard<std::mutex> lock(s.mutex);
         auto it = s.entries.find(key);
-        if (it == s.entries.end() || it->second.value.use_count() != 1)
+        if (!it || it->value.use_count() != 1)
             return;
-        auto cost = it->second.cost;
-        detach(s, it->second);
-        s.entries.erase(it);
+        auto cost = it->cost;
+        detach(s, *it);
+        s.entries.erase(key);
         s.bytes -= cost;
         ++s.evictions;
         retained_.fetch_sub(cost, std::memory_order_relaxed);
