@@ -30,9 +30,9 @@ with Wiki("wiki-data", library="/path/to/libfengqudb.so",
 
 这些方法不自行打开、提交或关闭数据库。`View` 是 `storage.py` 对调用者已有 Store transaction/snapshot 的逻辑分区包装，`prefix` 已包含 Wiki namespace。方法返回前须完成需要的拷贝，不能把借用的原生视图保存到下一次调用。
 
-当前仅接收 `atomic_updates=True` 的实现；异步旁路服务不能通过设置这个布尔值来获得事务保证。该属性是受信任实现的声明，不是自动证明。`index/provider` 持久保存 `{name, format_version, tokenizer_version}`，启动时拒绝静默更换格式。旧 0.1 非空 Python 索引可以被默认适配器认领；其他实现需要显式迁移或新 namespace。当前没有自动迁移器或原生 Provider。
+当前仅接收 `atomic_updates=True` 的实现；异步旁路服务不能通过设置这个布尔值来获得事务保证。该属性是受信任实现的声明，不是自动证明。`index/provider` 持久保存 `{name, format_version, tokenizer_version}`，启动时拒绝静默更换格式。旧 0.1 非空 Python 索引可以被默认适配器认领；其他实现需要显式迁移或新 namespace。NativeIndexProvider 已实现，运行方式与协议见 [原生接入](LLMWIKI_NATIVE.md)；仍无自动迁移器。
 
-当前 Provider 方法仍没有结构化过滤、向量参数、变更游标、精确快照版本或等待水位入口；这些属于以下公共索引接入要求，不能从本轮代码推断它们已经可用。
+Python 对照没有结构化过滤、向量参数或精确水位。Native 包装已支持 v1 结构化谓词、get/list/stats、精确余弦与公开快照版本/索引序列；Wiki NativeProvider 默认仍用词法，并强制过滤 visible。异步水位、ANN、严格动态历史统计和自动迁移仍未实现。
 
 ## 职责与记录映射
 
@@ -45,8 +45,8 @@ Wiki 继续拥有来源摄入、不可变原文、分块边界、编译规格、
 | id | 原文块 `c-<source-id>-<ordinal>`；页 `p-<page-id>`，保持稳定 |
 | domain_revision | 当前文档的 `revision`：原文块使用来源 SHA-256 修订，页使用编译指纹 |
 | source_revision | 原文块来源修订；页面保留每条引用各自的来源修订 |
-| projection_version | 独立、单调的检索投影版本，不能从 domain_revision 推断；原生对接待实现 |
-| lifecycle_generation | 删除、清空和身份重建代次；不能拿普通正文修订替代，原生对接待实现 |
+| projection_version | Native 适配层同事务保存的独立单调投影版本，传 expected/new version |
+| lifecycle_generation | Native 适配层保留删除墓碑，删后重建推进代次；不与普通正文修订混用 |
 | title / body | 来源标题及原文块，或主题标题及编译 Markdown |
 | metadata | kind、source_id/page_id、来源修订、页可见性；未来业务过滤字段另设有类型的 schema |
 | sources | Wiki 提供的引用列表：source_id、revision、URI、标题和 `[start,end)` |
@@ -56,7 +56,7 @@ Wiki 继续拥有来源摄入、不可变原文、分块边界、编译规格、
 
 ### 投影版本与页面发布状态的具体要求
 
-当前 Python 端口已经覆盖 upsert、delete、页面状态镜像、元信息读取、检索和统计，绝非只包装 search；但它尚未提供独立 projection_version/lifecycle_generation 的版本化 CAS，不能描述成公共原生投影契约已经实现。
+公共端口覆盖 upsert、delete、页面状态镜像、元信息读取、检索和统计。Python 对照不具有版本化 CAS；Native 适配器现已在域事务中维护 projection_version/lifecycle_generation，并使用原生 expected_projection_version 的 upsert/patch/erase。
 
 | Wiki 变化 | domain_revision | 必须推进的投影/领域状态 |
 | --- | --- | --- |
@@ -69,9 +69,9 @@ Wiki 继续拥有来源摄入、不可变原文、分块边界、编译规格、
 
 `job.generation` 是编译调度代数，`spec.generation` 是编译规格代数，二者都不能直接充当 publication_generation 或 projection_version。现有任务 token 能拦截旧模型响应，但不是公共索引后台任务的生命周期屏障。
 
-下一阶段由 Wiki 在领域事务内持久化这些权威状态，并向原生 Provider 传入完整身份、期望投影版本、新版本、输入摘要及来源定位。相同投影版本且摘要不同为冲突，旧版本 update/erase 不得覆盖新投影；幂等重放只接受完整身份、版本和摘要一致。当前 `delete(tx,id)` 以及状态字典只是兼容端口，正式原生适配时需要 expected_projection_version 的 erase/patch 接口，不能在内部假装已有该保护。
+Native 适配器在 `native-index/projection/`、`native-index/document/`、`native-index/page/` 保存权威投影状态，向原生接口传完整身份、期望/新版本、输入摘要及来源定位。相同投影版本且摘要不同为冲突，旧版本 update/erase 不得覆盖新投影。普通更新不先 erase；已 dirty 但 build 目标变化会 metadata patch；缓存再发布也增加 publication_generation。v1 uint64 revision 使用稳定整数 token 映射，完整 Wiki SHA-256 不截断，保留于域元信息、locator 和原生 metadata。
 
-`index_space` 由 Provider 的格式、Analyzer、统计分区决定。当前 IndexDefinition 只记录本地格式身份，不是完整的 index_space/Analyzer 指纹；原生对接时由公共配置补齐并持久化。Wiki namespace 至少隔离各自 BM25 统计；未来同 namespace 下若加入不可互见的资料范围，还必须细分获授权统计分区，不能通过 DF、总量、Explain 或分数泄露其他私有范围。外部填写的 scope/owner 字符串不是授权证明。
+`index_space` 由 Provider 的格式、Analyzer、统计分区决定。NativeIndexProvider 的格式身份包含 index_space、显式 partition 配置、wire version 和 Analyzer 的摘要；默认 partition 从 Wiki namespace 前缀派生。未来同 namespace 下若加入不可互见的资料范围，还必须细分获授权统计分区，不能通过 DF、总量、Explain 或分数泄露其他私有范围。外部填写的 scope/owner 字符串不是授权证明。
 
 权威 raw/page 始终由 Wiki 持有。Python 对照的 `body/` 是可重建正文副本；公共原生索引不必再持有一份完整原文，可返回域原件定位引用并在同一快照经域回调物化。不能把旧 Python 物理键布局变成公共索引的强制存储规范。
 
@@ -90,7 +90,7 @@ Wiki 继续拥有来源摄入、不可变原文、分块边界、编译规格、
 
 原生 FengquIndex 应接受同一个 `fqdb_store_txn*` / `fqdb_store_snapshot*` 的受控借用或由统一 session/transaction bridge 创建的上下文。它不能为同一路径再开一个 Store，也不能另造 WAL、关闭独占锁或独立提交派生索引。
 
-当前公共 Python 绑定只有内部 `_handle` / `_live` 等实现细节，没有稳定的原生句柄借用 API。正式接入应由绑定/索引拥有方定义一个持有生命周期租约的桥接入口；Wiki 本轮不修改公共绑定和共享根构建，也不会强转私有 ctypes 字段。该桥接、原生 Provider 包装和格式迁移尚待公共索引实现后接入。
+当前已同步 RAG/Index 拥有方的公开 `native_identity()` / `borrow_native()`，消费者只使用 lease.pointer/identity/library。包装核对 Core bridge 函数地址、ABI、handle kind 和 Store token，持租约到结果释放后，不强转私有 ctypes 字段。共享 Core/Index C++ 与根构建未由 Wiki 修改；旧 Core 不能因此获得桥接，格式迁移仍待实现。
 
 ## 过滤契约
 
@@ -108,7 +108,7 @@ Python 对照的 `search` 不支持上述结构化表达式；接入后由 Provi
 
 文档正文/元信息、倒排、DF/文档长度统计、过滤字段、删除与 stale 状态必须从同一个提交快照读取。查询开始后不得临时读取 Store 当前值“补全”命中，因为那会混合两个修订。返回的来源修订要能通过 Wiki 的历史读取接口解析。
 
-目前 Python 绑定没有暴露 snapshot 的精确 commit version，Wiki 的 `observed_database_version` 只是取证时观察到的 Store 版本。因此不能把它回填为 `snapshot_version`、`applied_sequence` 或“已追平”证明。待公共接口提供精确版本后再映射；在此之前明确返回未知，或使用事务内维护的应用序列。
+Python 对照仍不把 `observed_database_version` 当作快照或水位。Native 模式通过公开 bridge 和原生 Result 取得 snapshot_version、mutation_sequence，再映射 applied_sequence；两种版本域不直接比较。事务视图版本是捕获的基准版本，不是未来提交版本。
 
 ### 可选异步派生索引
 
@@ -164,11 +164,12 @@ Python 对照的 `search` 不支持上述结构化表达式；接入后由 Provi
 | `ranking_kind` | Python 穷尽已请求词项与候选时为 exact；预算裁剪后为 approximate。未来 ANN 可以 approximate 且正常 finished |
 | `termination` | finished / candidate_limit / posting_limit / query_term_limit；多个限制保存在 degraded_reasons |
 | `index_coverage` | 默认 Python 同事务索引为 complete；其他 Provider 未提供时为 unknown，不从空结果推断 |
-| `snapshot_version`、`applied_sequence` | 当前为 null；没有拿 observed_database_version 冒充精确快照或连续水位 |
+| `snapshot_version`、`applied_sequence` | Python 为 null；Native 从同视图原生结果映射，没有使用 observed_database_version 冒充 |
 | `total_hits` | 穷尽可见候选时 exact，裁剪时 lower_bound；不是仅统计输出的 K 条 |
-| `empty_result_confirmed` | 必须是显式确认、执行完成且覆盖完整、exact total_hits=0，才能为 true |
+| `empty_result_confirmed` | 显式 proven_none、执行完成且覆盖完整且无命中时为 true；不要求伪造 total_hits |
+| `match_evidence` | has_hits / proven_none / not_established，与排名和预算状态分开 |
 
-仅有空数组的旧 Provider 默认回填 unknown 覆盖/终止状态，不能被升级成确认无结果。ANN finished/complete 但没有 exact 空结果证明时，empty_result_confirmed 仍为 false；approximate 排名本身不使 truncated 变成 true。`ask` 无证据但未确认无匹配项时，返回“absence ... has not been confirmed”，不把它写成完整未命中。
+仅有空数组的旧 Provider 默认回填 unknown 覆盖/终止状态，不能被升级成确认无结果。ANN finished/complete 但没有空结果证明时，empty_result_confirmed 仍为 false；approximate 排名本身不使 truncated 变成 true。原生 proven_none 可以在未提供 total_hits 时确认无匹配项，非空 Top K 也不必精确统计全部命中。`ask` 无证据但未确认无匹配项时明确说明尚未确认。
 
 公共索引可再提供命中字段/字节范围、评分解释、稳定游标及精确版本值；Wiki 适配器映射共同字段，不建立另一套 C ABI。`ask.truncated` 还可表示上下文摘录被裁剪，排名/覆盖/termination 字段只描述本次检索，不把上下文预算混入索引终止原因。
 

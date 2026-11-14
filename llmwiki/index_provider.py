@@ -56,15 +56,19 @@ def normalize_search_result(result):
     # Approximate ANN ranking can finish without interruption; it is not itself truncation.
     normalized["truncated"] = bool(normalized.get("truncated", False) or incomplete)
     total = normalized["total_hits"]
+    legacy_proof = (normalized.get("empty_result_confirmed", False) and
+                    total.get("relation") == "exact" and total.get("value") == 0)
+    normalized.setdefault("match_evidence", "has_hits" if normalized.get("results") else
+                          "proven_none" if legacy_proof else "not_established")
     normalized["empty_result_confirmed"] = bool(
         normalized.get("empty_result_confirmed", False) and not normalized.get("results") and
-        not normalized["truncated"] and total.get("relation") == "exact" and total.get("value") == 0)
+        not normalized["truncated"] and (normalized["match_evidence"] == "proven_none" or legacy_proof))
     return normalized
 
 
 def search_quality(result):
     return {name: result[name] for name in ("ranking_kind", "termination", "index_coverage", "snapshot_version",
-        "applied_sequence", "total_hits", "degraded_reasons", "empty_result_confirmed")}
+        "applied_sequence", "total_hits", "degraded_reasons", "empty_result_confirmed", "match_evidence")}
 
 
 class PythonIndexProvider:

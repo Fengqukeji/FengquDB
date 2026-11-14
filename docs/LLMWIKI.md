@@ -52,7 +52,7 @@ python3 -m llmwiki --db build/wiki-data serve
 
 ### 连接实际模型
 
-检索实现可通过独立的 `index_provider` 替换，模型仍使用 `provider`。当前默认 Python 实现保留作为对照；公共原生索引的事务、过滤、版本、水位与迁移要求见 [Index Provider 对接契约](LLMWIKI_INDEX_PROVIDER.md)。原生适配器和水位能力尚未接入。
+检索实现可通过独立的 `index_provider` 替换，模型仍使用 `provider`。默认 Python 实现保留作为对照；可显式通过 `--index-provider native` 选择公共原生索引。实际共享库/公开桥接、投影版本及运行方式见 [原生接入](LLMWIKI_NATIVE.md)，逻辑边界见 [Index Provider 契约](LLMWIKI_INDEX_PROVIDER.md)。无自动迁移或异步 ANN 水位能力。
 
 兼容 `/v1/chat/completions` 的本地服务器和远程模型均可接入：
 
@@ -141,7 +141,7 @@ FengquWiki 的写事务使用 `force_reliable=True`，返回前等待可靠提�
 
 问答只使用检索证据，默认 6 条、24,000 字符上下文，模型输出必须包含有效 `[E1]` 标签。返回 `evidence`、`citation_validated`、`stale`、`truncated`。`citation_validated=true` 只表示引用标签与提供的证据集合一致；不保证每一句话都得到证据支持。`stale=true` 表示模型响应期间来源或页面发生变化，调用方应重试或展示旧版本提示。`observed_database_version` 是取证时观察到的数据库版本，不冒充底层快照的精确版本号。
 
-search/ask 同时返回 `ranking_kind`、`termination`、`index_coverage`、`total_hits` 与 `empty_result_confirmed`，分别描述排名、终止、覆盖和空结果证明。近似排名本身不等于预算截断；未确认无匹配项的空结果不会被描述成完整未命中。当前精确 `snapshot_version` / `applied_sequence` 为 null。
+search/ask 同时返回 `ranking_kind`、`termination`、`index_coverage`、`total_hits`、`match_evidence` 与 `empty_result_confirmed`，分别描述排名、终止、覆盖和空结果证明。近似排名本身不等于预算截断；未确认无匹配项的空结果不会被描述成完整未命中。Python 对照的精确 `snapshot_version` / `applied_sequence` 为 null；Native 模式从原生结果映射精确视图与索引序列。
 
 ## HTTP API
 
@@ -208,4 +208,4 @@ CI 独立构建原生库并在 Windows/Linux 运行上述相关测试，不修�
 
 已实现的是一个通用存储和编译契约，不是分布式知识平台。当前没有 ANN 向量索引、语义召回、自动发现全部实体/主题、自动判断事实冲突、细粒度 ACL、多人实时编辑或完整的来源保留策略。中文检索是词面召回，不能替代跨语言或同义语义检索。编译主题由调用方显式配置，没有把模型规划当作可靠事实。
 
-后续应按真实工作负载决定是否引入 embedding：先增加批量 embedding provider 与版本缓存，再实现独立的可重建向量索引或候选重排；不能把 Python 全量向量扫描包装为高性能 ANN。超出单机容量时先按 namespace/业务域分片，评估热词倒排预算、存储增长与检索召回，再决定是否引入独立检索服务。升级数据库格式或 tokenizer 时必须迁移，当前 schema 不匹配会拒绝打开。
+后续应按真实工作负载决定是否引入 embedding：增加批量 embedding provider 与版本缓存，向量检索/加速统一使用公共 FengquIndex，不在 Wiki 另写倒排或 HNSW，也不把 Python 全量向量扫描包装为高性能 ANN。超出单机容量时先按 namespace/业务域分片，评估热词倒排预算、存储增长与检索召回，再决定部署方式。升级数据库格式或 tokenizer 时必须迁移，当前 schema 不匹配会拒绝打开。

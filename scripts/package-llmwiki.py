@@ -19,9 +19,12 @@ def main():
         for path in sorted((root / "llmwiki").glob("*.py")):
             output.write(path, "llmwiki/" + path.name)
         output.write(root / "bindings/python/fengqudb.py", "fengqudb.py")
+        output.write(root / "bindings/python/fengqudb_index.py", "fengqudb_index.py")
+        output.write(root / "bindings/python/fengqudb_index_wire.py", "fengqudb_index_wire.py")
         output.write(library, "Native/" + runtime_name)
         output.write(root / "docs/LLMWIKI.md", "README.md")
         output.write(root / "docs/LLMWIKI_INDEX_PROVIDER.md", "LLMWIKI_INDEX_PROVIDER.md")
+        output.write(root / "docs/LLMWIKI_NATIVE.md", "LLMWIKI_NATIVE.md")
         output.write(root / "docs/LLMWIKI_VALIDATION.md", "VALIDATION.md")
         for evidence in sorted((root / "docs/evidence/llmwiki").glob("*.json")):
             output.write(evidence, "evidence/llmwiki/" + evidence.name)

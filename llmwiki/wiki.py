@@ -118,10 +118,12 @@ class Wiki:
         tx.put("job/" + page_id, job)
         tx.put(self._queue_key(job), page_id)
         page = tx.get("page/" + page_id)
-        if page and not page["stale"]:
-            page["stale"] = True
-            tx.put("page/" + page_id, page)
-            self.index.set_page_state(tx, page_id, {"stale": True, "revision": page["revision"]})
+        if page:
+            if not page["stale"]:
+                page["stale"] = True
+                tx.put("page/" + page_id, page)
+            self.index.set_page_state(tx, page_id, {"stale": True, "revision": page["revision"],
+                                                   "build_generation": generation})
 
     def _define(self, tx, page_id, title, source_ids, links, kind):
         old = tx.get("spec/" + page_id)
@@ -148,17 +150,23 @@ class Wiki:
             previous = tx.get("source/" + sid)
             if previous and not previous["deleted"] and previous["revision"] == revision:
                 return dict(previous, changed=False)
+            planned = list(retrieval.chunks(content))
+            new_ids = {"c-" + sid + "-%04x" % index for index in range(len(planned))}
             for doc_id in (previous or {}).get("chunks", []):
-                self.index.delete(tx, doc_id)
+                if doc_id not in new_ids:
+                    self.index.delete(tx, doc_id)
             chunk_ids = []
-            for index, (start, end, body) in enumerate(retrieval.chunks(content)):
+            publication_generation = (previous or {}).get("publication_generation", 0) + 1
+            for index, (start, end, body) in enumerate(planned):
                 doc_id = "c-" + sid + "-%04x" % index
                 chunk_ids.append(doc_id)
                 self.index.upsert(tx, doc_id, {"kind": "chunk", "source_id": sid, "revision": revision,
-                    "title": title, "text": body, "citations": [{"source_id": sid, "revision": revision,
+                    "title": title, "text": body, "source_publication_generation": publication_generation,
+                    "citations": [{"source_id": sid, "revision": revision,
                     "start": start, "end": end, "uri": uri, "title": title}]})
             source = {"id": sid, "uri": uri, "title": title, "revision": revision,
-                      "content_hash": digest(content), "deleted": False, "updated_ms": stamp, "chunks": chunk_ids}
+                      "content_hash": digest(content), "deleted": False, "updated_ms": stamp, "chunks": chunk_ids,
+                      "publication_generation": publication_generation}
             # The same source+revision key always has exactly the same immutable value.
             raw_key = "raw/" + sid + "/" + revision
             if tx.get(raw_key) is None:
@@ -355,8 +363,8 @@ class Wiki:
                 if old:
                     for link in old["links"]:
                         tx.delete("back/" + link + "/" + page_id)
-                self.index.delete(tx, "p-" + page_id)
                 if not sources:
+                    self.index.delete(tx, "p-" + page_id)
                     tx.delete("page/" + page_id)
                     self.index.set_page_state(tx, page_id, None)
                     state = "retired"
@@ -369,7 +377,8 @@ class Wiki:
                             "revision": fingerprint, "stale": False, "updated_ms": now_ms(),
                             "provider": self.provider.identity, "missing_sources": len(spec["source_ids"]) - len(sources)}
                     tx.put("page/" + page_id, page)
-                    self.index.set_page_state(tx, page_id, {"stale": False, "revision": fingerprint})
+                    self.index.set_page_state(tx, page_id, {"stale": False, "revision": fingerprint,
+                                                           "build_generation": current["generation"]})
                     tx.put("history/" + page_id + "/" + fingerprint, page)
                     for link in page["links"]:
                         tx.put("back/" + link + "/" + page_id, True)
@@ -448,6 +457,9 @@ class Wiki:
             for item in found["results"]:
                 current = self.index.get_document(view, item["id"])
                 stale |= current is None or current["revision"] != item["revision"]
+                if current is not None:
+                    stale |= any(current.get(name) != item[name] for name in
+                                 ("projection_version", "lifecycle_generation", "publication_generation") if name in item)
                 if item["kind"] == "page":
                     page = self.index.get_page_state(view, item["page_id"])
                     stale |= page is None or page["stale"]

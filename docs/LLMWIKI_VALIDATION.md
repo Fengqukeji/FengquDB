@@ -82,3 +82,18 @@ python tools/llmwiki_benchmark.py --sources 1000 --queries 100 --output build/wi
 运行时新增排名、终止、覆盖、命中总量关系及空结果确认的独立字段，search/ask 均传播；仅有空数组的旧 Provider 回包采用 unknown 覆盖，近似且正常结束不自动算截断。Python 穷尽评分使用未舍入分数排序，预算受限时明确标记 approximate 和具体限制。
 
 Windows x64 **28/28** 测试通过（4.027 秒），Docker Linux x64 **28/28** 通过（2.800 秒）。新增验证确认词法未命中、受限空结果不能确认未命中、近似完成与截断分离、旧 Provider 覆盖未知；既有问答与预算测试同时验证最终字段传播。本轮未重新测量性能或更新此前发布包，未改其他工作树、公共绑定或共享构建，未启动训练。
+
+## 公共原生索引真实联调
+
+后续收到 Index ABI 1 / wire v1 及配套桥接 Core 后，已实现标准库包装、NativeIndexProvider 和显式 native CLI 选择。公共桥接 Python 文件从拥有方同步，当前 SHA-256 与 Index/RAG 一致；没有在 Wiki 分支重写 Core 桥接或检索算法。
+
+| 平台 | 独立绑定测试 | Wiki 与域适配测试 | 跳过 |
+| --- | --- | --- | --- |
+| Windows x64，实际 `build/index-win/Release` DLL | 14/14，0.359 秒 | 34/34，4.274 秒 | 0 |
+| Linux x64，实际 `build/index-linux` SO，`fqdb-lang-dev:1` | 14/14，0.392 秒 | 34/34，3.384 秒 | 0 |
+
+这 48 项包含 fixture 和实际库测试，不能把全部说成 48 个原生用例。独立绑定包含 4 项真实库测试；Wiki 包含 1 项完整原生流程，其余覆盖域投影、旧 Python 行为、wire/lease 错误边界。实际验证了 stage 整体取消、同快照、错误 Core 映像/模块别名、dense 过滤、metadata patch、版本及分页 guard、页面 dirty/发布代数、删后生命周期与原文 hash 物化。
+
+首轮联调发现的错误来自测试对被取消事务走了正常退出自动提交，已改为显式关闭；没有为此改变引擎持久性或事务语义。最终两平台无失败、无跳过。未扩大到新的模型、数据库全量回归、ASan 或性能评测；这些不由本会话声称完成。
+
+可直接整合的三文件清单及命令见 [LLMWIKI_NATIVE_HANDOFF.md](LLMWIKI_NATIVE_HANDOFF.md)。旧 ZIP/manifest 仍是首版，本轮由主会话集中整合原生库及安装包。

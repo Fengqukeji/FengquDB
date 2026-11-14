@@ -9,6 +9,7 @@ from pathlib import Path
 from .providers import from_environment
 from .server import WikiServer
 from .wiki import Wiki
+from .native_index_provider import NativeIndexProvider
 
 
 def main(argv=None):
@@ -16,6 +17,10 @@ def main(argv=None):
     parser.add_argument("--db", default="wiki-data", help="FengquDB directory")
     parser.add_argument("--library", default=os.environ.get("FENGQUDB_LIBRARY"))
     parser.add_argument("--namespace", default="default")
+    parser.add_argument("--index-provider", choices=("python", "native"), default="python")
+    parser.add_argument("--index-library", default=os.environ.get("FENGQUDB_INDEX_LIBRARY"))
+    parser.add_argument("--index-space", default="fengqu-wiki-v1")
+    parser.add_argument("--index-partition")
     commands = parser.add_subparsers(dest="command", required=True)
     ingest = commands.add_parser("ingest", help="import one UTF-8 text/Markdown file")
     ingest.add_argument("file", type=Path)
@@ -60,7 +65,10 @@ def main(argv=None):
     serve.add_argument("--no-maintenance", action="store_true")
     args = parser.parse_args(argv)
     try:
-        with Wiki(args.db, library=args.library, namespace=args.namespace, provider=from_environment()) as wiki:
+        index = (NativeIndexProvider(args.index_library, index_space=args.index_space.encode("utf-8"),
+                 partition=args.index_partition.encode("utf-8") if args.index_partition is not None else None)
+                 if args.index_provider == "native" else None)
+        with Wiki(args.db, library=args.library, namespace=args.namespace, provider=from_environment(), index_provider=index) as wiki:
             if args.command == "serve":
                 with WikiServer((args.host, args.port), wiki, token=os.environ.get("WIKI_TOKEN"),
                                 background=not args.no_worker, maintenance=not args.no_maintenance) as server:

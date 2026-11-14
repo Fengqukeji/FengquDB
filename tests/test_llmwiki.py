@@ -446,12 +446,14 @@ class WikiTests(unittest.TestCase):
                 with self.assertRaises(urllib.error.HTTPError) as error:
                     call("/v1/status", auth=False)
                 self.assertEqual(401, error.exception.code)
+                error.exception.close()
                 source = call("/v1/sources", {"uri": "api:test", "content": "apiuniqueterm"})
                 self.assertTrue(call("/v1/search?q=apiuniqueterm")["results"])
                 self.assertEqual(source["id"], call("/v1/sources/" + source["id"])["source_id"])
                 with self.assertRaises(urllib.error.HTTPError) as error:
                     call("/v1/pages", {"id": "../bad"})
                 self.assertEqual(400, error.exception.code)
+                error.exception.close()
                 self.assertTrue(call("/v1/sources/" + source["id"], method="DELETE")["deleted"])
             finally:
                 server.shutdown()

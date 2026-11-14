@@ -129,4 +129,5 @@ def search(view, query, *, limit=10, posting_budget=12000, candidate_budget=1024
             "termination": reasons[-1] if reasons else "finished", "degraded_reasons": reasons,
             "index_coverage": "complete", "snapshot_version": None, "applied_sequence": None,
             "total_hits": {"value": total_hits, "relation": "lower_bound" if truncated else "exact"},
-            "empty_result_confirmed": not truncated and total_hits == 0}
+            "empty_result_confirmed": not truncated and total_hits == 0,
+            "match_evidence": "has_hits" if total_hits else "not_established" if truncated else "proven_none"}

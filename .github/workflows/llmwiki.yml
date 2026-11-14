@@ -1,9 +1,9 @@
 name: LLM Wiki
 on:
   push:
-    paths: ['llmwiki/**', 'tests/test_llmwiki.py', 'scripts/*llmwiki*', 'deploy/llmwiki/**', 'src/**', 'include/**', 'bindings/python/fengqudb.py', 'CMakeLists.txt', '.github/workflows/llmwiki.yml']
+    paths: ['llmwiki/**', 'tests/test_llmwiki*.py', 'tests/test_fengqudb_index_python.py', 'scripts/*llmwiki*', 'deploy/llmwiki/**', 'src/**', 'include/**', 'bindings/python/fengqudb*.py', 'CMakeLists.txt', '.github/workflows/llmwiki.yml']
   pull_request:
-    paths: ['llmwiki/**', 'tests/test_llmwiki.py', 'scripts/*llmwiki*', 'deploy/llmwiki/**', 'src/**', 'include/**', 'bindings/python/fengqudb.py', 'CMakeLists.txt', '.github/workflows/llmwiki.yml']
+    paths: ['llmwiki/**', 'tests/test_llmwiki*.py', 'tests/test_fengqudb_index_python.py', 'scripts/*llmwiki*', 'deploy/llmwiki/**', 'src/**', 'include/**', 'bindings/python/fengqudb*.py', 'CMakeLists.txt', '.github/workflows/llmwiki.yml']
 jobs:
   wiki:
     strategy:
@@ -24,7 +24,9 @@ jobs:
         shell: pwsh
         run: |
           $env:FENGQUDB_LIBRARY = (Resolve-Path build/wiki/Release/fengqudb.dll).Path
-          python -m unittest discover -s tests -p test_llmwiki.py -v
+          python -m unittest discover -s tests -p test_fengqudb_index_python.py -v
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m unittest discover -s tests -p 'test_llmwiki*.py' -v
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python scripts/package-llmwiki.py --library build/wiki/Release/fengqudb.dll --output artifacts/FengquWiki-win-x64.zip
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -35,6 +37,7 @@ jobs:
         env:
           FENGQUDB_LIBRARY: ${{ github.workspace }}/build/wiki/libfengqudb.so
         run: |
-          python -m unittest discover -s tests -p test_llmwiki.py -v
+          python -m unittest discover -s tests -p test_fengqudb_index_python.py -v
+          python -m unittest discover -s tests -p 'test_llmwiki*.py' -v
           python scripts/package-llmwiki.py --library build/wiki/libfengqudb.so --output artifacts/FengquWiki-linux-x64.zip
           python scripts/verify-llmwiki-package.py artifacts/FengquWiki-linux-x64.zip
