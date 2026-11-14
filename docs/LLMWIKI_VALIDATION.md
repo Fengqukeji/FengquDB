@@ -97,3 +97,9 @@ Windows x64 **28/28** 测试通过（4.027 秒），Docker Linux x64 **28/28** �
 首轮联调发现的错误来自测试对被取消事务走了正常退出自动提交，已改为显式关闭；没有为此改变引擎持久性或事务语义。最终两平台无失败、无跳过。未扩大到新的模型、数据库全量回归、ASan 或性能评测；这些不由本会话声称完成。
 
 可直接整合的三文件清单及命令见 [LLMWIKI_NATIVE_HANDOFF.md](LLMWIKI_NATIVE_HANDOFF.md)。旧 ZIP/manifest 仍是首版，本轮由主会话集中整合原生库及安装包。
+
+## 主会话整合确认（报告来源）
+
+2026-11-14，主会话确认已整合两个共享 Python 绑定文件及独立测试，并报告 Windows/Linux 的 native_index/native_index_cpp/python_index/store_bridge 四组 CTest 通过，Python 14/14；桥接 13 项通过、1 项旧库用例跳过；Linux ASan+UBSan 两组原生测试通过。此处是协作结果记录，不是本 Wiki 会话复跑的证据，也不覆盖 Wiki 领域 sanitizer 或完整产品验收。
+
+主会话另完成 C++20 便捷层及 INDEX_CPP.md / INDEX_PYTHON.md，并增加原生查询谓词 UTF-8 校验，ABI/字段保持不变。本会话按要求仅完成最终清单、命令和边界记录，没有再次运行领域回归或修改已共享包装。最终职责与复现入口见 [交接记录](LLMWIKI_NATIVE_HANDOFF.md)。

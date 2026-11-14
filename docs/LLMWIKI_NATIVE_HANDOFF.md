@@ -1,6 +1,8 @@
-# 可供公共 Index 分支复制的 Python 文件
+# 公共 Index Python 绑定最终交接
 
 来源工作树：`D:/study/FengquDB-llmwiki`，分支 `codex/llmwiki`。
+
+状态：2026-11-14，源码交付提交 `ccea3e0`。主会话已确认将下列三个共享文件整合到 `D:/study/FengquDB-index` / `codex/index-foundation`。Wiki 领域实现继续保留在本分支；无需重复复制整包。
 
 只复制以下三个文件即可获得独立标准库包装与契约测试，不依赖 Wiki 包：
 
@@ -38,3 +40,16 @@ Wiki 另有 **34/34，无跳过**（两平台）通过，含完整真实 NativeI
 ## 领域版本反馈
 
 v1 domain_revision/source_revision 是 uint64，而 Wiki 对外 revision 是 SHA-256。Wiki 适配层已实现同事务的稳定 token 表，完整哈希保存在元数据和 locator 中；没有截断或冒用哈希数值。目前不要求修改 proto tag。projection_version、publication_generation 与 lifecycle_generation 分别保存，域原件不交给索引副本当权威数据。
+
+## 整合后的验证与边界
+
+以下为主会话在整合后报告的结果，本 Wiki 会话没有重新执行，不能与前述本会话实测混写：
+
+- Windows/Linux：CTest `native_index`、`native_index_cpp`、`python_index`、`store_bridge` 四组全部通过；Python 独立包装 14/14。
+- 桥接结果为 13 项通过、1 项旧库用例跳过；跳过不计为通过。
+- Linux：ASan+UBSan 两组原生测试通过。该结果归主会话，不意味着 Wiki 领域代码在本会话跑过 sanitizer。
+- 已增加原生查询谓词 UTF-8 校验；ABI 与 wire tag 未改变，本轮无需改动 Python 编码或重跑已有领域回归。
+
+公共 C++20 便捷层及使用说明由 Index 分支维护，见 [INDEX_CPP.md](D:/study/FengquDB-index/docs/INDEX_CPP.md) 和 [INDEX_PYTHON.md](D:/study/FengquDB-index/docs/INDEX_PYTHON.md)。公共 header/proto/Core、原生检索算法和安装包由主会话集中整合；Wiki 保留摄入、编译、依赖、引用、领域版本及恢复代码。本轮收尾仅更新文档，不改这三个已共享的 Python 文件。
+
+现有独立命令继续作为复现入口，Wiki 领域命令见 [原生接入](LLMWIKI_NATIVE.md)。Windows/Linux 的局部正确性与桥接验证不等于全平台或完整产品验收；没有新增模型/训练、HNSW、严格动态历史统计、自动索引迁移、UI 或新版 Wiki 发布包。
