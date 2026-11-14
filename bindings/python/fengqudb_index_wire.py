@@ -6,6 +6,12 @@ from dataclasses import dataclass, field
 from enum import IntEnum
 
 MAX_MESSAGE = 16 * 1024 * 1024
+DEFAULT_OUTPUT_BUDGET = 64 * 1024 * 1024
+
+
+class Projection(IntEnum):
+    FULL = 0
+    HEADER = 1
 
 
 class WireError(ValueError):
@@ -256,8 +262,14 @@ def encode_query(*, index_space, partition, operation=Query.SEARCH, text="", lim
                  id=b"", after_id=b"", min_similarity=None, allow_partial=False, expected_projection_version=0,
                  statistics_policy=0, expected_mutation_sequence=0, phrases=(), prefix_last=False,
                  ef_search=None, include_positions=False, snippet_bytes=None, term_budget=None, include_explain=False,
-                 excluded_terms=(), scoring_fields=()):
+                 excluded_terms=(), scoring_fields=(), result_projection=Projection.FULL,
+                 output_budget=DEFAULT_OUTPUT_BUDGET):
     operation = Query(operation)
+    result_projection = Projection(result_projection)
+    if type(output_budget) is not int or not 1 <= output_budget < 2 ** 63:
+        raise WireError("output_budget requires a positive addressable byte count")
+    if after_id and operation != Query.LIST:
+        raise WireError("after_id is a List cursor; Search ranking pagination is unsupported")
     if not isinstance(text, str) or not isinstance(vector_space, bytes) or len(vector_space) > 512:
         raise WireError("query text/vector-space type or size is invalid")
     if any(not isinstance(value, bytes) or len(value) > 1024 for value in (id, after_id)):
@@ -337,6 +349,10 @@ def encode_query(*, index_space, partition, operation=Query.SEARCH, text="", lim
         result += _b(31, _utf8(value, 65536))
     for value in scoring_fields:
         result += _b(32, _utf8(value, 128))
+    if result_projection != Projection.FULL:
+        result += _u(33, result_projection)
+    if output_budget != DEFAULT_OUTPUT_BUDGET:
+        result += _u(34, output_budget)
     return _bounded(result)
 
 
@@ -372,8 +388,8 @@ def _read_varint(data, offset):
     raise WireError("invalid protobuf varint")
 
 
-def fields(data):
-    if not isinstance(data, bytes) or len(data) > MAX_MESSAGE:
+def fields(data, *, max_bytes=MAX_MESSAGE):
+    if not isinstance(data, bytes) or len(data) > max_bytes:
         raise WireError("invalid protobuf message byte budget")
     offset = 0
     while offset < len(data):
@@ -484,22 +500,23 @@ def decode_document(data):
     return document
 
 
-def decode_result(data):
+def decode_result(data, *, max_bytes=DEFAULT_OUTPUT_BUDGET):
     result = {"hits": [], "snapshot_version": 0, "mutation_sequence": 0, "ranking_kind": 0, "termination": 0,
               "index_coverage": 0, "match_evidence": 0, "postings_visited": 0, "candidates": 0,
               "records_scanned": 0, "next_cursor": b"", "total_hits": None, "record_count": 0,
               "vector_count": 0, "strategy": "", "analyzer": "", "terms_visited": 0,
-              "statistics_scanned": 0, "blocks_visited": 0, "graph_visited": 0, "layout_generation": 0}
+              "statistics_scanned": 0, "blocks_visited": 0, "graph_visited": 0, "layout_generation": 0,
+              "result_projection": int(Projection.FULL)}
     numbers = {2: "snapshot_version", 3: "mutation_sequence", 4: "ranking_kind", 5: "termination",
                6: "index_coverage", 7: "match_evidence", 8: "postings_visited", 9: "candidates",
                10: "records_scanned", 12: "total_hits", 13: "record_count", 14: "vector_count",
                17: "terms_visited", 18: "statistics_scanned", 19: "blocks_visited", 20: "graph_visited", 21: "layout_generation"}
-    for number, wire, value in fields(data):
+    for number, wire, value in fields(data, max_bytes=max_bytes):
         if number in numbers:
             result[numbers[number]] = _known(wire, 0, value)
         elif number == 1:
             hit = {"document": None, "score": 0.0, "dense_similarity": None, "matched_fields": [], "positions": [], "details": []}
-            for part, kind, content in fields(_known(wire, 2, value)):
+            for part, kind, content in fields(_known(wire, 2, value), max_bytes=max_bytes):
                 if part == 1:
                     hit["document"] = decode_document(_known(kind, 2, content))
                 elif part in (2, 3):
@@ -517,6 +534,11 @@ def decode_result(data):
             if hit["document"] is None or len(result["hits"]) >= 4096:
                 raise WireError("missing document or oversized hit count")
             result["hits"].append(hit)
+        elif number == 22:
+            projection = _known(wire, 0, value)
+            if projection not in (Projection.FULL, Projection.HEADER):
+                raise WireError("invalid result projection")
+            result["result_projection"] = projection
         elif number in (11, 15, 16):
             value = _known(wire, 2, value)
             result[{11: "next_cursor", 15: "strategy", 16: "analyzer"}[number]] = value if number == 11 else value.decode("utf-8")

@@ -204,6 +204,22 @@ template <class F> fqdb_status boundary(F &&function) noexcept {
 bool valid(fqdb_slice value, uint64_t maximum) {
     return value.size <= maximum && (!value.size || value.data);
 }
+bool bridge_output(fqdb_store_bridge_info *out) {
+    if (!out || out->struct_size < sizeof(*out) ||
+        out->abi_version != FQDB_STORE_BRIDGE_ABI_VERSION)
+        return false;
+    *out = {};
+    out->struct_size = sizeof(*out);
+    out->abi_version = FQDB_STORE_BRIDGE_ABI_VERSION;
+    return true;
+}
+void bridge_identity(const p::Core &core, const p::View &state, uint32_t kind,
+                     fqdb_store_bridge_info &out) {
+    out.kind = kind;
+    out.store_token = core.id;
+    out.snapshot_version = state.version;
+    std::memcpy(out.uuid, state.generation->uuid.data(), sizeof(out.uuid));
+}
 std::string_view view(fqdb_slice value) {
     return value.size ? std::string_view(static_cast<const char *>(value.data),
                                          static_cast<size_t>(value.size))
@@ -619,6 +635,37 @@ void maintenance_result(fqdb_log_event *event, const fqdb_store_maintenance_info
 }
 } // namespace
 extern "C" {
+uint32_t FQDB_CALL fqdb_store_bridge_abi_version(void) {
+    return FQDB_STORE_BRIDGE_ABI_VERSION;
+}
+fqdb_status FQDB_CALL fqdb_store_bridge_identity(fqdb_store *store,
+                                                fqdb_store_bridge_info *out) {
+    if (!bridge_output(out) || !store)
+        return FQDB_INVALID_ARGUMENT;
+    return boundary([&] {
+        auto state = store->core->current();
+        bridge_identity(*store->core, *state, 1, *out);
+    });
+}
+fqdb_status FQDB_CALL fqdb_store_txn_bridge_identity(fqdb_store_txn *txn,
+                                                    fqdb_store_bridge_info *out) {
+    if (!bridge_output(out) || !txn)
+        return FQDB_INVALID_ARGUMENT;
+    return boundary([&] {
+        txn->value.ready();
+        const auto &base = *txn->value.base;
+        bridge_identity(*base.core, *base.view, 2, *out);
+    });
+}
+fqdb_status FQDB_CALL fqdb_store_snapshot_bridge_identity(const fqdb_store_snapshot *snapshot,
+                                                         fqdb_store_bridge_info *out) {
+    if (!bridge_output(out) || !snapshot)
+        return FQDB_INVALID_ARGUMENT;
+    return boundary([&] {
+        const auto &base = *snapshot->capture;
+        bridge_identity(*base.core, *base.view, 3, *out);
+    });
+}
 #ifdef FQDB_TESTING
 void fqdb_store_test_read_stamp(fqdb_store *store, uint64_t value) {
     std::lock_guard<p::WriterGate> lock(store->core->writer);
