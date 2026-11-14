@@ -52,6 +52,8 @@ python3 -m llmwiki --db build/wiki-data serve
 
 ### 连接实际模型
 
+检索实现可通过独立的 `index_provider` 替换，模型仍使用 `provider`。当前默认 Python 实现保留作为对照；公共原生索引的事务、过滤、版本、水位与迁移要求见 [Index Provider 对接契约](LLMWIKI_INDEX_PROVIDER.md)。原生适配器和水位能力尚未接入。
+
 兼容 `/v1/chat/completions` 的本地服务器和远程模型均可接入：
 
 ```powershell

@@ -7,6 +7,7 @@ import uuid
 from pathlib import Path
 
 from . import retrieval
+from .index_provider import DEFAULT_DEFINITION, IndexDefinition, PythonIndexProvider
 from .providers import ExtractiveProvider, PROMPT_VERSION, ProviderError
 from .storage import Repository, encode
 
@@ -54,19 +55,34 @@ def bounded_limit(value, maximum=200):
 
 
 class Wiki:
-    def __init__(self, path, *, library=None, namespace="default", provider=None):
+    def __init__(self, path, *, library=None, namespace="default", provider=None, index_provider=None):
         text(namespace, "namespace", 128)
+        self.index = index_provider if index_provider is not None else PythonIndexProvider()
+        if getattr(self.index, "atomic_updates", None) is not True:
+            raise WikiError("this wiki requires an index provider with same-transaction atomic updates")
+        if not isinstance(getattr(self.index, "definition", None), IndexDefinition):
+            raise WikiError("index provider requires an IndexDefinition")
+        self.index_definition = self.index.definition.descriptor()
         self.repo = Repository(path, "wiki/" + digest(namespace)[:32] + "/", library)
         self.provider = provider or ExtractiveProvider()
         self.namespace = namespace
         try:
             def initialize(tx):
                 schema = tx.get("schema")
-                expected = {"version": SCHEMA_VERSION, "tokenizer": retrieval.TOKENIZER_VERSION}
+                expected = {"version": SCHEMA_VERSION, "tokenizer": self.index.definition.tokenizer_version}
                 if schema is not None and schema != expected:
                     raise WikiError("unsupported wiki schema/tokenizer; migrate before opening")
                 if schema is None:
                     tx.put("schema", expected)
+                installed = tx.get("index/provider")
+                if installed is not None and installed != self.index_definition:
+                    raise WikiError("index provider changed; explicit rebuild/migration required")
+                if installed is None:
+                    # A legacy nonempty index can only be adopted by its original format.
+                    legacy_count = tx.get("search/stats", {}).get("count", 0)
+                    if legacy_count and self.index.definition != DEFAULT_DEFINITION:
+                        raise WikiError("legacy index requires explicit migration to a different provider")
+                    tx.put("index/provider", self.index_definition)
             self.repo.write(initialize)
         except BaseException:
             self.repo.close()
@@ -104,7 +120,7 @@ class Wiki:
         if page and not page["stale"]:
             page["stale"] = True
             tx.put("page/" + page_id, page)
-            tx.put("state/" + page_id, {"stale": True, "revision": page["revision"]})
+            self.index.set_page_state(tx, page_id, {"stale": True, "revision": page["revision"]})
 
     def _define(self, tx, page_id, title, source_ids, links, kind):
         old = tx.get("spec/" + page_id)
@@ -132,12 +148,12 @@ class Wiki:
             if previous and not previous["deleted"] and previous["revision"] == revision:
                 return dict(previous, changed=False)
             for doc_id in (previous or {}).get("chunks", []):
-                retrieval.remove_document(tx, doc_id)
+                self.index.delete(tx, doc_id)
             chunk_ids = []
             for index, (start, end, body) in enumerate(retrieval.chunks(content)):
                 doc_id = "c-" + sid + "-%04x" % index
                 chunk_ids.append(doc_id)
-                retrieval.index_document(tx, doc_id, {"kind": "chunk", "source_id": sid, "revision": revision,
+                self.index.upsert(tx, doc_id, {"kind": "chunk", "source_id": sid, "revision": revision,
                     "title": title, "text": body, "citations": [{"source_id": sid, "revision": revision,
                     "start": start, "end": end, "uri": uri, "title": title}]})
             source = {"id": sid, "uri": uri, "title": title, "revision": revision,
@@ -189,7 +205,7 @@ class Wiki:
             if not source or source["deleted"]:
                 return False
             for doc_id in source["chunks"]:
-                retrieval.remove_document(tx, doc_id)
+                self.index.delete(tx, doc_id)
             source.update(deleted=True, chunks=[], updated_ms=now_ms())
             tx.put("source/" + sid, source)
             for key, _ in list(tx.scan("dep/" + sid + "/")):
@@ -240,7 +256,7 @@ class Wiki:
         bounded_limit(posting_budget, 100000)
         bounded_limit(candidate_budget, 4096)
         with self.repo.snapshot() as view:
-            return retrieval.search(view, query, limit=limit, posting_budget=posting_budget, candidate_budget=candidate_budget)
+            return self.index.search(view, query, limit=limit, posting_budget=posting_budget, candidate_budget=candidate_budget)
 
     def _claim(self, lease_ms):
         stamp = now_ms()
@@ -337,10 +353,10 @@ class Wiki:
                 if old:
                     for link in old["links"]:
                         tx.delete("back/" + link + "/" + page_id)
-                retrieval.remove_document(tx, "p-" + page_id)
+                self.index.delete(tx, "p-" + page_id)
                 if not sources:
                     tx.delete("page/" + page_id)
-                    tx.delete("state/" + page_id)
+                    self.index.set_page_state(tx, page_id, None)
                     state = "retired"
                 else:
                     citations = [{"label": s["label"], "source_id": s["source_id"], "revision": s["revision"],
@@ -351,11 +367,11 @@ class Wiki:
                             "revision": fingerprint, "stale": False, "updated_ms": now_ms(),
                             "provider": self.provider.identity, "missing_sources": len(spec["source_ids"]) - len(sources)}
                     tx.put("page/" + page_id, page)
-                    tx.put("state/" + page_id, {"stale": False, "revision": fingerprint})
+                    self.index.set_page_state(tx, page_id, {"stale": False, "revision": fingerprint})
                     tx.put("history/" + page_id + "/" + fingerprint, page)
                     for link in page["links"]:
                         tx.put("back/" + link + "/" + page_id, True)
-                    retrieval.index_document(tx, "p-" + page_id, {"kind": "page", "page_id": page_id,
+                    self.index.upsert(tx, "p-" + page_id, {"kind": "page", "page_id": page_id,
                         "title": page["title"], "text": page["markdown"], "revision": fingerprint, "citations": citations})
                     state = "done"
                 tx.delete(self._queue_key(current))
@@ -396,7 +412,7 @@ class Wiki:
         bounded_limit(context_chars, 60000)
         # Retrieval and evidence extraction use one consistent snapshot.
         with self.repo.snapshot() as view:
-            found = retrieval.search(view, question, limit=limit)
+            found = self.index.search(view, question, limit=limit)
             evidence, remaining, seen = [], context_chars, set()
             for item in found["results"]:
                 if remaining <= 0:
@@ -426,10 +442,10 @@ class Wiki:
                         current["revision"] != citation["revision"]
                         for e in evidence for citation in e["citations"])
             for item in found["results"]:
-                current = view.get("doc/" + item["id"])
+                current = self.index.get_document(view, item["id"])
                 stale |= current is None or current["revision"] != item["revision"]
                 if item["kind"] == "page":
-                    page = view.get("state/" + item["page_id"])
+                    page = self.index.get_page_state(view, item["page_id"])
                     stale |= page is None or page["stale"]
         return {"answer": answer, "evidence": evidence, "citation_validated": True, "stale": stale,
                 "observed_database_version": observed_version,
@@ -440,11 +456,11 @@ class Wiki:
             states = {}
             for _, job in view.scan("job/"):
                 states[job["state"]] = states.get(job["state"], 0) + 1
-            stats = view.get("search/stats", {"count": 0, "length": 0})
+            stats = self.index.statistics(view)
         info = self.repo.store.info()
         runtime = self.repo.store.runtime_info()
         return {"namespace": self.namespace, "schema": SCHEMA_VERSION, "provider": self.provider.identity,
-                "search": stats, "jobs": states, "database": {"version": info.version,
+                "index_provider": self.index_definition, "search": stats, "jobs": states, "database": {"version": info.version,
                 "durable_version": info.durable_version, "file_bytes": info.file_bytes},
                 "maintenance": {"running": bool(runtime.running), "last_status": runtime.last_status,
                                 "compactions": runtime.compactions}}

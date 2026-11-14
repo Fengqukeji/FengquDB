@@ -9,12 +9,13 @@ import threading
 import unittest
 import urllib.error
 import urllib.request
+from contextlib import ExitStack
 from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from unittest.mock import patch
 
-from llmwiki import Wiki, WikiError
+from llmwiki import IndexDefinition, PythonIndexProvider, Wiki, WikiError
 from llmwiki.providers import CompatibleProvider, ExtractiveProvider, ProviderError
 from llmwiki.server import WikiServer
 from llmwiki.wiki import now_ms
@@ -311,6 +312,59 @@ class WikiTests(unittest.TestCase):
         self.assertGreater(result["output_file_bytes"], 0)
         self.assertEqual(source["revision"], self.wiki.source(source["id"])["revision"])
         self.assertTrue(self.wiki.search("storage")["results"])
+
+    def test_index_provider_routes_mutation_visibility_and_reads(self):
+        self.wiki.close()
+        index = PythonIndexProvider()
+        with ExitStack() as stack:
+            names = ("upsert", "delete", "set_page_state", "get_page_state", "get_document", "statistics", "search")
+            calls = {name: stack.enter_context(patch.object(index, name, wraps=getattr(index, name))) for name in names}
+            self.wiki = Wiki(self.path, library=LIBRARY, index_provider=index)
+            source = self.add()
+            self.drain()
+            self.assertTrue(self.wiki.ask("storage")["citation_validated"])
+            self.assertEqual("python-bm25", self.wiki.status()["index_provider"]["name"])
+            self.add(content="replacement storage")
+            self.wiki.delete_source(source["id"])
+            self.drain()
+            for name in names:
+                self.assertTrue(calls[name].called, name)
+            states = [call.args[2] for call in calls["set_page_state"].call_args_list]
+            self.assertIn(None, states)
+            self.assertTrue(any(state and state["stale"] for state in states))
+            self.assertTrue(any(state and not state["stale"] for state in states))
+
+    def test_index_provider_cannot_silently_claim_another_format(self):
+        class Other(PythonIndexProvider):
+            definition = IndexDefinition("future-native", 1, 1)
+        source = self.add()
+        self.wiki.close()
+        with self.assertRaises(WikiError):
+            Wiki(self.path, library=LIBRARY, index_provider=Other())
+        self.wiki = Wiki(self.path, library=LIBRARY)
+        self.assertEqual(source["revision"], self.wiki.source(source["id"])["revision"])
+        self.assertTrue(self.wiki.search("storage")["results"])
+
+    def test_legacy_python_index_adoption_rejects_foreign_provider(self):
+        class Other(PythonIndexProvider):
+            definition = IndexDefinition("future-native", 1, 1)
+        source = self.add()
+        self.wiki.repo.write(lambda tx: tx.delete("index/provider"))
+        self.wiki.close()
+        with self.assertRaises(WikiError):
+            Wiki(self.path, library=LIBRARY, index_provider=Other())
+        self.wiki = Wiki(self.path, library=LIBRARY)
+        self.assertEqual(source["revision"], self.wiki.source(source["id"])["revision"])
+        with self.wiki.repo.snapshot() as view:
+            self.assertEqual("python-bm25", view.get("index/provider")["name"])
+
+    def test_async_index_provider_is_rejected_before_opening_store(self):
+        class Asynchronous(PythonIndexProvider):
+            atomic_updates = False
+        unopened = self.root / "unopened"
+        with self.assertRaises(WikiError):
+            Wiki(unopened, library=LIBRARY, index_provider=Asynchronous())
+        self.assertFalse(unopened.exists())
 
     def test_http_auth_validation_and_routes(self):
         token = "test-secret-with-at-least-24-characters"

@@ -66,3 +66,11 @@ python tools/llmwiki_benchmark.py --sources 1000 --queries 100 --output build/wi
 最终 ZIP 各含一个平台的原生库、公共 Python 绑定、Wiki 模块、说明和启动器。通过 `scripts/verify-llmwiki-package.py` 在临时目录解压运行，清除源码路径和外部原生库配置，验证随包运行库的摄入、编译、问答、备份、校验与整理。交付清单与 SHA-256 保存在 `artifacts/FengquWiki-0.1.0-release.json`。
 
 容器 Dockerfile 和 Compose 配置已提供；Linux 测试在现有开发容器中完成，未执行新 Dockerfile 的完整联网镜像构建。未验证 macOS、Android/iOS，也未把带引用格式校验当作模型事实正确性的证明。
+
+## Index Provider 协作补充
+
+在首版之后抽出了独立检索 Provider，保留原 Python BM25 实现。变更包括摄入/删除、可见性镜像、检索、统计与问答后的版本复核路由，以及格式身份与旧索引认领保护。契约见 [LLMWIKI_INDEX_PROVIDER.md](LLMWIKI_INDEX_PROVIDER.md)。
+
+本轮仍使用 `32348fb` 核心与已有原生库，不改数据库、公共绑定或共享构建。相关测试在 Windows x64 **24/24** 通过（3.917 秒），Docker Linux x64 **24/24** 通过（2.730 秒）。新增 4 项覆盖 Provider 全链路路由、禁止静默切换格式、旧 Python 索引认领和拒绝非原子异步实现。
+
+未实现原生 Provider、结构化过滤、异步索引水位和稳定句柄借用桥接；文档将其列为公共索引接入要求。没有另写 C++ 倒排/HNSW，也没有启动模型下载、蒸馏或训练。此前最终 ZIP 和 release manifest 仍对应 `92efa28` 首版，不能把它们当成本轮源码的部署包。

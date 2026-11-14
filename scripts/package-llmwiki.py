@@ -21,6 +21,7 @@ def main():
         output.write(root / "bindings/python/fengqudb.py", "fengqudb.py")
         output.write(library, "Native/" + runtime_name)
         output.write(root / "docs/LLMWIKI.md", "README.md")
+        output.write(root / "docs/LLMWIKI_INDEX_PROVIDER.md", "LLMWIKI_INDEX_PROVIDER.md")
         output.write(root / "docs/LLMWIKI_VALIDATION.md", "VALIDATION.md")
         for evidence in sorted((root / "docs/evidence/llmwiki").glob("*.json")):
             output.write(evidence, "evidence/llmwiki/" + evidence.name)
