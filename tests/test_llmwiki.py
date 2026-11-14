@@ -15,7 +15,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from unittest.mock import patch
 
-from llmwiki import IndexDefinition, PythonIndexProvider, Wiki, WikiError
+from llmwiki import IndexDefinition, Wiki, WikiError
+from reference_wiki_index import ReferenceIndexProvider
 from llmwiki.providers import CompatibleProvider, ExtractiveProvider, ProviderError
 from llmwiki.server import WikiServer
 from llmwiki.wiki import now_ms
@@ -33,7 +34,7 @@ class WikiTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.root = Path(self.temp.name)
         self.path = self.root / "db"
-        self.wiki = Wiki(self.path, library=LIBRARY)
+        self.wiki = Wiki(self.path, library=LIBRARY, index_provider=ReferenceIndexProvider())
 
     def tearDown(self):
         self.wiki.close()
@@ -60,7 +61,7 @@ class WikiTests(unittest.TestCase):
         self.assertEqual(stats, self.wiki.status()["search"])
         self.assertTrue(self.wiki.search("增量更新")["results"])
         self.wiki.close()
-        self.wiki = Wiki(self.path, library=LIBRARY)
+        self.wiki = Wiki(self.path, library=LIBRARY, index_provider=ReferenceIndexProvider())
         self.assertEqual("done", self.drain()[0]["state"])
         self.assertEqual(source["revision"], self.wiki.source(source["id"])["revision"])
         self.assertTrue(self.wiki.lint()["ok"])
@@ -131,12 +132,12 @@ class WikiTests(unittest.TestCase):
 
     def test_atomic_rollback_preserves_old_indexes(self):
         first = self.add(content="oldatomicterm")
-        from llmwiki import retrieval
+        import reference_wiki_index as retrieval
         original = retrieval.index_document
         def broken(*args, **kwargs):
             original(*args, **kwargs)
             raise RuntimeError("injected failure after staged index writes")
-        with patch("llmwiki.retrieval.index_document", side_effect=broken):
+        with patch("reference_wiki_index.index_document", side_effect=broken):
             with self.assertRaises(RuntimeError):
                 self.add(content="newatomicterm")
         self.assertEqual(first["revision"], self.wiki.source(first["id"])["revision"])
@@ -148,7 +149,7 @@ class WikiTests(unittest.TestCase):
         claim = self.wiki._claim(10)
         self.assertEqual(1, claim["attempts"])
         self.wiki.close()
-        self.wiki = Wiki(self.path, library=LIBRARY)
+        self.wiki = Wiki(self.path, library=LIBRARY, index_provider=ReferenceIndexProvider())
         with patch("llmwiki.wiki.now_ms", return_value=claim["due_ms"] + 1):
             self.assertEqual("done", self.wiki.run_once()["state"])
 
@@ -180,13 +181,16 @@ class WikiTests(unittest.TestCase):
             calls = 0
             def compile(self, *args):
                 self.calls += 1
-                if self.calls == 1:
+                number = self.calls
+                if number == 1:
                     entered.set()
                     if not release.wait(10):
                         raise RuntimeError("test timeout")
-                return super().compile(*args)
+                artifact = super().compile(*args)
+                artifact["markdown"] += "\n\nCompile result " + str(number) + "."
+                return artifact
         self.wiki.provider = FirstBlocks()
-        self.add()
+        source = self.add()
         with ThreadPoolExecutor(1) as pool:
             future = pool.submit(lambda: self.wiki.run_once(lease_ms=1))
             self.assertTrue(entered.wait(10))
@@ -194,6 +198,13 @@ class WikiTests(unittest.TestCase):
                 self.assertEqual("done", self.wiki.run_once()["state"])
             release.set()
             self.assertEqual("superseded", future.result(10)["state"])
+        page_id = "source-" + source["id"][:24]
+        winning = self.wiki.page(page_id)
+        self.assertIn("Compile result 2.", winning["markdown"])
+        self.wiki.retry(page_id)
+        self.drain()
+        self.assertEqual(winning["markdown"], self.wiki.page(page_id)["markdown"])
+        self.assertEqual(winning["markdown"], self.wiki.page(page_id, revision=winning["revision"])["markdown"])
 
     def test_invalid_model_retry_budget_and_manual_recovery(self):
         class Invalid(ExtractiveProvider):
@@ -231,10 +242,10 @@ class WikiTests(unittest.TestCase):
         first = self.add()
         self.add("test:two")
         self.wiki.close()
-        with Wiki(self.path, library=LIBRARY, namespace="another") as other:
+        with Wiki(self.path, library=LIBRARY, namespace="another", index_provider=ReferenceIndexProvider()) as other:
             self.assertFalse(other.search("storage")["results"])
             other.ingest("test:one", "partitionuniqueterm")
-        self.wiki = Wiki(self.path, library=LIBRARY)
+        self.wiki = Wiki(self.path, library=LIBRARY, index_provider=ReferenceIndexProvider())
         self.assertEqual(first["revision"], self.wiki.source(first["id"])["revision"])
         self.assertFalse(self.wiki.search("partitionuniqueterm")["results"])
         first_page = self.wiki.listing("source", limit=1)
@@ -293,7 +304,7 @@ class WikiTests(unittest.TestCase):
         with self.assertRaises(FileExistsError):
             self.wiki.export(self.root / "export")
         self.wiki.backup(str(self.root / "backup"))
-        with Wiki(self.root / "backup", library=LIBRARY) as backup:
+        with Wiki(self.root / "backup", library=LIBRARY, index_provider=ReferenceIndexProvider()) as backup:
             self.assertEqual(source["revision"], backup.source(source["id"])["revision"])
             self.assertTrue(backup.lint()["ok"])
 
@@ -322,7 +333,7 @@ class WikiTests(unittest.TestCase):
 
     def test_index_provider_routes_mutation_visibility_and_reads(self):
         self.wiki.close()
-        index = PythonIndexProvider()
+        index = ReferenceIndexProvider()
         with ExitStack() as stack:
             names = ("upsert", "delete", "set_page_state", "get_page_state", "get_document", "statistics", "search")
             calls = {name: stack.enter_context(patch.object(index, name, wraps=getattr(index, name))) for name in names}
@@ -342,31 +353,27 @@ class WikiTests(unittest.TestCase):
             self.assertTrue(any(state and not state["stale"] for state in states))
 
     def test_index_provider_cannot_silently_claim_another_format(self):
-        class Other(PythonIndexProvider):
+        class Other(ReferenceIndexProvider):
             definition = IndexDefinition("future-native", 1, 1)
         source = self.add()
         self.wiki.close()
         with self.assertRaises(WikiError):
             Wiki(self.path, library=LIBRARY, index_provider=Other())
-        self.wiki = Wiki(self.path, library=LIBRARY)
+        self.wiki = Wiki(self.path, library=LIBRARY, index_provider=ReferenceIndexProvider())
         self.assertEqual(source["revision"], self.wiki.source(source["id"])["revision"])
         self.assertTrue(self.wiki.search("storage")["results"])
 
-    def test_legacy_python_index_adoption_rejects_foreign_provider(self):
-        class Other(PythonIndexProvider):
-            definition = IndexDefinition("future-native", 1, 1)
+    def test_missing_index_identity_requires_a_fresh_namespace(self):
         source = self.add()
         self.wiki.repo.write(lambda tx: tx.delete("index/provider"))
         self.wiki.close()
         with self.assertRaises(WikiError):
-            Wiki(self.path, library=LIBRARY, index_provider=Other())
-        self.wiki = Wiki(self.path, library=LIBRARY)
-        self.assertEqual(source["revision"], self.wiki.source(source["id"])["revision"])
-        with self.wiki.repo.snapshot() as view:
-            self.assertEqual("python-bm25", view.get("index/provider")["name"])
+            Wiki(self.path, library=LIBRARY, index_provider=ReferenceIndexProvider())
+        self.wiki = Wiki(self.path, library=LIBRARY, namespace="fresh", index_provider=ReferenceIndexProvider())
+        self.assertIsNone(self.wiki.source(source["id"]))
 
     def test_async_index_provider_is_rejected_before_opening_store(self):
-        class Asynchronous(PythonIndexProvider):
+        class Asynchronous(ReferenceIndexProvider):
             atomic_updates = False
         unopened = self.root / "unopened"
         with self.assertRaises(WikiError):
@@ -386,7 +393,7 @@ class WikiTests(unittest.TestCase):
         self.assertTrue(self.wiki.ask("unmatcheduniqueterm")["empty_result_confirmed"])
 
     def test_interrupted_empty_result_is_not_a_confirmed_miss(self):
-        class Partial(PythonIndexProvider):
+        class Partial(ReferenceIndexProvider):
             def search(self, *_args, **_kwargs):
                 return {"results": [], "ranking_kind": "approximate", "termination": "candidate_limit",
                         "index_coverage": "complete", "total_hits": {"value": 0, "relation": "lower_bound"},
@@ -400,7 +407,7 @@ class WikiTests(unittest.TestCase):
         self.assertIn("has not been confirmed", result["answer"])
 
     def test_approximate_finished_empty_result_is_not_truncation_or_proof(self):
-        class Approximate(PythonIndexProvider):
+        class Approximate(ReferenceIndexProvider):
             def search(self, *_args, **_kwargs):
                 return {"results": [], "ranking_kind": "approximate", "termination": "finished",
                         "index_coverage": "complete", "total_hits": {"value": None, "relation": "unknown"}}
@@ -414,7 +421,7 @@ class WikiTests(unittest.TestCase):
         self.assertIn("has not been confirmed", result["answer"])
 
     def test_legacy_empty_provider_has_unknown_coverage(self):
-        class Legacy(PythonIndexProvider):
+        class Legacy(ReferenceIndexProvider):
             def search(self, *_args, **_kwargs):
                 return {"results": [], "truncated": False}
         self.wiki.close()

@@ -1,0 +1,21 @@
+{
+  "suite": "all",
+  "tests": 71,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "passed_without_skips": true,
+  "elapsed_seconds": 6.471812,
+  "platform": "Windows-11-10.0.26200-SP0",
+  "python": "3.12.10",
+  "core": {
+    "path": "D:\\study\\FengquDB-index\\build\\index-win\\Release\\fengqudb.dll",
+    "bytes": 1206272,
+    "sha256": "e56a3ccf0c959c894c12c33e0f2df590404dd0139b52636da77eec6cb73c7df5"
+  },
+  "index": {
+    "path": "D:\\study\\FengquDB-index\\build\\index-win\\Release\\fengqudb_index.dll",
+    "bytes": 500224,
+    "sha256": "872794c4181f4afa394a906adbf5c3b22ff84fceb13cfeb461c71b061883c917"
+  }
+}

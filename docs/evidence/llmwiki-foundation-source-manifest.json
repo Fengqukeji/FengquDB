@@ -1,0 +1,289 @@
+{
+  "branch": "codex/llmwiki",
+  "head": "f632878e2fd02b407258f7480868169e769a34ad",
+  "committed_this_round": false,
+  "files": [
+    {
+      "path": "bindings/python/fengqudb.py",
+      "bytes": 74680,
+      "sha256": "c9e057eaccb8706f6dd1ab2b695980e23b715f77493d0220e36be7b2d53ddf62",
+      "shared_wrapper": false
+    },
+    {
+      "path": "bindings/python/fengqudb_index.py",
+      "bytes": 12819,
+      "sha256": "58c9537a2d922261894c5b89871656c814554c0678c3ab5a0863c7af79588182",
+      "shared_wrapper": true
+    },
+    {
+      "path": "bindings/python/fengqudb_index_wire.py",
+      "bytes": 26290,
+      "sha256": "24cc083706725d7d495b00cc4fdd4789f2f879ca3e3c433353ca7e8f3357d0bd",
+      "shared_wrapper": true
+    },
+    {
+      "path": "docs/LLMWIKI.md",
+      "bytes": 5115,
+      "sha256": "6f1c2d6840218d49b0d51403309591b7e841407a129c9779efb6e79d38f1e2b8",
+      "shared_wrapper": false
+    },
+    {
+      "path": "docs/LLMWIKI_FOUNDATION.md",
+      "bytes": 17692,
+      "sha256": "a6f09beff33960f2a09925840eca7704ff8fb3221742689a27d8ae6b7835c54b",
+      "shared_wrapper": false
+    },
+    {
+      "path": "docs/LLMWIKI_FOUNDATION_VALIDATION.md",
+      "bytes": 6434,
+      "sha256": "5e499daceadf2bf233640649c49bd1e9af66b0ac6e16be1f15b66e650f319dfa",
+      "shared_wrapper": false
+    },
+    {
+      "path": "docs/LLMWIKI_INDEX_PROVIDER.md",
+      "bytes": 3114,
+      "sha256": "14bada19b12995ec6b38caac34c8b59a5ca2f9433e09d3ea2dcd41f79470a1f9",
+      "shared_wrapper": false
+    },
+    {
+      "path": "docs/LLMWIKI_NATIVE.md",
+      "bytes": 11401,
+      "sha256": "48adc98104ef49f58574b8821f949cbc5ea21a4a34a367735795007178c5010e",
+      "shared_wrapper": false
+    },
+    {
+      "path": "docs/LLMWIKI_NATIVE_HANDOFF.md",
+      "bytes": 5005,
+      "sha256": "373d74106220e33e155c1c2d7376f3631739dd2529109fc34e69ef5de1ce4c69",
+      "shared_wrapper": false
+    },
+    {
+      "path": "docs/LLMWIKI_VALIDATION.md",
+      "bytes": 9627,
+      "sha256": "77b566a0f3d94d12e8323cc512dd1322a862dabfa32f64ffe68790e702ac7116",
+      "shared_wrapper": false
+    },
+    {
+      "path": "docs/evidence/llmwiki-foundation-linux-benchmark.json",
+      "bytes": 1944,
+      "sha256": "7027995b4da029ab3c024a551eea2309b06c3cc8d66cacd4db3813fa13c43b5e",
+      "shared_wrapper": false
+    },
+    {
+      "path": "docs/evidence/llmwiki-foundation-linux-final.json",
+      "bytes": 612,
+      "sha256": "f892da413aed786d94c6e04ce090bb7aa9f94b4cfab876b400ab5c9cd5a37418",
+      "shared_wrapper": false
+    },
+    {
+      "path": "docs/evidence/llmwiki-foundation-linux-final.log",
+      "bytes": 11304,
+      "sha256": "582a270ef64426c79d2ef5cd654127da93f061cfe1a17c0385836aea53c4a076",
+      "shared_wrapper": false
+    },
+    {
+      "path": "docs/evidence/llmwiki-foundation-linux-wiki.json",
+      "bytes": 616,
+      "sha256": "7fee2d488bf226731da8666b18d34dff75b4f239a2e13acd47000a8f8653811c",
+      "shared_wrapper": false
+    },
+    {
+      "path": "docs/evidence/llmwiki-foundation-linux-wiki.log",
+      "bytes": 7316,
+      "sha256": "1aeb853fd59063106a49ed83b081f06b9f6e303b8c8141f96c60d44b26324b69",
+      "shared_wrapper": false
+    },
+    {
+      "path": "docs/evidence/llmwiki-foundation-windows-benchmark.json",
+      "bytes": 2024,
+      "sha256": "9cd13856d61d2a7e8b97c805cc3ac8505cd9c114f66e7991a7842155d5bea4ad",
+      "shared_wrapper": false
+    },
+    {
+      "path": "docs/evidence/llmwiki-foundation-windows-final.json",
+      "bytes": 644,
+      "sha256": "195e1def7db7df9f0a06d0d4adff8e019c0d51dc3bb918e21c433e02cf39e215",
+      "shared_wrapper": false
+    },
+    {
+      "path": "docs/evidence/llmwiki-foundation-windows-final.log",
+      "bytes": 11315,
+      "sha256": "b556891f1f6cbc765f0126c8e86b99f3ef5219bc7c39dac5e18e86b27cff24c0",
+      "shared_wrapper": false
+    },
+    {
+      "path": "docs/evidence/llmwiki-foundation-windows-index.json",
+      "bytes": 645,
+      "sha256": "3ded11d58ab54904115789fd0477df06fdce884bf3031b409ee5639be3901cac",
+      "shared_wrapper": false
+    },
+    {
+      "path": "docs/evidence/llmwiki-foundation-windows-index.log",
+      "bytes": 4329,
+      "sha256": "7076590be6e35c6b3a8d3f828cee9c32977db933d74687142d8bcb8704dddacf",
+      "shared_wrapper": false
+    },
+    {
+      "path": "docs/evidence/llmwiki-foundation-windows-wiki.json",
+      "bytes": 645,
+      "sha256": "4c02527d7b0ed9ab0af9df83cff0ffe5f52db126540d6152d13bf5ca47866b20",
+      "shared_wrapper": false
+    },
+    {
+      "path": "docs/evidence/llmwiki-foundation-windows-wiki.log",
+      "bytes": 7660,
+      "sha256": "884cca7ca77ebe514222474805ca4bd06cfc17281730dcbb16aa52990acb08bb",
+      "shared_wrapper": false
+    },
+    {
+      "path": "docs/evidence/llmwiki-index-wrapper-handoff.json",
+      "bytes": 2331,
+      "sha256": "72279d00779c8cfd9c1a89d80eafcc7c892f52bdef0f78083ac06371ddc1bf62",
+      "shared_wrapper": false
+    },
+    {
+      "path": "examples/llmwiki/foundation.http",
+      "bytes": 1345,
+      "sha256": "6a2921a6ba24d5f2e3330eec25be8f7c30f0ea2cb677f4d12b33773064114a24",
+      "shared_wrapper": false
+    },
+    {
+      "path": "examples/llmwiki/foundation.py",
+      "bytes": 2159,
+      "sha256": "524d43f807f06fef22653c23a171d136df4bb13cfbaf5de937bdb855b23539d1",
+      "shared_wrapper": false
+    },
+    {
+      "path": "llmwiki/__init__.py",
+      "bytes": 430,
+      "sha256": "c6244c9eae52c694b42898e81e18f3c6d5f5833098c11a3d4935202c55e0eefd",
+      "shared_wrapper": false
+    },
+    {
+      "path": "llmwiki/__main__.py",
+      "bytes": 8043,
+      "sha256": "e9395a08dd309a2accea41aa2ea03e24394628104002b04299be06a899eeb042",
+      "shared_wrapper": false
+    },
+    {
+      "path": "llmwiki/connectors.py",
+      "bytes": 4281,
+      "sha256": "bae907c0195e00cdb87ddaf0b151af21a25d73d336418456a3149318af1e96f2",
+      "shared_wrapper": false
+    },
+    {
+      "path": "llmwiki/index_provider.py",
+      "bytes": 3018,
+      "sha256": "efd60509b3e1c77b470d6b709c8aff59cfeea99a79c0aea5740586e48a26ce3b",
+      "shared_wrapper": false
+    },
+    {
+      "path": "llmwiki/knowledge.py",
+      "bytes": 14555,
+      "sha256": "b8bde2e7c2124d200bd02ee314ec32e86530b4645595aa37c0e37ace0b8946d1",
+      "shared_wrapper": false
+    },
+    {
+      "path": "llmwiki/limits.py",
+      "bytes": 1322,
+      "sha256": "1223f89c35905bb48f435c1383452f227038ba626481c4c93069a913d6d6d0f4",
+      "shared_wrapper": false
+    },
+    {
+      "path": "llmwiki/native_index_provider.py",
+      "bytes": 24981,
+      "sha256": "f74601faab39091fc5dae657bb04ffee8090945b23f4989ad5d4a66f8681fcde",
+      "shared_wrapper": false
+    },
+    {
+      "path": "llmwiki/providers.py",
+      "bytes": 6469,
+      "sha256": "37d58b19497eb45294a271cdd27e2c043be1f119205d6786e04b170a99c9818b",
+      "shared_wrapper": false
+    },
+    {
+      "path": "llmwiki/server.py",
+      "bytes": 9612,
+      "sha256": "3df0a739a1c7a007f6e151d66d0a99757671b711b7e329753d7eba531f8b5b6c",
+      "shared_wrapper": false
+    },
+    {
+      "path": "llmwiki/storage.py",
+      "bytes": 2955,
+      "sha256": "2f20d293ea4e47d63ed0a3140c760bb00c19df13f6057b8fb71af14aa5b8616d",
+      "shared_wrapper": false
+    },
+    {
+      "path": "llmwiki/text.py",
+      "bytes": 491,
+      "sha256": "a4575a8c7ef64c4d17346f256d567402fc469e68522c8f97149adbd7badd00e8",
+      "shared_wrapper": false
+    },
+    {
+      "path": "llmwiki/wiki.py",
+      "bytes": 54510,
+      "sha256": "b7bc006fcbf8fd00d33cec2a32e1b8cc1c5b45eb21a809290f2c37778e30e8ac",
+      "shared_wrapper": false
+    },
+    {
+      "path": "scripts/package-llmwiki.py",
+      "bytes": 3051,
+      "sha256": "693053ec7e69c91976f0555fc981539c0208d0304d59bc74d0630739e75af1e3",
+      "shared_wrapper": false
+    },
+    {
+      "path": "scripts/verify-llmwiki-package.py",
+      "bytes": 2437,
+      "sha256": "830c83488664df2f44b1726d8dc42eab10234eea5d1fc29cf1a986dbf632ff61",
+      "shared_wrapper": false
+    },
+    {
+      "path": "tests/reference_wiki_index.py",
+      "bytes": 6724,
+      "sha256": "c2a1e5eb738017630eb281642a5419f584d4d11c640fd8720c8cdfb8cb424be7",
+      "shared_wrapper": false
+    },
+    {
+      "path": "tests/test_fengqudb_index_python.py",
+      "bytes": 35874,
+      "sha256": "eec81e57935821190fd0bb020b35fd941689bc1bd60e34cd907e6220c0d62477",
+      "shared_wrapper": true
+    },
+    {
+      "path": "tests/test_llmwiki.py",
+      "bytes": 26169,
+      "sha256": "1c3dc3be8707f43c63c7a9d87dc1a7d1ed15187d1bb26d9fc44fd87558b2888d",
+      "shared_wrapper": false
+    },
+    {
+      "path": "tests/test_llmwiki_foundation.py",
+      "bytes": 17464,
+      "sha256": "2bc9c9479eceaa286c6dc6db7e1feea118cd39fe76b1f18eb35914e884472e79",
+      "shared_wrapper": false
+    },
+    {
+      "path": "tests/test_llmwiki_native.py",
+      "bytes": 13501,
+      "sha256": "7d7bcc795a9a2f02608505952271970173d56709319e36e1dcca438ba1dd7bb2",
+      "shared_wrapper": false
+    },
+    {
+      "path": "tests/test_llmwiki_packaging.py",
+      "bytes": 3395,
+      "sha256": "d8d9bb6a1ceb43af361290ddf610b9e1a1bee1ef5524e3c7d8834cd7541c25ea",
+      "shared_wrapper": false
+    },
+    {
+      "path": "tools/llmwiki_benchmark.py",
+      "bytes": 5444,
+      "sha256": "885532cf2aac76495c86e253e723966308a9fb411c42360270a81484924b2a5e",
+      "shared_wrapper": false
+    },
+    {
+      "path": "tools/verify_llmwiki_foundation.py",
+      "bytes": 2102,
+      "sha256": "40754f15ce977556bfd9475576ebb175dd960c78db610de5f0cb06aa21efae61",
+      "shared_wrapper": false
+    }
+  ]
+}

@@ -32,6 +32,9 @@ class RecordingClient:
     def query(self, handle, request, **_options):
         self.last_query = {number: value for number, _, value in wire.fields(request)}
         return self.response
+    def maintain(self, handle, **request):
+        self.last_maintenance = request
+        return {"finished": False, "next_key": b"checkpoint"}
 
 
 @unittest.skipUnless(CORE, "set FENGQUDB_LIBRARY for provider/domain integration")
@@ -118,6 +121,14 @@ class NativeProviderDomainTests(unittest.TestCase):
         with self.wiki.repo.snapshot() as view:
             self.assertIsNone(view.get("native-index/revision-sequence"))
 
+    def test_default_missing_native_is_explicit_and_creates_no_store(self):
+        from unittest.mock import patch
+        path = Path(self.directory.name) / "missing-native"
+        with patch("llmwiki.wiki.NativeIndexProvider", side_effect=ffi.IndexUnavailable("native unavailable")):
+            with self.assertRaises(ffi.IndexUnavailable):
+                Wiki(path, library=CORE)
+        self.assertFalse(path.exists())
+
     def test_proven_none_does_not_require_total_count(self):
         self.client.response = result_bytes(evidence=2, total=None)
         answer = self.wiki.ask("no-match")
@@ -130,6 +141,15 @@ class NativeProviderDomainTests(unittest.TestCase):
         self.assertEqual("exact", answer["ranking_kind"])
         self.assertEqual("posting_limit", answer["termination"])
         self.assertTrue(answer["truncated"])
+        self.client.response = result_bytes(termination=7, evidence=0)
+        limited = self.wiki.search("prefix")
+        self.assertEqual("term_limit", limited["termination"])
+        self.assertTrue(limited["truncated"])
+        gc = self.wiki.maintain_index(operation=4, after_key="abcd")
+        self.assertEqual(b"\xab\xcd", self.client.last_maintenance["after_key"])
+        self.assertEqual(b"checkpoint".hex(), gc["next_key"])
+        self.wiki.maintain_index(operation=2, vector_space="embedding-v1", max_records=16)
+        self.assertEqual(b"embedding-v1", self.client.last_maintenance["vector_space"])
 
 
 @unittest.skipUnless(CORE and INDEX, "actual Core bridge + native index library have not been supplied")
@@ -143,7 +163,8 @@ class NativeWikiLibraryIntegrationTests(unittest.TestCase):
         self.directory.cleanup()
 
     def test_wiki_ingest_publish_snapshot_invalidate_and_delete(self):
-        with Wiki(self.path, library=CORE, index_provider=NativeIndexProvider(client=self.client)) as wiki:
+        with Wiki(self.path, library=CORE) as wiki:
+            self.assertIsInstance(wiki.index, NativeIndexProvider)
             source = wiki.ingest("actual:test", "actualoldterm 中文原件", title="Native")
             while (result := wiki.run_once()) is not None:
                 self.assertEqual("done", result["state"], result)
@@ -177,6 +198,39 @@ class NativeWikiLibraryIntegrationTests(unittest.TestCase):
             revived = wiki.search("actualoldterm")
             self.assertTrue(revived["results"])
             self.assertTrue(all(item["lifecycle_generation"] > 1 for item in revived["results"]))
+
+    def test_extended_search_vectors_conflicts_and_maintenance(self):
+        from test_llmwiki_foundation import annotation
+        from llmwiki import ConflictError
+        with Wiki(self.path, library=CORE, index_provider=NativeIndexProvider(client=self.client)) as wiki:
+            wiki.ingest_many([{"uri": "extended:a", "title": "Native knowledge", "content": "alpha beta 中文颜色 blue", "annotations": annotation()},
+                              {"uri": "extended:b", "content": "alpha distant beta red", "annotations": annotation("red")}])
+            done = wiki.run_jobs(limit=20, workers=2)
+            self.assertTrue(all(i["state"] in ("done", "superseded") for i in done["items"]), done)
+            found = wiki.search("alpha", filters={"kind": "chunk"}, include_positions=True, include_explain=True, statistics_policy=1)
+            self.assertEqual(2, len(found["results"]))
+            self.assertTrue(found["results"][0]["positions"])
+            json_safe = __import__("json").dumps(found)
+            self.assertIn("utf8_bytes", json_safe)
+            phrase = wiki.search("", phrases=["alpha beta"], filters={"kind": "chunk"})
+            self.assertEqual(1, len(phrase["results"]))
+            self.assertEqual(2, len(wiki.search("alph", prefix_last=True, filters={"kind": "chunk"})["results"]))
+            selected = found["results"][0]
+            updated = wiki.set_vectors([{"id": selected["id"], "vector": [1., 0.],
+                "expected_projection_version": selected["projection_version"]}], vector_space="embedding-fixture-v1")
+            self.assertGreater(updated["items"][0]["projection_version"], selected["projection_version"])
+            with self.assertRaises(ConflictError):
+                wiki.set_vectors([{"id": selected["id"], "vector": [0., 1.],
+                    "expected_projection_version": selected["projection_version"]}], vector_space="embedding-fixture-v1")
+            dense = wiki.search("", mode=2, vector_f32_le=[1., 0.], vector_space="embedding-fixture-v1")
+            self.assertEqual(selected["id"], dense["results"][0]["id"])
+            self.assertIn(dense["ranking_kind"], ("exact", "approximate"))
+            self.assertTrue(wiki.maintain_index(operation=1, max_terms=128)["finished"])
+            self.assertTrue(wiki.maintain_index(operation=3, max_records=128)["finished"])
+            self.assertIn("next_key", wiki.maintain_index(operation=4, max_records=128))
+            eid = wiki.listing("entity")["items"][0]["id"]
+            self.assertEqual("open", wiki.entity(eid)["conflicts"][0]["state"])
+            self.assertTrue(wiki.ask("alpha", filters={"kind": "chunk"})["citation_validated"])
 
 
 

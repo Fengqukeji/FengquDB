@@ -1,0 +1,67 @@
+{
+  "files": [
+    {
+      "path": "D:\\study\\FengquDB-llmwiki\\bindings\\python\\fengqudb_index.py",
+      "sha256": "58c9537a2d922261894c5b89871656c814554c0678c3ab5a0863c7af79588182"
+    },
+    {
+      "path": "D:\\study\\FengquDB-llmwiki\\bindings\\python\\fengqudb_index_wire.py",
+      "sha256": "24cc083706725d7d495b00cc4fdd4789f2f879ca3e3c433353ca7e8f3357d0bd"
+    },
+    {
+      "path": "D:\\study\\FengquDB-llmwiki\\tests\\test_fengqudb_index_python.py",
+      "sha256": "eec81e57935821190fd0bb020b35fd941689bc1bd60e34cd907e6220c0d62477"
+    }
+  ],
+  "core_dependency_sha256": "c9e057eaccb8706f6dd1ab2b695980e23b715f77493d0220e36be7b2d53ddf62",
+  "shared_index_tests": {
+    "wire_transport": 14,
+    "actual_native": 8,
+    "total": 22
+  },
+  "wiki_tests": 49,
+  "windows_final": {
+    "suite": "all",
+    "tests": 71,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "passed_without_skips": true,
+    "elapsed_seconds": 6.471812,
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python": "3.12.10",
+    "core": {
+      "path": "D:\\study\\FengquDB-index\\build\\index-win\\Release\\fengqudb.dll",
+      "bytes": 1206272,
+      "sha256": "e56a3ccf0c959c894c12c33e0f2df590404dd0139b52636da77eec6cb73c7df5"
+    },
+    "index": {
+      "path": "D:\\study\\FengquDB-index\\build\\index-win\\Release\\fengqudb_index.dll",
+      "bytes": 500224,
+      "sha256": "872794c4181f4afa394a906adbf5c3b22ff84fceb13cfeb461c71b061883c917"
+    }
+  },
+  "linux_final": {
+    "suite": "all",
+    "tests": 71,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "passed_without_skips": true,
+    "elapsed_seconds": 4.51271,
+    "platform": "Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.43",
+    "python": "3.14.4",
+    "core": {
+      "path": "/index/build/index-portable/libfengqudb.so.2",
+      "bytes": 1252272,
+      "sha256": "b52b29d92b4ac5c29324d876b5a5e859a2e331df0375f863089bd2e0b71d0327"
+    },
+    "index": {
+      "path": "/index/build/index-portable/libfengqudb_index.so.1",
+      "bytes": 448992,
+      "sha256": "b1928ddbeb612aa160b4309a70c4697fc40c76923aa338fb9de02a78cc9a38e4"
+    }
+  },
+  "production_default": "NativeIndexProvider; no reference engine shipped",
+  "source_directory": "D:\\study\\FengquDB-llmwiki\\llmwiki"
+}

@@ -13,11 +13,11 @@
 | `tests/test_llmwiki_native.py` | Wiki 域投影与完整真实 NativeProvider 链路 |
 | `bindings/python/fengqudb.py` | 从 RAG/Index 拥有方同步的公开桥接文件，不是另一套私有句柄桥接 |
 
-共享的 Core C++ 桥接、Index header/proto、`src/index/` 和根构建继续由另外两个工作树维护。本轮没有复制或修改这些实现文件。Python 公共桥接文件与索引、RAG 工作树同步时的 SHA-256 为 `b77560795d0d5fda01e73994133054f69bf6b768cdfd709121f8420dfffc242d`。
+共享的 Core C++ 桥接、Index header/proto、`src/index/` 和根构建继续由另外两个工作树维护。本轮没有复制或修改这些实现文件。初版公开桥接 SHA-256 为 `b77560795d0d5fda01e73994133054f69bf6b768cdfd709121f8420dfffc242d`。本轮按拥有方要求同步加入 native_library_path 的版本，当前 SHA-256 为 `c9e057eaccb8706f6dd1ab2b695980e23b715f77493d0220e36be7b2d53ddf62`；该文件没有另行修改。组合 SDK 相对导入与默认配套库加载见 [0.2 底座](LLMWIKI_FOUNDATION.md)。
 
 ## 运行
 
-必须使用已包含公开 Core bridge ABI 1 的 Core，以及与其链接的 Index ABI 1 共享库。仅把新 Python 文件放到旧 Core 旁不会产生新桥接能力；默认 Python Provider 仍能使用旧库，显式 native 模式不会静默回退。
+必须使用已包含公开 Core bridge ABI 1 的 Core，以及与其链接的 Index ABI 1 共享库。仅把新 Python 文件放到旧 Core 旁不会产生新桥接能力；Wiki 默认原生，缺库或不匹配即明确失败，不包含生产 Python fallback。
 
 ```powershell
 $env:FENGQUDB_LIBRARY = 'D:\study\FengquDB-index\build\index-win\Release\fengqudb.dll'
@@ -27,7 +27,7 @@ python -m llmwiki --db build/wiki-native --namespace native-v1 --index-provider 
 python -m llmwiki --db build/wiki-native --namespace native-v1 --index-provider native ask "数据库事务"
 ```
 
-也可以显式传 `--index-library`、`--index-space`、`--index-partition`。默认仍是 `--index-provider python`，即使测试环境设置了 Index library 路径也不会自动切换。原 Python namespace 的格式身份不能被 native 直接认领；当前使用新 namespace，已有语料的离线迁移/重建工具尚未实现。
+也可以显式传 `--index-library`、`--index-space`、`--index-partition`。CLI 默认就是 native，不提供 python 选项。任何其他 namespace 的索引身份不能被直接认领；当前使用新 namespace，不提供旧数据迁移工具。
 
 ```python
 from llmwiki import Wiki, NativeIndexProvider
@@ -78,15 +78,16 @@ Wiki 对外的 revision 是完整 SHA-256 字符串；v1 native Document 的 dom
 
 ## 结果与能力边界
 
-- `ranking_kind` 保留原生给出的算法类型；预算终止与它独立，不能根据是否中断改写。v1 只有 exact 词法/精确余弦路径，没有 ANN。
+- `ranking_kind` 保留原生给出的算法类型；预算终止与它独立，不能根据是否中断改写。扩展 v1 支持 ANN 请求及实际路径的 exact 回退。
 - `termination`、`index_coverage`、`snapshot_version`、`mutation_sequence`/`applied_sequence` 原样按同一视图映射。Store version 与索引序列不直接比较。
 - `match_evidence` 映射为 `has_hits` / `proven_none` / `not_established`。`proven_none` 在执行和覆盖完整时足以确认空结果，不要求额外伪造 total_hits=0；计数未提供时保持 unknown。
 - Wiki 为有界检索显式启用 allow_partial；search/ask 最终回包保留所有限制。通用包装默认 allow_partial=false，限额/取消按原生状态返回错误。
 - 标准库包装支持 get、stats、list、版本/序列 guard、类型化过滤、lexical 和 exact cosine。Wiki 默认查询仍用无模型词法；它没有擅自加载 KaLM 或启用语义模式。
 - dense Search 不能带 text/match_all_terms；其他模式不能带 vector/vector_space/min_similarity；min_similarity 必须为有限的 [-1,1] 值。
-- 无 HNSW、严格动态历史 BM25 统计、短语/邻近和命中字节摘录。strict statistics_policy 在包装端明确拒绝。Wiki 返回现有字符范围引用，不冒充 Index v1 已有逐词字节位置。
+- 扩展 v1 支持 HNSW 请求、按 predicate 统计、短语/邻近、前缀、命中字节位置及 Explain。Wiki 校验位置对应同版本正文；领域引用用 Unicode 字符范围，命中位置用 UTF-8 字节范围。termination=7 为 term_limit。小集合/图覆盖等情况可以 exact 回退，不能由 mode=2 推断 ranking_kind。
+- 新包装保留旧 v1 查询兼容；扩展功能通过维护符号检测，旧运行库明确拒绝扩展字段。`maintain()` 使用同一外部事务，错误取消整个事务。完整接口见 [0.2 底座](LLMWIKI_FOUNDATION.md)。
 
-现有打包脚本包含 Python 包装文件，但没有自动打包外部 Index 共享库或改写根构建。旧发布 ZIP 仍对应首版提交；实际原生库整合和最终发布由主工作树统一完成。
+独立打包脚本必须同时提供 Core 和 Index 路径，会打入配套共享库和 Python 包装，不复制 tests/reference_wiki_index.py 或任何独立 Python BM25。组合 SDK 的 native 平台目录与最终发布由主工作树统一组装；旧发布 ZIP 仍对应首版提交，本轮不覆盖旧 ZIP。
 
 ## 验证入口
 
@@ -111,4 +112,6 @@ Linux 的 Wiki 测试使用同一容器命令，将末尾 pattern 改为 `'test_
 
 `NativeLibraryIntegrationTests` 与 `NativeWikiLibraryIntegrationTests` 只有在 Core/Index 路径均提供时才运行。结果不得把 skipped 当作通过。覆盖真实事务内查询、C stage 及 Python 编码失败后的整体取消、公开快照读取/取消、精确向量过滤、metadata patch、版本 guard、稳定分页、错误 Core 映像、Wiki 状态/发布/恢复与原文物化；其余 wire/transport 用例是明确的协议 fixture，不冒充真实库验证。
 
-2026-11-14 实际结果：Windows 绑定 **14/14**（0.359 秒）、Wiki **34/34**（4.274 秒）；Linux `fqdb-lang-dev:1` 绑定 **14/14**（0.392 秒）、Wiki **34/34**（3.384 秒）。无跳过。独立绑定中有 4 项真实库用例，Wiki 中有 1 项完整原生流程，其余含域/协议 fixture 与原有 Wiki 验证。未重跑无关数据库全量回归或性能评测。
+以下是扩展前的历史验证；当前结果见 [0.2 验证](LLMWIKI_FOUNDATION_VALIDATION.md)。
+
+2026-11-14 扩展前结果：Windows 绑定 **14/14**（0.359 秒）、Wiki **34/34**（4.274 秒）；Linux `fqdb-lang-dev:1` 绑定 **14/14**（0.392 秒）、Wiki **34/34**（3.384 秒）。无跳过。独立绑定中有 4 项真实库用例，Wiki 中有 1 项完整原生流程，其余含域/协议 fixture 与原有 Wiki 验证。未重跑无关数据库全量回归或性能评测。

@@ -13,6 +13,7 @@ from pathlib import Path
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("archive", type=Path)
+    parser.add_argument("--native", action="store_true")
     args = parser.parse_args()
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
@@ -25,17 +26,18 @@ def main():
             archive.extractall(package)
         source = root / "sample.md"
         source.write_text("打包验证：数据库支持持久化事务。 packageduniqueterm", encoding="utf-8")
-        environment = {k: v for k, v in os.environ.items() if k not in ("FENGQUDB_LIBRARY", "FQDB_LIBRARY", "PYTHONPATH",
-            "WIKI_MODEL_URL", "WIKI_MODEL", "WIKI_MODEL_KEY")}
+        environment = {k: v for k, v in os.environ.items() if k not in ("FENGQUDB_LIBRARY", "FENGQUDB_INDEX_LIBRARY", "FQDB_LIBRARY", "PYTHONPATH")
+                       and not k.startswith(("WIKI_MODEL", "WIKI_COMPILER_MODEL", "WIKI_ANSWERER_MODEL"))}
         environment["PYTHONIOENCODING"] = "utf-8"
         def call(*arguments):
-            result = subprocess.run([sys.executable, "run-wiki.py", "--db", str(root / "data"), *arguments],
+            index_options = ["--index-provider", "native"] if args.native else []
+            result = subprocess.run([sys.executable, "run-wiki.py", "--db", str(root / "data"), *index_options, *arguments],
                 cwd=package, env=environment, capture_output=True, encoding="utf-8", check=True, timeout=30)
             return json.loads(result.stdout)
         ingested = call("ingest", str(source), "--uri", "package:sample")
         compiled = call("compile")
         answer = call("ask", "packageduniqueterm")
-        if not ingested["changed"] or compiled[0]["state"] != "done" or not answer["citation_validated"]:
+        if not ingested["changed"] or compiled["items"][0]["state"] != "done" or not answer["citation_validated"]:
             raise RuntimeError("package failed ingest/compile/ask")
         call("backup", str(root / "backup"))
         call("verify")

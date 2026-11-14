@@ -1,5 +1,4 @@
-"""Incremental BM25 postings with Unicode normalization and Chinese bigrams."""
-
+"""Test-only exhaustive BM25 oracle; excluded from all SDK/runtime packages."""
 import hashlib
 import heapq
 import math
@@ -7,7 +6,10 @@ import re
 import unicodedata
 from collections import Counter
 
+from llmwiki.index_provider import IndexDefinition
+
 TOKENIZER_VERSION = 1
+DEFAULT_DEFINITION = IndexDefinition("python-bm25", 1, TOKENIZER_VERSION)
 
 
 def tokens(text):
@@ -23,20 +25,6 @@ def tokens(text):
 
 def term_key(term):
     return hashlib.sha256(term.encode()).hexdigest()[:32]
-
-
-def chunks(text, size=1800, overlap=160):
-    start = 0
-    while start < len(text):
-        end = min(start + size, len(text))
-        if end < len(text):
-            boundary = text.rfind("\n", start + size // 2, end)
-            if boundary != -1:
-                end = boundary + 1
-        yield start, end, text[start:end]
-        if end == len(text):
-            break
-        start = end - overlap
 
 
 def remove_document(tx, doc_id):
@@ -131,3 +119,36 @@ def search(view, query, *, limit=10, posting_budget=12000, candidate_budget=1024
             "total_hits": {"value": total_hits, "relation": "lower_bound" if truncated else "exact"},
             "empty_result_confirmed": not truncated and total_hits == 0,
             "match_evidence": "has_hits" if total_hits else "not_established" if truncated else "proven_none"}
+
+
+class ReferenceIndexProvider:
+    """Compatibility/reference adapter, not a second implementation of """
+
+    definition = DEFAULT_DEFINITION
+    atomic_updates = True
+
+    def upsert(self, tx, document_id, document):
+        index_document(tx, document_id, document)
+
+    def delete(self, tx, document_id):
+        remove_document(tx, document_id)
+
+    def set_page_state(self, tx, page_id, state):
+        if state is None:
+            tx.delete("state/" + page_id)
+        else:
+            tx.put("state/" + page_id, state)
+
+    def get_page_state(self, view, page_id):
+        return view.get("state/" + page_id)
+
+    def get_document(self, view, document_id):
+        return view.get("doc/" + document_id)
+
+    def statistics(self, view):
+        return view.get("search/stats", {"count": 0, "length": 0})
+
+    def search(self, view, query, *, limit=10, posting_budget=12000, candidate_budget=1024, **options):
+        if options:
+            raise ValueError("advanced queries require the shared NativeIndex provider")
+        return search(view, query, limit=limit, posting_budget=posting_budget, candidate_budget=candidate_budget)

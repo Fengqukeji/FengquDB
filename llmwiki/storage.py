@@ -5,13 +5,21 @@ import threading
 from contextlib import contextmanager
 
 try:
-    from bindings.python.fengqudb import Error, Store
+    from ..bindings.python.fengqudb import Error, Store
 except ImportError:
-    from fengqudb import Error, Store
+    try:
+        from bindings.python.fengqudb import Error, Store
+    except ImportError:
+        from fengqudb import Error, Store
 
 
 def encode(value):
     return json.dumps(value, ensure_ascii=False, separators=(",", ":"), allow_nan=False).encode("utf-8")
+
+
+def canonical(value):
+    """Object key order is irrelevant to request/content identity; array order remains explicit."""
+    return json.dumps(value, ensure_ascii=False, separators=(",", ":"), allow_nan=False, sort_keys=True).encode("utf-8")
 
 
 def decode(value, default=None):

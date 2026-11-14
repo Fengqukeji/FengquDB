@@ -1,0 +1,34 @@
+@base = http://127.0.0.1:8098
+@token = replace-with-your-token-if-configured
+
+### Atomic ingestion; the same request_key and payload replay the original result.
+POST {{base}}/v1/sources/batch
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"request_key":"example-1","items":[{"uri":"docs:spec","content":"服务超时是30秒。","annotations":{"entities":[{"key":"s","type":"system","name":"Demo service"}],"claims":[{"entity":"s","predicate":"timeout_seconds","value":30,"quote":"30秒"}]}}]}
+
+### Compile currently due tasks with bounded concurrency.
+POST {{base}}/v1/jobs/run
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"limit":100,"workers":2,"timeout_ms":60000}
+
+### Advanced search requires NativeIndex.
+POST {{base}}/v1/search
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"query":"超时","limit":8,"filters":{"kind":["chunk","page"]},"include_positions":true,"include_explain":true,"statistics_policy":1}
+
+### Ask with a bounded retrieval context.
+POST {{base}}/v1/ask
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"question":"服务超时是多少？","limit":6,"context_chars":12000,"search":{"filters":{"kind":"page"}}}
+
+### Page/entity/conflict collections use limit/after keyset cursors.
+GET {{base}}/v1/entities?limit=20
+Authorization: Bearer {{token}}

@@ -1,0 +1,53 @@
+test_compatible_wire_contract_and_redacted_failures (test_llmwiki.TransportTests.test_compatible_wire_contract_and_redacted_failures) ... ok
+test_approximate_finished_empty_result_is_not_truncation_or_proof (test_llmwiki.WikiTests.test_approximate_finished_empty_result_is_not_truncation_or_proof) ... ok
+test_artifact_cache_reuses_compilation (test_llmwiki.WikiTests.test_artifact_cache_reuses_compilation) ... ok
+test_ask_evidence_and_missing_evidence (test_llmwiki.WikiTests.test_ask_evidence_and_missing_evidence) ... ok
+test_ask_marks_changed_evidence (test_llmwiki.WikiTests.test_ask_marks_changed_evidence) ... ok
+test_async_index_provider_is_rejected_before_opening_store (test_llmwiki.WikiTests.test_async_index_provider_is_rejected_before_opening_store) ... ok
+test_atomic_rollback_preserves_old_indexes (test_llmwiki.WikiTests.test_atomic_rollback_preserves_old_indexes) ... ok
+test_complete_lexical_empty_result_is_explicitly_confirmed (test_llmwiki.WikiTests.test_complete_lexical_empty_result_is_explicitly_confirmed) ... ok
+test_delete_rebuild_and_last_source_retirement (test_llmwiki.WikiTests.test_delete_rebuild_and_last_source_retirement) ... ok
+test_expired_lease_survives_restart (test_llmwiki.WikiTests.test_expired_lease_survives_restart) ... ok
+test_http_auth_validation_and_routes (test_llmwiki.WikiTests.test_http_auth_validation_and_routes) ... ok
+test_idempotence_chinese_and_restart (test_llmwiki.WikiTests.test_idempotence_chinese_and_restart) ... ok
+test_index_provider_cannot_silently_claim_another_format (test_llmwiki.WikiTests.test_index_provider_cannot_silently_claim_another_format) ... ok
+test_index_provider_routes_mutation_visibility_and_reads (test_llmwiki.WikiTests.test_index_provider_routes_mutation_visibility_and_reads) ... ok
+test_interrupted_empty_result_is_not_a_confirmed_miss (test_llmwiki.WikiTests.test_interrupted_empty_result_is_not_a_confirmed_miss) ... ok
+test_invalid_model_retry_budget_and_manual_recovery (test_llmwiki.WikiTests.test_invalid_model_retry_budget_and_manual_recovery) ... ok
+test_late_model_result_cannot_overwrite_updated_source (test_llmwiki.WikiTests.test_late_model_result_cannot_overwrite_updated_source) ... ok
+test_legacy_empty_provider_has_unknown_coverage (test_llmwiki.WikiTests.test_legacy_empty_provider_has_unknown_coverage) ... ok
+test_legacy_python_index_adoption_rejects_foreign_provider (test_llmwiki.WikiTests.test_legacy_python_index_adoption_rejects_foreign_provider) ... ok
+test_mixed_script_tokenization_and_exact_budget_reporting (test_llmwiki.WikiTests.test_mixed_script_tokenization_and_exact_budget_reporting) ... ok
+test_namespaces_validation_and_pagination (test_llmwiki.WikiTests.test_namespaces_validation_and_pagination) ... ok
+test_native_maintenance_preserves_policy_and_content (test_llmwiki.WikiTests.test_native_maintenance_preserves_policy_and_content) ... ok
+test_parallel_ingestion_and_index_statistics (test_llmwiki.WikiTests.test_parallel_ingestion_and_index_statistics) ... ok
+test_process_exit_preserves_pending_work (test_llmwiki.WikiTests.test_process_exit_preserves_pending_work) ... ok
+test_raw_reference_like_text_export_and_backup (test_llmwiki.WikiTests.test_raw_reference_like_text_export_and_backup) ... ok
+test_revision_history_and_stale_exclusion (test_llmwiki.WikiTests.test_revision_history_and_stale_exclusion) ... ok
+test_topics_backlinks_and_selective_rebuild (test_llmwiki.WikiTests.test_topics_backlinks_and_selective_rebuild) ... ok
+test_two_workers_lease_fencing (test_llmwiki.WikiTests.test_two_workers_lease_fencing) ... ok
+test_answer_cache_and_revocation_discard (test_llmwiki_foundation.FoundationTests.test_answer_cache_and_revocation_discard) ... ok
+test_batch_cas_idempotency_and_atomic_rollback (test_llmwiki_foundation.FoundationTests.test_batch_cas_idempotency_and_atomic_rollback) ... ok
+test_grounded_entities_conflicts_resolution_and_invalidation (test_llmwiki_foundation.FoundationTests.test_grounded_entities_conflicts_resolution_and_invalidation) ... ok
+test_http_batch_conflicts_quotas_and_entities (test_llmwiki_foundation.FoundationTests.test_http_batch_conflicts_quotas_and_entities) ... ok
+test_human_revision_is_pinned_and_release_is_guarded (test_llmwiki_foundation.FoundationTests.test_human_revision_is_pinned_and_release_is_guarded) ... ok
+test_knowledge_validation_and_pending_entity_lifecycle (test_llmwiki_foundation.FoundationTests.test_knowledge_validation_and_pending_entity_lifecycle) ... ok
+test_model_extraction_uses_one_compile_call (test_llmwiki_foundation.FoundationTests.test_model_extraction_uses_one_compile_call) ... ok
+test_pinned_source_still_extracts_knowledge_without_overwriting (test_llmwiki_foundation.FoundationTests.test_pinned_source_still_extracts_knowledge_without_overwriting) ... ok
+test_quotas_connector_and_schema_refusal (test_llmwiki_foundation.FoundationTests.test_quotas_connector_and_schema_refusal) ... ok
+test_reviewed_stale_source_can_finish_extraction_without_replacing_edit (test_llmwiki_foundation.FoundationTests.test_reviewed_stale_source_can_finish_extraction_without_replacing_edit) ... ok
+test_source_versions_prevent_delete_restore_aba (test_llmwiki_foundation.FoundationTests.test_source_versions_prevent_delete_restore_aba) ... ok
+test_worker_limits_counts_cancel_and_lease_renewal (test_llmwiki_foundation.FoundationTests.test_worker_limits_counts_cancel_and_lease_renewal) ... ok
+test_dirty_patch_has_no_body_and_cached_publication_advances (test_llmwiki_native.NativeProviderDomainTests.test_dirty_patch_has_no_body_and_cached_publication_advances) ... ok
+test_native_apply_failure_rolls_back_domain_ingestion (test_llmwiki_native.NativeProviderDomainTests.test_native_apply_failure_rolls_back_domain_ingestion) ... ok
+test_projection_versions_do_not_reuse_domain_hash_or_lifecycle (test_llmwiki_native.NativeProviderDomainTests.test_projection_versions_do_not_reuse_domain_hash_or_lifecycle) ... ok
+test_proven_none_does_not_require_total_count (test_llmwiki_native.NativeProviderDomainTests.test_proven_none_does_not_require_total_count) ... ok
+test_same_snapshot_materialization_and_projection_mismatch_rejected (test_llmwiki_native.NativeProviderDomainTests.test_same_snapshot_materialization_and_projection_mismatch_rejected) ... ok
+test_extended_search_vectors_conflicts_and_maintenance (test_llmwiki_native.NativeWikiLibraryIntegrationTests.test_extended_search_vectors_conflicts_and_maintenance) ... ok
+test_wiki_ingest_publish_snapshot_invalidate_and_delete (test_llmwiki_native.NativeWikiLibraryIntegrationTests.test_wiki_ingest_publish_snapshot_invalidate_and_delete) ... ok
+
+----------------------------------------------------------------------
+Ran 47 tests in 2.950s
+
+OK
+{"suite": "wiki", "tests": 47, "failures": 0, "errors": 0, "skipped": 0, "passed_without_skips": true, "elapsed_seconds": 2.950181, "platform": "Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.43", "python": "3.14.4", "core": {"path": "/index/build/index-linux/libfengqudb.so.0.3.2", "bytes": 1400088, "sha256": "d420482a39a9b2aace878c01b28c324f14b891d77dfec670dd7a20079cbe2111"}, "index": {"path": "/index/build/index-linux/libfengqudb_index.so.0.1.0", "bytes": 371112, "sha256": "b2b0a5c368fa8c1cf6869fccf1cb134cb6ba3f1b6e1eb3c256a13d2fc27188ae"}}

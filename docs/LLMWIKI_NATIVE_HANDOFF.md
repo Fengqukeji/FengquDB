@@ -1,5 +1,8 @@
 # 公共 Index Python 绑定最终交接
 
+> 本文件保留此前交付记录。当前 0.2 / schema 2 能力见 [底座契约](LLMWIKI_FOUNDATION.md)，本轮未提交修改的实际测试见 [当前验证](LLMWIKI_FOUNDATION_VALIDATION.md)。
+
+
 来源工作树：`D:/study/FengquDB-llmwiki`，分支 `codex/llmwiki`。
 
 状态：2026-11-14，源码交付提交 `ccea3e0`。主会话已确认将下列三个共享文件整合到 `D:/study/FengquDB-index` / `codex/index-foundation`。Wiki 领域实现继续保留在本分支；无需重复复制整包。

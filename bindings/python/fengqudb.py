@@ -4,10 +4,40 @@ import os
 import threading
 import sys
 import sysconfig
+import platform
 import struct
 from collections import namedtuple
 from contextlib import ExitStack
 from pathlib import Path
+
+def native_library_path(stem="fengqudb"):
+    """Resolve an explicit environment override or this SDK's matching native library."""
+    variables={"fengqudb":"FENGQUDB_LIBRARY","fengqudb_index":"FENGQUDB_INDEX_LIBRARY"}
+    if stem not in variables:
+        raise ValueError("unknown FengquDB native module")
+    if os.environ.get(variables[stem]):
+        return os.environ[variables[stem]]
+    system="win" if os.name=="nt" else ("osx" if sys.platform=="darwin" else "linux")
+    machine=platform.machine().lower()
+    architecture={"amd64":"x64","x86_64":"x64","arm64":"arm64","aarch64":"arm64",
+                  "x86":"x86","i386":"x86","i686":"x86"}.get(machine)
+    if system=="win": names=(stem+".dll",)
+    elif system=="osx": names=("lib"+stem+".dylib",)
+    else:
+        abi="2" if stem=="fengqudb" else "1"
+        names=("lib"+stem+".so."+abi,"lib"+stem+".so")
+    module=Path(__file__).resolve().parent
+    roots=(module/"native",module.parent.parent/"native")
+    if architecture:
+        for root in roots:
+            for name in names:
+                candidate=root/(system+"-"+architecture)/name
+                if candidate.is_file():return str(candidate)
+    for name in names:
+        candidate=module/name
+        if candidate.is_file():return str(candidate)
+    # Source-tree callers may intentionally use the platform loader search path.
+    return stem+".dll" if system=="win" else "lib"+stem+(".dylib" if system=="osx" else ".so")
 
 class Error(RuntimeError):
     def __init__(self, code, message):
@@ -38,8 +68,7 @@ def _submit_slice(value):
 
 class _Native:
     def __init__(self, library):
-        self.lib = C.CDLL(str(library or os.environ.get("FENGQUDB_LIBRARY") or
-                              ("fengqudb.dll" if os.name == "nt" else "libfengqudb.so")))
+        self.lib = C.CDLL(str(library or native_library_path("fengqudb")))
         signatures = {"abi_version": (C.c_uint32, []),
                       "status_message": (C.c_char_p, [C.c_int32]),
                       "buffer_free": (None, [C.POINTER(Slice)])}

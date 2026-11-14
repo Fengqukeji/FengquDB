@@ -25,6 +25,20 @@ class Query(IntEnum):
     LIST = 4
 
 
+class Maintenance(IntEnum):
+    COMPACT_POSTINGS = 1
+    REPAIR_GRAPH = 2
+    VERIFY_RECORDS = 3
+    COLLECT_GRAPH_GENERATIONS = 4
+
+
+@dataclass(frozen=True)
+class Phrase:
+    text: str
+    max_gap: int = 0
+    field: str = ""
+
+
 @dataclass(frozen=True)
 class UInt:
     value: int
@@ -240,18 +254,20 @@ def encode_query(*, index_space, partition, operation=Query.SEARCH, text="", lim
                  vector_f32_le=b"", vector_space=b"", posting_budget=12000, candidate_budget=1024,
                  scan_budget=100000, memory_budget=16 * 1024 * 1024, timeout_ms=0, match_all_terms=False,
                  id=b"", after_id=b"", min_similarity=None, allow_partial=False, expected_projection_version=0,
-                 statistics_policy=0, expected_mutation_sequence=0):
+                 statistics_policy=0, expected_mutation_sequence=0, phrases=(), prefix_last=False,
+                 ef_search=None, include_positions=False, snippet_bytes=None, term_budget=None, include_explain=False,
+                 excluded_terms=(), scoring_fields=()):
     operation = Query(operation)
     if not isinstance(text, str) or not isinstance(vector_space, bytes) or len(vector_space) > 512:
         raise WireError("query text/vector-space type or size is invalid")
     if any(not isinstance(value, bytes) or len(value) > 1024 for value in (id, after_id)):
         raise WireError("query id/cursor must be bounded bytes")
-    if type(limit) is not int or not 1 <= limit <= 4096 or mode not in (0, 1) or statistics_policy != 0:
+    if type(limit) is not int or not 1 <= limit <= 4096 or mode not in (0, 1, 2) or statistics_policy not in (0, 1):
         raise WireError("invalid query limit/mode or unsupported statistics policy")
-    if type(match_all_terms) is not bool or type(allow_partial) is not bool:
+    if any(type(value) is not bool for value in (match_all_terms, allow_partial, prefix_last, include_positions, include_explain)):
         raise WireError("invalid query boolean")
-    if operation == Query.SEARCH and mode == 1:
-        if text or match_all_terms or not vector_f32_le or not vector_space:
+    if operation == Query.SEARCH and mode in (1, 2):
+        if text or match_all_terms or phrases or prefix_last or excluded_terms or scoring_fields or not vector_f32_le or not vector_space:
             raise WireError("dense search requires a vector/space and does not accept lexical terms")
     elif mode != 0 or vector_f32_le or vector_space or min_similarity is not None:
         raise WireError("vector arguments apply only to dense search")
@@ -259,6 +275,24 @@ def encode_query(*, index_space, partition, operation=Query.SEARCH, text="", lim
             isinstance(min_similarity, bool) or not isinstance(min_similarity, (int, float)) or
             not math.isfinite(min_similarity) or not -1 <= min_similarity <= 1):
         raise WireError("min_similarity must be finite and within [-1,1]")
+    if not isinstance(phrases, (list, tuple)) or len(phrases) > 128:
+        raise WireError("phrases must contain at most 128 items")
+    if (phrases or prefix_last) and (operation != Query.SEARCH or mode != 0):
+        raise WireError("phrase/prefix options require lexical search")
+    for name, values, maximum in (("excluded_terms", excluded_terms, 65536), ("scoring_fields", scoring_fields, 128)):
+        if (not isinstance(values, (tuple, list)) or len(values) > 32 or
+                any(not isinstance(v, str) or not v.strip() or len(_utf8(v)) > maximum for v in values)):
+            raise WireError(name + " requires at most 32 nonempty bounded strings")
+        if values and (operation != Query.SEARCH or mode != 0):
+            raise WireError(name + " requires lexical search")
+    if len(set(scoring_fields)) != len(scoring_fields):
+        raise WireError("scoring_fields must be unique")
+    if ef_search is not None and (mode != 2 or type(ef_search) is not int or not limit <= ef_search <= 4096):
+        raise WireError("ef_search requires ANN mode and limit <= ef_search <= 4096")
+    if snippet_bytes is not None and (type(snippet_bytes) is not int or not 1 <= snippet_bytes <= 4096):
+        raise WireError("snippet_bytes must be in 1..4096")
+    if term_budget is not None and (type(term_budget) is not int or not 1 <= term_budget <= 4096):
+        raise WireError("term_budget must be in 1..4096")
     result = _instance(index_space, partition) + _u(3, operation) + _u(5, limit) + _u(7, mode) + _u(25, 1)
     if text:
         result += _b(4, _utf8(text))
@@ -281,6 +315,45 @@ def encode_query(*, index_space, partition, operation=Query.SEARCH, text="", lim
         result += _d(18, min_similarity)
     if allow_partial:
         result += _u(19, 1)
+    if statistics_policy:
+        result += _u(21, statistics_policy)
+    for phrase in phrases:
+        if not isinstance(phrase, Phrase) or not phrase.text or type(phrase.max_gap) is not int or not 0 <= phrase.max_gap < 2 ** 32:
+            raise WireError("invalid phrase")
+        result += _b(23, _b(1, _utf8(phrase.text)) + _u(2, phrase.max_gap) + _b(3, _utf8(phrase.field, 128)))
+    if prefix_last:
+        result += _u(24, 1)
+    if mode == 2:
+        result += _u(26, max(96, limit) if ef_search is None else ef_search)
+    if include_positions:
+        result += _u(27, 1)
+    if snippet_bytes is not None:
+        result += _u(28, snippet_bytes)
+    if term_budget is not None:
+        result += _u(29, term_budget)
+    if include_explain:
+        result += _u(30, 1)
+    for value in excluded_terms:
+        result += _b(31, _utf8(value, 65536))
+    for value in scoring_fields:
+        result += _b(32, _utf8(value, 128))
+    return _bounded(result)
+
+
+def encode_maintenance(*, index_space, partition, operation, max_terms=8, max_postings=20000,
+                       memory_budget=32 * 1024 * 1024, timeout_ms=0, after_term=b"",
+                       expected_mutation_sequence=0, vector_space=b"", after_id=b"", max_records=128, after_key=b""):
+    operation = Maintenance(operation)
+    if type(max_terms) is not int or not 1 <= max_terms < 2 ** 32 or type(max_records) is not int or not 1 <= max_records < 2 ** 32:
+        raise WireError("maintenance term/record limits require positive uint32")
+    for value, maximum in ((after_term, 65536), (vector_space, 512), (after_id, 1024), (after_key, 4096)):
+        if not isinstance(value, bytes) or len(value) > maximum:
+            raise WireError("invalid maintenance cursor/space bytes")
+    result = _instance(index_space, partition) + _u(3, operation) + _u(4, max_terms) + _u(5, max_postings)
+    result += _u(6, memory_budget) + _u(7, timeout_ms) + _u(9, expected_mutation_sequence) + _u(12, max_records)
+    for number, value in ((8, after_term), (10, vector_space), (11, after_id), (13, after_key)):
+        if value:
+            result += _b(number, value)
     return _bounded(result)
 
 
@@ -415,15 +488,17 @@ def decode_result(data):
     result = {"hits": [], "snapshot_version": 0, "mutation_sequence": 0, "ranking_kind": 0, "termination": 0,
               "index_coverage": 0, "match_evidence": 0, "postings_visited": 0, "candidates": 0,
               "records_scanned": 0, "next_cursor": b"", "total_hits": None, "record_count": 0,
-              "vector_count": 0, "strategy": "", "analyzer": ""}
+              "vector_count": 0, "strategy": "", "analyzer": "", "terms_visited": 0,
+              "statistics_scanned": 0, "blocks_visited": 0, "graph_visited": 0, "layout_generation": 0}
     numbers = {2: "snapshot_version", 3: "mutation_sequence", 4: "ranking_kind", 5: "termination",
                6: "index_coverage", 7: "match_evidence", 8: "postings_visited", 9: "candidates",
-               10: "records_scanned", 12: "total_hits", 13: "record_count", 14: "vector_count"}
+               10: "records_scanned", 12: "total_hits", 13: "record_count", 14: "vector_count",
+               17: "terms_visited", 18: "statistics_scanned", 19: "blocks_visited", 20: "graph_visited", 21: "layout_generation"}
     for number, wire, value in fields(data):
         if number in numbers:
             result[numbers[number]] = _known(wire, 0, value)
         elif number == 1:
-            hit = {"document": None, "score": 0.0, "dense_similarity": None, "matched_fields": []}
+            hit = {"document": None, "score": 0.0, "dense_similarity": None, "matched_fields": [], "positions": [], "details": []}
             for part, kind, content in fields(_known(wire, 2, value)):
                 if part == 1:
                     hit["document"] = decode_document(_known(kind, 2, content))
@@ -434,10 +509,68 @@ def decode_result(data):
                     hit["score" if part == 2 else "dense_similarity"] = score
                 elif part == 4:
                     hit["matched_fields"].append(_known(kind, 2, content).decode("utf-8"))
+                elif part in (5, 6):
+                    target = hit["positions" if part == 5 else "details"]
+                    if len(target) >= 65536:
+                        raise WireError("position/explanation count exceeds response budget")
+                    target.append(decode_position(_known(kind, 2, content)) if part == 5 else decode_detail(_known(kind, 2, content)))
             if hit["document"] is None or len(result["hits"]) >= 4096:
                 raise WireError("missing document or oversized hit count")
             result["hits"].append(hit)
         elif number in (11, 15, 16):
             value = _known(wire, 2, value)
             result[{11: "next_cursor", 15: "strategy", 16: "analyzer"}[number]] = value if number == 11 else value.decode("utf-8")
+    if result["ranking_kind"] == 1 and not result["hits"] and (result["match_evidence"] == 2 or result["total_hits"] == 0):
+        raise WireError("approximate empty results cannot claim proven absence")
+    return result
+
+
+def decode_position(data):
+    result = {"field": "", "begin": 0, "end": 0, "snippet": b"", "snippet_begin": 0}
+    for number, wire, value in fields(data):
+        if number == 1:
+            result["field"] = _known(wire, 2, value).decode("utf-8")
+        elif number in (2, 3, 5):
+            result[{2: "begin", 3: "end", 5: "snippet_begin"}[number]] = _known(wire, 0, value)
+        elif number == 4:
+            result["snippet"] = _known(wire, 2, value)
+    if not result["field"] or len(result["field"].encode()) > 128 or result["end"] < result["begin"] or len(result["snippet"]) > 4096:
+        raise WireError("invalid match position")
+    return result
+
+
+def decode_detail(data):
+    result = {"term": "", "field": "", "tf": 0, "length": 0, "average_length": 0.0, "idf": 0.0, "weight": 0.0, "contribution": 0.0}
+    names = {1: "term", 2: "field", 3: "tf", 4: "length", 5: "average_length", 6: "idf", 7: "weight", 8: "contribution"}
+    for number, wire, value in fields(data):
+        if number in (1, 2):
+            result[names[number]] = _known(wire, 2, value).decode("utf-8")
+        elif number in (3, 4):
+            result[names[number]] = _known(wire, 0, value)
+        elif number in (5, 6, 7, 8):
+            real = struct.unpack("<d", _known(wire, 1, value))[0]
+            if not math.isfinite(real):
+                raise WireError("non-finite score explanation")
+            result[names[number]] = real
+    if len(result["field"].encode()) > 128 or len(result["term"].encode()) > 512:
+        raise WireError("score explanation name exceeds budget")
+    return result
+
+
+def decode_maintenance(data):
+    result = {"next_term": b"", "next_id": b"", "next_key": b"", "mutation_sequence": 0, "terms": 0,
+              "postings": 0, "records": 0, "reclaimed": 0, "finished": False, "layout_generation": 0}
+    names = {1: "next_term", 2: "next_id", 3: "mutation_sequence", 4: "terms", 5: "postings", 6: "records", 8: "layout_generation", 9: "next_key", 10: "reclaimed"}
+    for number, wire, value in fields(data):
+        if number in (1, 2, 9):
+            result[names[number]] = _known(wire, 2, value)
+        elif number in (3, 4, 5, 6, 8, 10):
+            result[names[number]] = _known(wire, 0, value)
+        elif number == 7:
+            value = _known(wire, 0, value)
+            if value > 1:
+                raise WireError("invalid maintenance finished flag")
+            result["finished"] = bool(value)
+    if len(result["next_key"]) > 4096:
+        raise WireError("maintenance key cursor exceeds 4096 bytes")
     return result

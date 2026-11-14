@@ -125,12 +125,13 @@ class NativeTransportTests(unittest.TestCase):
         with patch.object(ffi.C, "CDLL", return_value=self.library):
             self.client = ffi.NativeIndex("fixture-library")
         self.handle = HandleFixture(self.core)
+        self.request = wire.encode_query(index_space=b"fixture", partition=b"p", text="fixture")
 
     def test_public_borrow_selects_handle_kind_and_frees_before_return(self):
-        self.client.apply(self.handle, b"request", expected_store_token=17)
-        self.assertEqual(b"fixture-response", self.client.query(self.handle, b"request"))
+        self.client.apply(self.handle, self.request, expected_store_token=17)
+        self.assertEqual(b"fixture-response", self.client.query(self.handle, self.request))
         snapshot = HandleFixture(self.core, kind=3)
-        self.client.query(snapshot, b"snapshot")
+        self.client.query(snapshot, self.request)
         self.assertEqual(["apply", "transaction", "snapshot"], [call[0] for call in self.library.calls])
         self.assertEqual(2, self.core.freed)
         self.assertEqual(0, self.handle.active)
@@ -138,31 +139,31 @@ class NativeTransportTests(unittest.TestCase):
     def test_wrong_core_store_and_handle_kind_fail_before_call(self):
         wrong = HandleFixture(CoreFixture())
         with self.assertRaises(ffi.IndexBridgeError):
-            self.client.apply(wrong, b"request")
+            self.client.apply(wrong, self.request)
         with self.assertRaises(ValueError):
-            self.client.apply(self.handle, b"request", expected_store_token=99)
+            self.client.apply(self.handle, self.request, expected_store_token=99)
         with self.assertRaises(ffi.IndexBridgeError):
-            self.client.apply(HandleFixture(self.core, kind=3), b"request")
+            self.client.apply(HandleFixture(self.core, kind=3), self.request)
         with self.assertRaises(ffi.IndexBridgeError):
-            self.client.query(HandleFixture(self.core, kind=1), b"request")
+            self.client.query(HandleFixture(self.core, kind=1), self.request)
         self.assertFalse(self.library.calls)
 
     def test_error_and_oversized_output_always_release_owned_buffer(self):
         self.library.status = 9
         with self.assertRaises(Error) as error:
-            self.client.query(self.handle, b"request")
+            self.client.query(self.handle, self.request)
         self.assertEqual(9, error.exception.code)
         self.assertEqual(1, self.core.freed)
         self.library.status = 0
         self.client.max_response_bytes = 4
         with self.assertRaises(ffi.IndexBridgeError):
-            self.client.query(self.handle, b"request")
+            self.client.query(self.handle, self.request)
         self.assertEqual(2, self.core.freed)
 
     def test_close_waits_for_inflight_query_lease(self):
         self.library.entered, self.library.release = threading.Event(), threading.Event()
         with ThreadPoolExecutor(2) as pool:
-            query = pool.submit(self.client.query, self.handle, b"request")
+            query = pool.submit(self.client.query, self.handle, self.request)
             self.assertTrue(self.library.entered.wait(5))
             closing = pool.submit(self.handle.close)
             self.assertFalse(closing.done())
@@ -175,10 +176,10 @@ class NativeTransportTests(unittest.TestCase):
     def test_cancel_callback_and_missing_public_borrow(self):
         control = ffi.QueryControl(lambda: True)
         with self.assertRaises(Error) as error:
-            self.client.query(self.handle, b"request", control=control)
+            self.client.query(self.handle, self.request, control=control)
         self.assertEqual(19, error.exception.code)
         with self.assertRaises(ffi.IndexUnavailable):
-            self.client.query(object(), b"request")
+            self.client.query(object(), self.request)
         def broken():
             raise RuntimeError("callback fixture failure")
         control = ffi.QueryControl(broken)
@@ -190,6 +191,45 @@ class NativeTransportTests(unittest.TestCase):
         with patch.object(ffi.C, "CDLL", return_value=self.library):
             with self.assertRaises(ffi.IndexUnavailable):
                 ffi.NativeIndex("fixture-library")
+
+    def test_extended_capability_guard_and_maintenance_transport(self):
+        with self.assertRaises(ffi.IndexUnavailable):
+            self.client.execute(self.handle, index_space=b"fixture", partition=b"p", text="pre", prefix_last=True)
+        self.assertFalse(self.library.calls)
+        self.library.fqidx_txn_maintain = Function(lambda *args: self.library.query("maintenance", *args))
+        with patch.object(ffi.C, "CDLL", return_value=self.library):
+            client = ffi.NativeIndex("extended-fixture")
+        self.assertTrue(client.features["extended_query"])
+        self.library.response = wire._u(7, 1) + wire._u(3, 7) + wire._u(8, 2)
+        result = client.maintain(self.handle, index_space=b"fixture", partition=b"p", operation=ffi.Maintenance.COMPACT_POSTINGS)
+        self.assertTrue(result["finished"])
+        self.assertEqual(2, result["layout_generation"])
+        self.assertEqual("maintenance", self.library.calls[-1][0])
+        self.assertEqual(1, self.core.freed)
+        with self.assertRaises(ffi.IndexBridgeError):
+            client.maintain(HandleFixture(self.core, kind=3), index_space=b"fixture", partition=b"p", operation=1)
+
+    def test_bundled_loader_preloads_only_matching_automatic_core(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as folder:
+            core_path = str(Path(folder) / "core-library")
+            index_path = str(Path(folder) / "index-library")
+            resolver = lambda stem: core_path if stem == "fengqudb" else index_path
+            with patch.dict(os.environ, {}, clear=True), patch.object(ffi._core_binding, "native_library_path", resolver), \
+                    patch.object(ffi.C, "CDLL", side_effect=[object(), self.library]) as loader:
+                client = ffi.NativeIndex()
+                self.assertEqual([core_path, index_path], [call.args[0] for call in loader.call_args_list])
+                self.assertIsNotNone(client._bundled_core)
+            with patch.dict(os.environ, {}, clear=True), patch.object(ffi._core_binding, "native_library_path", resolver), \
+                    patch.object(ffi.C, "CDLL", return_value=self.library) as loader:
+                ffi.NativeIndex("explicit-index")
+                self.assertEqual(["explicit-index"], [call.args[0] for call in loader.call_args_list])
+            with patch.dict(os.environ, {"FENGQUDB_INDEX_LIBRARY": "environment-index"}, clear=True), \
+                    patch.object(ffi._core_binding, "native_library_path", resolver), \
+                    patch.object(ffi.C, "CDLL", return_value=self.library) as loader:
+                ffi.NativeIndex()
+                self.assertEqual(["environment-index"], [call.args[0] for call in loader.call_args_list])
+
 
 
 class NativeWireTests(unittest.TestCase):
@@ -222,7 +262,7 @@ class NativeWireTests(unittest.TestCase):
         self.assertEqual(1, result["total_hits"])
         self.assertEqual(0, wire.decode_result(result_bytes(total=0))["total_hits"])
 
-    def test_predicate_vector_and_unsupported_strict_statistics(self):
+    def test_predicate_vector_and_mode_validation(self):
         predicate = ffi.Predicate(9, children=(ffi.Predicate(1, "kind", ("chunk",)), ffi.Predicate(8, "visible")))
         request = wire.encode_query(index_space=b"space", partition=b"private", where=predicate)
         self.assertTrue(any(number == 6 for number, _, _ in wire.fields(request)))
@@ -231,7 +271,7 @@ class NativeWireTests(unittest.TestCase):
             with self.assertRaises(wire.WireError):
                 ffi.vector(bad)
         with self.assertRaises(wire.WireError):
-            wire.encode_query(index_space=b"space", partition=b"p", statistics_policy=1)
+            wire.encode_query(index_space=b"space", partition=b"p", statistics_policy=2)
         with self.assertRaises(wire.WireError):
             wire.encode_predicate(ffi.Predicate(11, children=()))
         for arguments in ({"mode": 1, "text": "ignored"}, {"vector_space": b"ignored"},
@@ -240,6 +280,67 @@ class NativeWireTests(unittest.TestCase):
                           {"mode": 1, "vector_f32_le": ffi.vector([1.0]), "vector_space": b"v", "match_all_terms": True}):
             with self.assertRaises(wire.WireError):
                 wire.encode_query(index_space=b"space", partition=b"p", **arguments)
+
+    def test_extended_query_and_maintenance_fields(self):
+        restricted = wire.encode_query(index_space=b"s", partition=b"p", text="keep",
+            excluded_terms=["drop", "hidden"], scoring_fields=["body"])
+        self.assertEqual([b"drop", b"hidden"], [v for n, _, v in wire.fields(restricted) if n == 31])
+        self.assertEqual([b"body"], [v for n, _, v in wire.fields(restricted) if n == 32])
+        for invalid in ({"excluded_terms": ["x"] * 33}, {"scoring_fields": ["body", "body"]},
+                        {"scoring_fields": [""]}, {"excluded_terms": "not-an-array"}):
+            with self.assertRaises(wire.WireError):
+                wire.encode_query(index_space=b"s", partition=b"p", **invalid)
+        query = wire.encode_query(index_space=b"space", partition=b"p", text="hello pre", statistics_policy=1,
+            phrases=(ffi.Phrase("hello world", 2, "body"),), prefix_last=True, include_positions=True,
+            snippet_bytes=240, term_budget=256, include_explain=True)
+        parts = {number: value for number, _, value in wire.fields(query)}
+        self.assertEqual(1, parts[21])
+        self.assertEqual(1, parts[24])
+        self.assertEqual(240, parts[28])
+        phrase = {number: value for number, _, value in wire.fields(parts[23])}
+        self.assertEqual(b"hello world", phrase[1])
+        self.assertEqual(2, phrase[2])
+        ann = wire.encode_query(index_space=b"s", partition=b"p", mode=2,
+            vector_f32_le=ffi.vector([1.0, 0.0]), vector_space=b"v", limit=100)
+        self.assertEqual(100, {n: v for n, _, v in wire.fields(ann)}[26])
+        with self.assertRaises(wire.WireError):
+            wire.encode_query(index_space=b"s", partition=b"p", ef_search=1)
+        maintained = wire.encode_maintenance(index_space=b"s", partition=b"p", operation=2,
+            after_id=b"next", vector_space=b"v", max_records=16, expected_mutation_sequence=7)
+        parts = {n: v for n, _, v in wire.fields(maintained)}
+        self.assertEqual(7, parts[9])
+        self.assertEqual(b"next", parts[11])
+        self.assertEqual(16, parts[12])
+        resumed = wire.encode_maintenance(index_space=b"s", partition=b"p", operation=1,
+            after_term=b"hotterm", after_id=b"row017", max_postings=17)
+        self.assertEqual(b"row017", {n: v for n, _, v in wire.fields(resumed)}[11])
+        gc = wire.encode_maintenance(index_space=b"s", partition=b"p", operation=ffi.Maintenance.COLLECT_GRAPH_GENERATIONS,
+                                     after_key=b"checkpoint")
+        self.assertEqual(b"checkpoint", {n: v for n, _, v in wire.fields(gc)}[13])
+        self.assertEqual(b"next", wire.decode_maintenance(wire._b(9, b"next"))["next_key"])
+        self.assertEqual(17, wire.decode_maintenance(wire._u(10, 17))["reclaimed"])
+        with self.assertRaises(wire.WireError):
+            wire.encode_maintenance(index_space=b"s", partition=b"p", operation=4, after_key=b"x" * 4097)
+        with self.assertRaises(wire.WireError):
+            wire.decode_maintenance(wire._b(9, b"x" * 4097))
+
+    def test_extended_result_positions_explain_and_ann_empty_evidence(self):
+        self.assertEqual(7, wire.decode_result(wire._u(5, 7))["termination"])
+        doc = ffi.Document(b"id", 1, 1, 1, texts={"body": "中文"})
+        position = wire._b(1, b"body") + wire._u(2, 0) + wire._u(3, 3) + wire._b(4, "中文".encode())
+        detail = wire._b(1, "中".encode()) + wire._b(2, b"body") + wire._u(3, 1) + wire._u(4, 2) + wire._d(8, 1.5)
+        hit = wire._b(1, wire.encode_document(doc)) + wire._b(5, position) + wire._b(6, detail)
+        decoded = wire.decode_result(wire._b(1, hit) + wire._u(17, 2) + wire._u(20, 4) + wire._u(21, 3))
+        self.assertEqual(3, decoded["hits"][0]["positions"][0]["end"])
+        self.assertEqual(1.5, decoded["hits"][0]["details"][0]["contribution"])
+        self.assertEqual(4, decoded["graph_visited"])
+        with self.assertRaises(wire.WireError):
+            wire.decode_result(wire._u(4, 1) + wire._u(7, 2))
+        with self.assertRaises(wire.WireError):
+            wire.decode_result(wire._u(4, 1) + wire._u(12, 0))
+        self.assertEqual(0, wire.decode_result(wire._u(4, 1))["match_evidence"])
+        with self.assertRaises(wire.WireError):
+            wire.decode_position(wire._b(1, b"body") + wire._u(2, 4) + wire._u(3, 1))
 
 
 
@@ -363,6 +464,130 @@ with Store(sys.argv[2],library=sys.argv[1]) as store:
                 self.client.execute(snapshot, index_space=b"alias", partition=b"p", operation=ffi.Query.STATS)
                 self.assertEqual(b"buffer-owner", snapshot.get(b"alias"))
             self.assertEqual(b"buffer-owner", store.get(b"alias"))
+
+    def test_extended_positions_phrases_prefix_statistics_and_maintenance(self):
+        self.assertTrue(self.client.features["maintenance"], "supply the rebuilt extended Index runtime")
+        instance = {"index_space": b"extended-wire", "partition": b"p"}
+        with Store(self.path, library=CORE) as store:
+            with store.transaction() as tx:
+                for record_id, body, visible in ((b"a", "alpha beta 中文资料", True),
+                                                 (b"b", "alpha distant beta", False)):
+                    self.client.mutate(tx, **instance, operation=ffi.Mutation.UPSERT,
+                        document=ffi.Document(record_id, 1, 1, 1, texts={"body": body}, metadata={"visible": visible}))
+                tx.commit(force_reliable=True)
+            with store.snapshot() as old:
+                before = self.client.execute(old, **instance, text="alpha", include_positions=True,
+                    include_explain=True, statistics_policy=1, where=ffi.Predicate(1, "visible", (True,)))
+                self.assertEqual([b"a"], [h["document"]["id"] for h in before["hits"]])
+                self.assertTrue(before["hits"][0]["details"])
+                position = before["hits"][0]["positions"][0]
+                self.assertEqual(b"alpha", "alpha beta 中文资料".encode()[position["begin"]:position["end"]])
+                phrase = self.client.execute(old, **instance, phrases=[ffi.Phrase("alpha beta", field="body")])
+                self.assertEqual([b"a"], [h["document"]["id"] for h in phrase["hits"]])
+                prefix = self.client.execute(old, **instance, text="alph", prefix_last=True, term_budget=128)
+                self.assertEqual(2, len(prefix["hits"]))
+                with store.transaction() as tx:
+                    maintained = self.client.maintain(tx, **instance, operation=ffi.Maintenance.COMPACT_POSTINGS, max_terms=64)
+                    tx.commit(force_reliable=True)
+                self.assertTrue(maintained["finished"])
+                self.assertEqual(before["hits"][0]["score"], self.client.execute(old, **instance,
+                    text="alpha", statistics_policy=1, where=ffi.Predicate(1, "visible", (True,)))["hits"][0]["score"])
+            with store.snapshot() as current:
+                after = self.client.execute(current, **instance, text="alpha", statistics_policy=1,
+                    where=ffi.Predicate(1, "visible", (True,)))
+                self.assertEqual(before["hits"][0]["score"], after["hits"][0]["score"])
+                self.assertGreater(after["layout_generation"], 0)
+            with store.transaction() as tx:
+                checked = self.client.maintain(tx, **instance, operation=ffi.Maintenance.VERIFY_RECORDS, max_records=16)
+                self.assertTrue(checked["finished"])
+                tx.commit(force_reliable=True)
+
+    def test_extended_ann_and_graph_maintenance(self):
+        import random
+        self.assertTrue(self.client.features["extended_query"])
+        instance = {"index_space": b"ann-wire", "partition": b"p"}
+        generator = random.Random(1234)
+        vectors = [[generator.uniform(-1., 1.) for _ in range(32)] for _ in range(1030)]
+        with Store(self.path, library=CORE) as store:
+            with store.transaction() as tx:
+                for index, values in enumerate(vectors):
+                    self.client.mutate(tx, **instance, operation=ffi.Mutation.UPSERT,
+                        document=ffi.Document(("v%04d" % index).encode(), 1, 1, 1,
+                            vector_f32_le=ffi.vector(values), vector_space=b"embedding-v1"))
+                tx.commit(force_reliable=True)
+            # Explicit opt-in: normal vector writes need not pay graph construction cost.
+            for _ in range(64):
+                with store.transaction() as tx:
+                    repaired = self.client.maintain(tx, **instance, operation=ffi.Maintenance.REPAIR_GRAPH,
+                        vector_space=b"embedding-v1", max_records=128)
+                    tx.commit(force_reliable=True)
+                if repaired["finished"]:
+                    break
+            else:
+                self.fail("bounded shadow graph preparation did not finish")
+            with store.snapshot() as snapshot:
+                result = self.client.execute(snapshot, **instance, mode=2, vector_f32_le=ffi.vector(vectors[512]),
+                    vector_space=b"embedding-v1", ef_search=32, limit=8)
+                self.assertEqual(8, len(result["hits"]))
+                self.assertIn(result["ranking_kind"], (0, 1))  # Runtime may deliberately choose an exact path.
+                self.assertEqual(1, result["match_evidence"])
+                self.assertGreater(result["graph_visited"], 0)
+                self.assertGreater(result["hits"][0]["dense_similarity"], .99)
+            with store.transaction() as tx:
+                collected = self.client.maintain(tx, **instance, operation=ffi.Maintenance.COLLECT_GRAPH_GENERATIONS,
+                    max_records=16)
+                self.assertIn("next_key", collected)
+                tx.commit(force_reliable=True)
+
+    def test_lexical_exclusions_and_field_selection(self):
+        instance = {"index_space": b"lexical-fields", "partition": b"p"}
+        with Store(self.path, library=CORE) as store:
+            with store.transaction() as tx:
+                for record_id, title, body in ((b"a", "heading", "alpha beta"),
+                                               (b"b", "heading", "alpha distant beta"),
+                                               (b"c", "alpha", "theta")):
+                    self.client.mutate(tx, **instance, operation=ffi.Mutation.UPSERT,
+                        document=ffi.Document(record_id, 1, 1, 1, texts={"title": title, "body": body}))
+                tx.commit(force_reliable=True)
+            with store.snapshot() as snapshot:
+                selected = self.client.execute(snapshot, **instance, text="alpha", scoring_fields=["body"])
+                self.assertEqual({b"a", b"b"}, {h["document"]["id"] for h in selected["hits"]})
+                excluded = self.client.execute(snapshot, **instance, text="alpha", excluded_terms=["distant"], scoring_fields=["body"])
+                self.assertEqual([b"a"], [h["document"]["id"] for h in excluded["hits"]])
+                title_only = self.client.execute(snapshot, **instance, text="alpha", scoring_fields=["title"])
+                self.assertEqual([b"c"], [h["document"]["id"] for h in title_only["hits"]])
+
+    def test_hot_term_compaction_resumes_inside_a_term(self):
+        instance = {"index_space": b"bounded-compact", "partition": b"p"}
+        with Store(self.path, library=CORE) as store:
+            with store.transaction() as tx:
+                for index in range(160):
+                    self.client.mutate(tx, **instance, operation=ffi.Mutation.UPSERT,
+                        document=ffi.Document(("row%03d" % index).encode(), 1, 1, 1, texts={"body": "hotterm"}))
+                tx.commit(force_reliable=True)
+            with store.snapshot() as old:
+                before = self.client.execute(old, **instance, text="hotterm", limit=16)
+                cursor = {}
+                partial = 0
+                for _ in range(32):
+                    with store.transaction() as tx:
+                        progress = self.client.maintain(tx, **instance, operation=1, max_terms=1,
+                            max_postings=17, **cursor)
+                        tx.commit(force_reliable=True)
+                    self.assertLessEqual(progress["postings"], 17)
+                    if progress["finished"]:
+                        break
+                    partial += 1
+                    self.assertTrue(progress["next_id"])
+                    cursor = {"after_term": progress["next_term"], "after_id": progress["next_id"]}
+                else:
+                    self.fail("hot term did not finish within bounded maintenance calls")
+                self.assertGreater(partial, 0)
+                self.assertEqual(before["hits"], self.client.execute(old, **instance, text="hotterm", limit=16)["hits"])
+            with store.snapshot() as current:
+                after = self.client.execute(current, **instance, text="hotterm", limit=16)
+                self.assertEqual([(h["document"]["id"], h["score"]) for h in before["hits"]],
+                                 [(h["document"]["id"], h["score"]) for h in after["hits"]])
 
 
 if __name__ == "__main__":

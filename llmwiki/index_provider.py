@@ -1,10 +1,8 @@
-"""Transactional retrieval port; the existing Python index remains the default."""
+"""Transactional retrieval contract and quality metadata; NativeIndex owns search."""
 
 import re
 from dataclasses import asdict, dataclass
 from typing import Protocol
-
-from . import retrieval
 
 
 @dataclass(frozen=True)
@@ -39,9 +37,6 @@ class IndexProvider(Protocol):
     def search(self, view, query, *, limit=10, posting_budget=12000, candidate_budget=1024): ...
 
 
-DEFAULT_DEFINITION = IndexDefinition("python-bm25", 1, retrieval.TOKENIZER_VERSION)
-
-
 def normalize_search_result(result):
     """Keep quality, termination and coverage separate; never infer a proved miss."""
     normalized = dict(result)
@@ -69,34 +64,3 @@ def normalize_search_result(result):
 def search_quality(result):
     return {name: result[name] for name in ("ranking_kind", "termination", "index_coverage", "snapshot_version",
         "applied_sequence", "total_hits", "degraded_reasons", "empty_result_confirmed", "match_evidence")}
-
-
-class PythonIndexProvider:
-    """Compatibility/reference adapter, not a second implementation of retrieval."""
-
-    definition = DEFAULT_DEFINITION
-    atomic_updates = True
-
-    def upsert(self, tx, document_id, document):
-        retrieval.index_document(tx, document_id, document)
-
-    def delete(self, tx, document_id):
-        retrieval.remove_document(tx, document_id)
-
-    def set_page_state(self, tx, page_id, state):
-        if state is None:
-            tx.delete("state/" + page_id)
-        else:
-            tx.put("state/" + page_id, state)
-
-    def get_page_state(self, view, page_id):
-        return view.get("state/" + page_id)
-
-    def get_document(self, view, document_id):
-        return view.get("doc/" + document_id)
-
-    def statistics(self, view):
-        return view.get("search/stats", {"count": 0, "length": 0})
-
-    def search(self, view, query, *, limit=10, posting_budget=12000, candidate_budget=1024):
-        return retrieval.search(view, query, limit=limit, posting_budget=posting_budget, candidate_budget=candidate_budget)

@@ -11,6 +11,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from .providers import ProviderError
 from .storage import Error, encode
 from .wiki import WikiError
+from .limits import BudgetError, ConflictError
 
 LOG = logging.getLogger("llmwiki")
 MAX_BODY = 2 * 1024 * 1024
@@ -79,7 +80,7 @@ class WikiServer(ThreadingHTTPServer):
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "FengquWiki/0.1"
+    server_version = "FengquWiki/0.2"
 
     def setup(self):
         super().setup()
@@ -106,7 +107,7 @@ class Handler(BaseHTTPRequestHandler):
             raise WikiError("Content-Type must be application/json")
         length = int(self.headers.get("Content-Length", "0"))
         if not 0 < length <= MAX_BODY:
-            raise WikiError("JSON body must contain 1..2097152 bytes")
+            raise BudgetError("JSON body must contain 1..2097152 bytes")
         raw = self.rfile.read(length)
         if len(raw) != length:
             raise WikiError("incomplete JSON body")
@@ -135,33 +136,61 @@ class Handler(BaseHTTPRequestHandler):
                 return 200, wiki.search(get("q"), limit=int(get("limit", "10")))
             if path == ["v1", "lint"]:
                 return 200, wiki.lint()
-            collections = {"sources": "source", "pages": "page", "jobs": "job", "events": "event", "specs": "spec"}
+            collections = {"sources": "source", "pages": "page", "jobs": "job", "events": "event", "specs": "spec",
+                           "entities": "entity", "claims": "claim", "conflicts": "conflict"}
             if len(path) == 2 and path[0] == "v1" and path[1] in collections:
                 return 200, wiki.listing(collections[path[1]], limit=int(get("limit", "100")), after=get("after", ""))
             if len(path) == 3 and path[:2] == ["v1", "sources"]:
-                value = wiki.source(path[2], revision=get("revision"))
+                value = wiki.source(path[2], revision=get("revision"), version=int(get("version")) if get("version") else None)
                 return (200, value) if value else (404, {"error": "source not found"})
             if len(path) == 3 and path[:2] == ["v1", "pages"]:
                 value = wiki.page(path[2], revision=get("revision"))
                 return (200, value) if value else (404, {"error": "page not found"})
+            if len(path) == 3 and path[:2] in (["v1", "entities"], ["v1", "conflicts"]):
+                value = (wiki.entity(path[2]) if path[1] == "entities" else
+                         wiki.conflict(path[2], generation=int(get("generation")) if get("generation") else None))
+                return (200, value) if value else (404, {"error": "record not found"})
         if self.command == "POST":
             body = self._body()
             if path == ["v1", "sources"]:
-                return 200, wiki.ingest(body.get("uri"), body.get("content"), title=body.get("title"))
+                return 200, wiki.ingest(**body)
+            if path == ["v1", "sources", "batch"]:
+                return 200, wiki.ingest_many(body.get("items"), request_key=body.get("request_key"))
+            if path == ["v1", "sources", "delete-batch"]:
+                return 200, wiki.delete_sources(body.get("items"), request_key=body.get("request_key"))
+            if path == ["v1", "search"]:
+                return 200, wiki.search(**body)
             if path == ["v1", "pages"]:
                 return 202, wiki.define_page(body.get("id"), body.get("title"), body.get("source_ids"), links=body.get("links"))
             if path == ["v1", "ask"]:
-                return 200, wiki.ask(body.get("question"), limit=body.get("limit", 6))
+                return 200, wiki.ask(body.get("question"), limit=body.get("limit", 6),
+                    context_chars=body.get("context_chars", 24000), **body.get("search", {}))
+            if path == ["v1", "jobs", "run"]:
+                return 200, wiki.run_jobs(**body)
+            if path == ["v1", "index", "maintain"]:
+                return 200, wiki.maintain_index(**body)
+            if path == ["v1", "vectors"]:
+                return 200, wiki.set_vectors(**body)
+            if len(path) == 4 and path[:2] == ["v1", "pages"] and path[3] in ("revise", "release"):
+                return 200, (wiki.revise_page if path[3] == "revise" else wiki.release_page)(path[2], **body)
+            if len(path) == 4 and path[:2] == ["v1", "conflicts"] and path[3] == "resolve":
+                return 200, wiki.resolve_conflict(path[2], **body)
             if len(path) == 4 and path[:2] == ["v1", "jobs"] and path[3] == "retry":
                 return 202, wiki.retry(path[2])
         if self.command == "DELETE" and len(path) == 3 and path[:2] == ["v1", "sources"]:
-            return 200, {"deleted": wiki.delete_source(path[2])}
+            return 200, {"deleted": wiki.delete_source(path[2],
+                expected_version=int(get("expected_version")) if get("expected_version") is not None else None,
+                expected_revision=get("expected_revision"))}
         return 404, {"error": "route not found"}
 
     def _handle(self):
         try:
             status, result = self._dispatch()
             self._json(status, result)
+        except ConflictError:
+            self._json(409, {"error": "observed version or idempotency key conflicts with current state"})
+        except BudgetError:
+            self._json(413, {"error": "application quota exceeded; split the request"})
         except (ValueError, TypeError, OverflowError):
             self._json(400, {"error": "invalid request"})
         except ProviderError:

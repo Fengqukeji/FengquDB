@@ -1,5 +1,8 @@
 # FengquWiki 0.1 验证记录
 
+> 本文件保留此前交付记录。当前 0.2 / schema 2 能力见 [底座契约](LLMWIKI_FOUNDATION.md)，本轮未提交修改的实际测试见 [当前验证](LLMWIKI_FOUNDATION_VALIDATION.md)。
+
+
 日期：2026-11-14。分支：`codex/llmwiki`，数据库基线：`32348fb`。
 
 ## 实际交付与范围

@@ -1,0 +1,21 @@
+{
+  "suite": "all",
+  "tests": 71,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "passed_without_skips": true,
+  "elapsed_seconds": 4.51271,
+  "platform": "Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.43",
+  "python": "3.14.4",
+  "core": {
+    "path": "/index/build/index-portable/libfengqudb.so.2",
+    "bytes": 1252272,
+    "sha256": "b52b29d92b4ac5c29324d876b5a5e859a2e331df0375f863089bd2e0b71d0327"
+  },
+  "index": {
+    "path": "/index/build/index-portable/libfengqudb_index.so.1",
+    "bytes": 448992,
+    "sha256": "b1928ddbeb612aa160b4309a70c4697fc40c76923aa338fb9de02a78cc9a38e4"
+  }
+}

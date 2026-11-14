@@ -1,8 +1,9 @@
 """FengquDB-backed, incremental and provider-independent LLM Wiki."""
 
 from .wiki import Wiki, WikiError
-from .index_provider import IndexDefinition, IndexProvider, PythonIndexProvider
+from .limits import Limits, BudgetError, ConflictError
+from .index_provider import IndexDefinition, IndexProvider
 from .native_index_provider import NativeIndexProvider
 
-__all__ = ["Wiki", "WikiError", "IndexDefinition", "IndexProvider", "PythonIndexProvider", "NativeIndexProvider"]
-__version__ = "0.1.0"
+__all__ = ["Wiki", "WikiError", "Limits", "BudgetError", "ConflictError", "IndexDefinition", "IndexProvider", "NativeIndexProvider"]
+__version__ = "0.2.0"

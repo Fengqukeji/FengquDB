@@ -1,0 +1,81 @@
+{
+  "sources": 64,
+  "source_characters": 1092,
+  "queries": 60,
+  "compiled": 84,
+  "index": "native",
+  "batch_size": 16,
+  "knowledge_annotations": true,
+  "ingest_seconds": 0.064995,
+  "compile_seconds": 0.287984,
+  "ingest_sources_per_second": 984.69,
+  "compile_pages_per_second": 291.68,
+  "unchanged_sources_per_second": 24175.57,
+  "search_ms": {
+    "p50": 1.409,
+    "p95": 2.074,
+    "max": 12.669
+  },
+  "query_classes_ms": {
+    "rare_term": {
+      "p50": 0.468,
+      "p95": 0.52
+    },
+    "broad_chinese": {
+      "p50": 1.999,
+      "p95": 2.188
+    }
+  },
+  "truncated_queries": 0,
+  "max_postings_visited": 1480,
+  "status": {
+    "namespace": "default",
+    "schema": 2,
+    "provider": "extractive-v1",
+    "compiler": "extractive-v1",
+    "answerer": "extractive-v1",
+    "limits": {
+      "source_bytes": 262144,
+      "page_bytes": 1048576,
+      "batch_items": 64,
+      "batch_bytes": 2097152,
+      "sources_per_page": 16,
+      "entities_per_source": 32,
+      "claims_per_source": 128,
+      "compile_context_bytes": 2097152,
+      "answer_bytes": 262144,
+      "attempts": 3,
+      "backoff_ms": 1000,
+      "workers": 8,
+      "jobs_per_run": 1000,
+      "answer_cache_items": 64,
+      "answer_cache_bytes": 2097152,
+      "answer_cache_ttl_ms": 60000
+    },
+    "index_provider": {
+      "name": "native-fe69373378a4cf861c3b5e3cfd83de78",
+      "format_version": 1,
+      "tokenizer_version": 1
+    },
+    "search": {
+      "count": 148,
+      "vector_count": 0,
+      "length": null,
+      "length_unit": "not_exposed_by_native_v1"
+    },
+    "jobs": {
+      "done": 84
+    },
+    "database": {
+      "version": 257,
+      "durable_version": 257,
+      "file_bytes": 6304152
+    },
+    "maintenance": {
+      "running": false,
+      "last_status": 0,
+      "compactions": 0
+    }
+  },
+  "conditions": "single process; warm cache; reliable commits; offline extractive compiler; synthetic bilingual corpus"
+}

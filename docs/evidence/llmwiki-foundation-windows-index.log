@@ -1,0 +1,28 @@
+test_dense_filter_metadata_patch_and_guarded_list (test_fengqudb_index_python.NativeLibraryIntegrationTests.test_dense_filter_metadata_patch_and_guarded_list) ... ok
+test_extended_ann_and_graph_maintenance (test_fengqudb_index_python.NativeLibraryIntegrationTests.test_extended_ann_and_graph_maintenance) ... ok
+test_extended_positions_phrases_prefix_statistics_and_maintenance (test_fengqudb_index_python.NativeLibraryIntegrationTests.test_extended_positions_phrases_prefix_statistics_and_maintenance) ... ok
+test_external_transaction_query_and_failed_apply_cancels_everything (test_fengqudb_index_python.NativeLibraryIntegrationTests.test_external_transaction_query_and_failed_apply_cancels_everything) ... ok
+test_hot_term_compaction_resumes_inside_a_term (test_fengqudb_index_python.NativeLibraryIntegrationTests.test_hot_term_compaction_resumes_inside_a_term) ... ok
+test_lexical_exclusions_and_field_selection (test_fengqudb_index_python.NativeLibraryIntegrationTests.test_lexical_exclusions_and_field_selection) ... ok
+test_public_binding_module_alias_keeps_its_buffer_types (test_fengqudb_index_python.NativeLibraryIntegrationTests.test_public_binding_module_alias_keeps_its_buffer_types) ... ok
+test_separately_loaded_core_image_is_rejected (test_fengqudb_index_python.NativeLibraryIntegrationTests.test_separately_loaded_core_image_is_rejected) ... ok
+test_bundled_loader_preloads_only_matching_automatic_core (test_fengqudb_index_python.NativeTransportTests.test_bundled_loader_preloads_only_matching_automatic_core) ... ok
+test_cancel_callback_and_missing_public_borrow (test_fengqudb_index_python.NativeTransportTests.test_cancel_callback_and_missing_public_borrow) ... ok
+test_close_waits_for_inflight_query_lease (test_fengqudb_index_python.NativeTransportTests.test_close_waits_for_inflight_query_lease) ... ok
+test_error_and_oversized_output_always_release_owned_buffer (test_fengqudb_index_python.NativeTransportTests.test_error_and_oversized_output_always_release_owned_buffer) ... ok
+test_extended_capability_guard_and_maintenance_transport (test_fengqudb_index_python.NativeTransportTests.test_extended_capability_guard_and_maintenance_transport) ... ok
+test_public_borrow_selects_handle_kind_and_frees_before_return (test_fengqudb_index_python.NativeTransportTests.test_public_borrow_selects_handle_kind_and_frees_before_return) ... ok
+test_unsupported_native_abi_is_rejected (test_fengqudb_index_python.NativeTransportTests.test_unsupported_native_abi_is_rejected) ... ok
+test_wrong_core_store_and_handle_kind_fail_before_call (test_fengqudb_index_python.NativeTransportTests.test_wrong_core_store_and_handle_kind_fail_before_call) ... ok
+test_document_result_retains_locator_payload_and_presence (test_fengqudb_index_python.NativeWireTests.test_document_result_retains_locator_payload_and_presence) ... ok
+test_extended_query_and_maintenance_fields (test_fengqudb_index_python.NativeWireTests.test_extended_query_and_maintenance_fields) ... ok
+test_extended_result_positions_explain_and_ann_empty_evidence (test_fengqudb_index_python.NativeWireTests.test_extended_result_positions_explain_and_ann_empty_evidence) ... ok
+test_known_field_types_strict_and_unknown_fields_forward_skipped (test_fengqudb_index_python.NativeWireTests.test_known_field_types_strict_and_unknown_fields_forward_skipped) ... ok
+test_predicate_vector_and_mode_validation (test_fengqudb_index_python.NativeWireTests.test_predicate_vector_and_mode_validation) ... ok
+test_scalar_types_preserve_large_integer_and_bytes_identity (test_fengqudb_index_python.NativeWireTests.test_scalar_types_preserve_large_integer_and_bytes_identity) ... ok
+
+----------------------------------------------------------------------
+Ran 22 tests in 2.200s
+
+OK
+{"suite": "index", "tests": 22, "failures": 0, "errors": 0, "skipped": 0, "passed_without_skips": true, "elapsed_seconds": 2.20022, "platform": "Windows-11-10.0.26200-SP0", "python": "3.12.10", "core": {"path": "D:\\study\\FengquDB-index\\build\\index-win\\Release\\fengqudb.dll", "bytes": 1206272, "sha256": "e56a3ccf0c959c894c12c33e0f2df590404dd0139b52636da77eec6cb73c7df5"}, "index": {"path": "D:\\study\\FengquDB-index\\build\\index-win\\Release\\fengqudb_index.dll", "bytes": 500224, "sha256": "43215c0e905190023d5d886b65be13fe538541bc6bb548573f20bbd8aa0911b0"}}
