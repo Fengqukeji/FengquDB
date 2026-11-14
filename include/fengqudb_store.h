@@ -17,6 +17,28 @@ typedef struct fqdb_store_reader fqdb_store_reader;
 typedef struct fqdb_store_watch fqdb_store_watch;
 typedef struct fqdb_store_change_batch fqdb_store_change_batch;
 typedef struct fqdb_store_commit fqdb_store_commit;
+/* Optional native-handle bridge, ABI 1; independent of the core ABI.
+   Initialize struct_size and abi_version=1 before calling. kind is 1 Store,
+   2 active transaction, 3 snapshot. store_token identifies one Core lifetime
+   in this loaded Core runtime (never an object address); use the SAME runtime's
+   function table for borrowed handles. uuid is the persistent Store generation
+   UUID (stable across compaction/reopen, different for a restored copy).
+   snapshot_version is the current published version for Store, otherwise the
+   captured base version. Identity neither transfers nor extends handle ownership.
+   Transactions follow normal ready/cancel/timeout/sealed checks. */
+#define FQDB_STORE_BRIDGE_ABI_VERSION 1u
+typedef struct fqdb_store_bridge_info {
+    uint32_t struct_size, abi_version, kind, reserved;
+    uint64_t store_token, snapshot_version;
+    unsigned char uuid[16];
+} fqdb_store_bridge_info;
+FQDB_API uint32_t FQDB_CALL fqdb_store_bridge_abi_version(void);
+FQDB_API fqdb_status FQDB_CALL fqdb_store_bridge_identity(
+    fqdb_store *store, fqdb_store_bridge_info *info);
+FQDB_API fqdb_status FQDB_CALL fqdb_store_txn_bridge_identity(
+    fqdb_store_txn *txn, fqdb_store_bridge_info *info);
+FQDB_API fqdb_status FQDB_CALL fqdb_store_snapshot_bridge_identity(
+    const fqdb_store_snapshot *snapshot, fqdb_store_bridge_info *info);
 /* Persisted per directory. NULL resets AND saves performance/50 ms/1 MiB.
    Performance commits are immediately visible in memory; only their barrier
    is periodic. Reliable mode and force_reliable=1 wait for durable completion.

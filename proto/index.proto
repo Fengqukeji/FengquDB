@@ -1,0 +1,121 @@
+syntax = "proto3";
+package fengqudb.index.v1;
+
+// Scalar kinds: 0=null, 1=UTF8 string, 2=signed integer, 3=unsigned integer,
+// 4=finite double, 5=bool, 6=opaque bytes. Kind and value wire type must agree.
+message Scalar { uint32 kind=1; bytes data=2; sint64 integer=3; uint64 uint=4; double real=5; bool flag=6; }
+message Metadata { string name=1; Scalar value=2; }
+message TextField { string name=1; string text=2; double weight=3; } // weight omitted => 1
+message Document {
+  bytes id=1;
+  uint64 projection_version=2;
+  uint64 domain_revision=3;
+  uint64 lifecycle_generation=4;
+  repeated TextField texts=5;
+  repeated Metadata metadata=6;
+  bytes vector_f32_le=7; // normalized on upsert; <=4096 dimensions; finite, nonzero
+  bytes vector_space=8;
+  bytes source_locator=9;
+  uint64 source_revision=10;
+  bytes payload=11; // optional caller-owned encoded content; no JSON requirement
+  bool deleted=12; // persisted tombstones, not accepted in an upsert request
+  repeated string remove_metadata=13; // patch only
+  bool replace_metadata=14; // patch only
+}
+message Mutation {
+  bytes index_space=1; // 1..128 bytes, fixed by authorized host
+  bytes partition=2;   // 1..512 bytes, hard isolation and BM25 statistics boundary
+  uint32 operation=3;  // 1=upsert, 2=metadata patch, 3=erase
+  uint64 expected_projection_version=4; // 0 means absent, not a tombstone
+  Document document=5; // upsert full document; patch only metadata + optional domain/source revision
+  bytes id=6;         // patch/erase target; must match document.id if both supplied
+  uint64 next_projection_version=7; // patch/erase; strictly newer than expected
+  uint64 lifecycle_generation=8; // patch/erase must match current generation
+  uint32 protocol_version=25; // 1; omitted => 1
+}
+// Ops: 0=true, 1=eq, 2=ne, 3=lt, 4=le, 5=gt, 6=ge, 7=in,
+// 8=exists, 9=and, 10=or, 11=not. Missing metadata never compares equal/ne.
+// NOT/AND/OR use two-valued booleans; combine Exists explicitly as needed.
+message Predicate { uint32 operation=1; string field=2; repeated Scalar values=3; repeated Predicate children=4; }
+message Phrase { string text=1; uint32 max_gap=2; string field=3; }
+message Query {
+  bytes index_space=1;
+  bytes partition=2;
+  uint32 operation=3; // 1=search, 2=get, 3=stats, 4=list
+  string text=4;
+  uint32 limit=5; // default 8; maximum 4096
+  Predicate where=6;
+  uint32 mode=7; // 0=lexical, 1=exact cosine, 2=HNSW navigation + FP32 rerank
+  bytes vector_f32_le=8;
+  bytes vector_space=9;
+  uint64 posting_budget=10; // default 12000
+  uint64 candidate_budget=11; // default 1024
+  uint64 scan_budget=12; // default 100000
+  uint64 memory_budget=13; // index-owned working-memory estimate; default 16MiB
+  uint64 timeout_ms=14; // zero => no additional deadline
+  bool match_all_terms=15;
+  bytes id=16; // get
+  bytes after_id=17; // list, exclusive bytewise keyset cursor
+  double min_similarity=18; // optional; only for dense
+  bool allow_partial=19; // default false: unfinished searches return error, never normal []
+  uint64 expected_projection_version=20; // optional get guard, mismatch => CONFLICT
+  uint32 statistics_policy=21; // 0=partition; 1=statistics over exactly where-visible records
+  uint64 expected_mutation_sequence=22; // optional list/get consistency guard
+  repeated Phrase phrases=23; // every phrase required; max_gap counts intervening primary tokens
+  bool prefix_last=24; // lexical: expand the last primary token of text
+  uint32 protocol_version=25; // 1; omitted => 1
+  uint32 ef_search=26; // mode 2: default 96, >= limit, <=4096
+  bool include_positions=27;
+  uint32 snippet_bytes=28; // default 160, <=4096
+  uint32 term_budget=29; // prefix/lexical dictionary expansion, default 128, <=4096
+  bool include_explain=30;
+  repeated string excluded_terms=31; // lexical NOT: reject a document containing any analyzed term
+  repeated string scoring_fields=32; // empty => all text fields; otherwise match/score only these fields
+}
+message MatchPosition { string field=1; uint64 begin=2; uint64 end=3; bytes snippet=4; uint64 snippet_begin=5; }
+message ScoreDetail { string term=1; string field=2; uint64 tf=3; uint64 length=4; double average_length=5; double idf=6; double weight=7; double contribution=8; }
+message Hit { Document document=1; double score=2; double dense_similarity=3; repeated string matched_fields=4; repeated MatchPosition positions=5; repeated ScoreDetail details=6; }
+message Result {
+  repeated Hit hits=1;
+  uint64 snapshot_version=2;
+  uint64 mutation_sequence=3;
+  uint32 ranking_kind=4; // 0=exact, 1=approximate
+  uint32 termination=5; // header enum; independent of index coverage
+  uint32 index_coverage=6; // 0=complete at supplied view; v1 synchronous postings
+  uint32 match_evidence=7; // 0=unknown,1=has_hits,2=proven_none
+  uint64 postings_visited=8;
+  uint64 candidates=9;
+  uint64 records_scanned=10;
+  bytes next_cursor=11; // list only; bind to mutation_sequence on the next page
+  uint64 total_hits=12; // only present when exhaustively counted
+  uint64 record_count=13; // stats/current live records
+  uint64 vector_count=14;
+  string strategy=15;
+  string analyzer=16; // fqidx-utf8-v1 (ASCII fold/fullwidth fold, identifiers, CJK unigram/bigram)
+  uint64 terms_visited=17;
+  uint64 statistics_scanned=18;
+  uint64 blocks_visited=19;
+  uint64 graph_visited=20;
+  uint64 layout_generation=21;
+}
+message MaintenanceRequest {
+  bytes index_space=1; bytes partition=2;
+  uint32 operation=3; // 1=compact postings, 2=shadow graph rebuild, 3=verify records, 4=collect old graphs
+  uint32 max_terms=4; // default 8
+  uint64 max_postings=5; // default 20000; compaction returns a resumable term+ID boundary
+  uint64 memory_budget=6; // default 32MiB, index-owned estimate
+  uint64 timeout_ms=7;
+  bytes after_term=8;
+  uint64 expected_mutation_sequence=9; // optional caller guard
+  bytes vector_space=10; // optional graph repair selector
+  bytes after_id=11; // compaction within-term cursor, or rebuild/verify record cursor
+  uint32 max_records=12; // default 128
+  bytes after_key=13; // optional garbage-collection key cursor; normally persisted internally
+}
+message MaintenanceResult {
+  bytes next_term=1; bytes next_id=2; uint64 mutation_sequence=3;
+  uint64 terms=4; uint64 postings=5; uint64 records=6; bool finished=7;
+  uint64 layout_generation=8;
+  bytes next_key=9;
+  uint64 reclaimed=10;
+}

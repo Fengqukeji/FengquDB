@@ -5,6 +5,7 @@
 #include "fengqudb_wire.hpp"
 
 namespace fengqudb {
+namespace index { class Client; }
 struct StoreOptions {
     Durability durability = Durability::sync;
     bool create = true;
@@ -438,6 +439,7 @@ class StoreSnapshot {
         handle_;
     explicit StoreSnapshot(fqdb_store_snapshot *handle) : handle_(handle) {}
     friend class Store;
+    friend class index::Client;
 
   public:
     StoreValues get_many(const std::vector<std::string_view> &keys) const {
@@ -523,6 +525,7 @@ class StoreTransaction {
     std::unique_ptr<fqdb_store_txn, detail::Deleter<fqdb_store_txn, fqdb_store_txn_close>> handle_;
     explicit StoreTransaction(fqdb_store_txn *handle) : handle_(handle) {}
     friend class Store;
+    friend class index::Client;
 
   public:
     StoreValues get_many(const std::vector<std::string_view> &keys) {
@@ -648,6 +651,7 @@ class StoreTransaction {
     }
 };
 class Store {
+    friend class index::Client;
     std::unique_ptr<fqdb_store, detail::Deleter<fqdb_store, fqdb_store_close>> handle_;
 
     explicit Store(fqdb_store *handle) : handle_(handle) {}

@@ -1,0 +1,105 @@
+{
+  "date": "2026-11-14",
+  "native_release": {
+    "windows": {
+      "groups": 3,
+      "assertions": 17425,
+      "extended_checks": 914
+    },
+    "linux": {
+      "groups": 3,
+      "assertions": 17425,
+      "extended_checks": 914
+    }
+  },
+  "portable_gcc11": {
+    "extended_checks": 914,
+    "glibc_build": "2.31",
+    "core_max_required_glibc": "2.30",
+    "static_cxx_runtime": true
+  },
+  "sanitizers": {
+    "asan": true,
+    "ubsan": true,
+    "leak_detection": true,
+    "optimization": "O1 with debug symbols",
+    "groups_passed": 3,
+    "seconds": 193.35,
+    "initial_debug_timeout_seconds": 240.12
+  },
+  "coordinator_reports": {
+    "rag": {
+      "windows_passed": 66,
+      "linux_passed": 66,
+      "skipped": 0,
+      "manifest": "D:/study/FengquDB-rag/build/rag-frozen-verification.json"
+    },
+    "wiki_and_binding": {
+      "windows_passed": 71,
+      "linux_passed": 71,
+      "skipped": 0,
+      "manifest": "D:/study/FengquDB-llmwiki/build/index-python-wrapper-handoff.json"
+    }
+  },
+  "sdk": {
+    "python_windows": "passed empty-cwd test",
+    "python_linux": "passed empty-cwd test",
+    "cpp_windows": "passed binary SDK consumer",
+    "cpp_linux": "passed binary SDK consumer"
+  },
+  "benchmark": {
+    "records": 2400,
+    "top_k": 8,
+    "windows": {
+      "rare_us": 37.9,
+      "scan_us": 419.6,
+      "popular_uncompacted_us": 1905.7,
+      "popular_compacted_us": 186.8
+    },
+    "linux": {
+      "rare_us": 19.88,
+      "scan_us": 154.4,
+      "popular_uncompacted_us": 1195.62,
+      "popular_compacted_us": 114.02
+    },
+    "popular_records_read": [
+      2400,
+      128
+    ]
+  },
+  "not_executed": [
+    "TSan",
+    "Android/iOS device tests",
+    "ARM64 device tests",
+    "real power-cut tests",
+    "production-scale recall tests"
+  ],
+  "sources": {
+    "src/index/index.cpp": "aef634e4fb5b556b4092a82890d11ba177725aab638279b5d5b36c886846597f",
+    "src/index/ann.hpp": "5309abb401e2e6531765a22e794b40969b9f749cfdbef8f6469ae8eef17de2b6",
+    "src/index/postings.hpp": "f55e58a220aac48389b94d7f19ffffd9febdfdafa6780f22b2b51c2347bfcd68",
+    "src/index/model.hpp": "cf6d1dceeb38eee4b95deba15505b954ed1a92f849232aa3f436e6462c3ca8b3",
+    "src/index/storage.hpp": "000c322780a2701e784257e9b7d1f13765dc8222ed9346eaa0d3b561cb63f30a",
+    "src/index/text_query.hpp": "9d19fca67021a720bb7605bb89d42ab76f6e04c3daafbc5b5dd58e1bde3d932c",
+    "src/index/vector_math.hpp": "da4b0f2c99fb1e65114e320b597113237cdabe952f393e78219d63a3f764fa9f",
+    "include/fengqudb_index.h": "47dfe104f3a8832ad79c9cf7b91de8d2bc49f2e2aaf6f31ae5f1a8d7d0a1c7e6",
+    "include/fengqudb_index.hpp": "d713ae7a36e22a138d9edd9580c8e7de686f6c8651e58028280a981b0b1cca42",
+    "bindings/python/fengqudb.py": "c9e057eaccb8706f6dd1ab2b695980e23b715f77493d0220e36be7b2d53ddf62",
+    "bindings/python/fengqudb_index.py": "58c9537a2d922261894c5b89871656c814554c0678c3ab5a0863c7af79588182",
+    "bindings/python/fengqudb_index_wire.py": "24cc083706725d7d495b00cc4fdd4789f2f879ca3e3c433353ca7e8f3357d0bd",
+    "tests/index/extended_tests.cpp": "f5e774b8f0f60975e2edb1c556c631676cc1a66b462846377f587877958fb918",
+    "tests/index/foundation_sdk_smoke.py": "b9cf3102e3341b7e98cb69271d706195b1af7f6675670f580cab797c847ddb30"
+  },
+  "packages": {
+    "FengquDB-CPP.zip": {
+      "bytes": 1663388,
+      "sha256": "dea5553af7b5d41a2fb496bb316bd6b055a807146273c4f07bfc9e5b447f25f5"
+    },
+    "FengquDB-Python.zip": {
+      "bytes": 1720777,
+      "sha256": "a0a088ee3efeb35790be95846fbdf871bc80e1e607fdb44846df4b21e78215a5"
+    }
+  },
+  "package_files": 60,
+  "package_hash_and_zip_integrity": "passed"
+}

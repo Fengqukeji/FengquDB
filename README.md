@@ -1,6 +1,6 @@
 # FengquDB
 
-原生 C++17 进程内数据库，以共享库或静态库接入 C/C++、C#、Java、Python。使用分页 Store 引擎，页和值按需加载，缓存受预算限制；核心不依赖第三方数据库、Google Protobuf 或 Abseil。
+原生 C++ 进程内数据库，以共享库或静态库接入 C/C++、C#、Java、Python。使用分页 Store 引擎，页和值按需加载，缓存受预算限制；核心不依赖第三方数据库、Google Protobuf 或 Abseil。
 
 当前为 **0.3.2 / ABI 2 开发源码，尚未正式发布**。库、头文件与绑定须配套构建，旧开发 SDK 和历史测量仅供追溯。
 
@@ -15,6 +15,7 @@
 | Unity/移动端数据目录 | [目录布局](docs/STORE_LAYOUT.md) |
 | 构建规范、版本控制和消毒器 | [开发说明](docs/DEVELOPMENT.md) |
 | 查证性能、审查和历史实验 | [历史证据索引](docs/history/README.md) |
+| 可选全文、过滤、精确/HNSW向量索引 | [索引实现及验证](docs/INDEX_IMPLEMENTATION.md)、[索引/RAG/Wiki SDK交付](docs/FOUNDATION_ACCEPTANCE.md) |
 
 ## 构建
 

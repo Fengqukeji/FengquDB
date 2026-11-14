@@ -1,0 +1,7 @@
+cmake_minimum_required(VERSION 3.24)
+project(FengquIndexExample LANGUAGES CXX)
+find_package(FengquDB CONFIG REQUIRED)
+add_executable(index_example main.cpp)
+target_compile_features(index_example PRIVATE cxx_std_20)
+target_compile_options(index_example PRIVATE "$<$<CXX_COMPILER_ID:MSVC>:/utf-8>")
+target_link_libraries(index_example PRIVATE FengquDB::Index)

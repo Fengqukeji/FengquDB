@@ -1,0 +1,52 @@
+Start testing: Nov 14 12:02 UTC
+----------------------------------------------------------
+34/38 Testing: native_index
+34/38 Test: native_index
+Command: "/src/build/index-asan/fqdb_index_tests"
+Directory: /src/build/index-asan
+"native_index" start time: Nov 14 12:02 UTC
+Output:
+----------------------------------------------------------
+PASS native index 17425 assertions
+<end of output>
+Test time =   0.70 sec
+----------------------------------------------------------
+Test Passed.
+"native_index" end time: Nov 14 12:02 UTC
+"native_index" time elapsed: 00:00:00
+----------------------------------------------------------
+
+35/38 Testing: native_index_cpp
+35/38 Test: native_index_cpp
+Command: "/src/build/index-asan/fqdb_index_cpp_tests"
+Directory: /src/build/index-asan
+"native_index_cpp" start time: Nov 14 12:02 UTC
+Output:
+----------------------------------------------------------
+PASS C++ index convenience API
+<end of output>
+Test time =   0.23 sec
+----------------------------------------------------------
+Test Passed.
+"native_index_cpp" end time: Nov 14 12:02 UTC
+"native_index_cpp" time elapsed: 00:00:00
+----------------------------------------------------------
+
+36/38 Testing: native_index_extended
+36/38 Test: native_index_extended
+Command: "/src/build/index-asan/fqdb_index_extended_tests"
+Directory: /src/build/index-asan
+"native_index_extended" start time: Nov 14 12:02 UTC
+Output:
+----------------------------------------------------------
+HNSW count=4096 recall@8=1 ingest_s=0.516228 build_s=139.484 exact_us=22144.2 ann_us=24284.6
+PASS extended index 914 checks
+<end of output>
+Test time = 192.38 sec
+----------------------------------------------------------
+Test Passed.
+"native_index_extended" end time: Nov 14 12:05 UTC
+"native_index_extended" time elapsed: 00:03:12
+----------------------------------------------------------
+
+End testing: Nov 14 12:05 UTC

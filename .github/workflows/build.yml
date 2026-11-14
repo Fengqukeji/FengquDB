@@ -24,12 +24,13 @@ jobs:
           -DCMAKE_BUILD_TYPE=RelWithDebInfo -DFQDB_SANITIZER=${{ matrix.sanitizer }}
           -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
           -DFQDB_SHARED=OFF -DFQDB_RELEASE_IPO=OFF -DFQDB_BUILD_TOOLS=OFF
-          -DFQDB_BUILD_DIAGNOSTICS=OFF -DBUILD_TESTING=ON
+          -DFQDB_BUILD_DIAGNOSTICS=OFF -DBUILD_TESTING=ON -DFQDB_BUILD_INDEX=ON
       - name: Build concurrency and query regressions
         run: >-
           cmake --build build/sanitizer-${{ matrix.sanitizer }} --parallel 2 --target
           fqdb_header_self_containment fqdb_write_policy_tests fqdb_committed_cache_tests
           fqdb_atomic_owner_tests fqdb_store_sdk_tests fqdb_store_select_tests fqdb_store_query_tests
+          fqdb_index_tests fqdb_index_cpp_tests fqdb_index_extended_tests
       - name: Run instrumented tests
         env:
           FQDB_TEST_PYTHON: python3
@@ -39,7 +40,7 @@ jobs:
         run: >-
           ctest --test-dir build/sanitizer-${{ matrix.sanitizer }} --output-on-failure
           --output-junit results.xml
-          -R '^paged_(write_policy|committed_cache|atomic_owner|store_sdk|select|query)$'
+          -R '^(paged_(write_policy|committed_cache|atomic_owner|store_sdk|select|query)|native_index(_(cpp|extended))?)$'
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -66,7 +67,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DFQDB_BUILD_JNI=ON
+      - run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DFQDB_BUILD_JNI=ON -DFQDB_BUILD_INDEX=ON
       - run: cmake --build build --config Release --parallel
       - run: ctest --test-dir build -C Release --output-on-failure
       - name: Bindings and SDK
@@ -90,11 +91,11 @@ jobs:
           $diagnosticsConsumer = if ($IsWindows) { "$PWD/build/consumer/Release/diagnostics_consumer.exe" } else { "$PWD/build/consumer/diagnostics_consumer" }
           & $diagnosticsConsumer "$PWD/artifacts/consumer-diagnostics.fdb"
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          cmake -S . -B build/static -DCMAKE_BUILD_TYPE=Release -DFQDB_SHARED=OFF -DFQDB_BUILD_JNI=OFF
+          cmake -S . -B build/static -DCMAKE_BUILD_TYPE=Release -DFQDB_SHARED=OFF -DFQDB_BUILD_JNI=OFF -DFQDB_BUILD_INDEX=ON
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           cmake --build build/static --config Release --parallel
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          ctest --test-dir build/static -C Release -R 'paged_store_sdk|shared_c_abi|wire|logging|diagnostics' --output-on-failure
+          ctest --test-dir build/static -C Release -R 'paged_store_sdk|shared_c_abi|wire|logging|diagnostics|^native_index(_(cpp|extended))?$' --output-on-failure
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - uses: actions/upload-artifact@v4
         with:
@@ -114,8 +115,8 @@ jobs:
               -DCMAKE_TOOLCHAIN_FILE="$ANDROID_SDK_ROOT/ndk/27.2.12479018/build/cmake/android.toolchain.cmake" \
               -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-24 \
               -DCMAKE_BUILD_TYPE=Release -DFQDB_SHARED="$shared" \
-              -DBUILD_TESTING=OFF -DFQDB_BUILD_TOOLS=OFF -DFQDB_BUILD_DIAGNOSTICS=OFF
-            cmake --build "build/android-$shared" --target fengqudb --parallel 2
+              -DBUILD_TESTING=OFF -DFQDB_BUILD_TOOLS=OFF -DFQDB_BUILD_DIAGNOSTICS=OFF -DFQDB_BUILD_INDEX=ON
+            cmake --build "build/android-$shared" --target fengqudb_index --parallel 2
           done
   ios-compile:
     runs-on: macos-latest
@@ -132,5 +133,5 @@ jobs:
             -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_SYSROOT=${{ matrix.target.sdk }} \
             -DCMAKE_OSX_ARCHITECTURES=${{ matrix.target.arch }} -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 \
             -DCMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED=NO \
-            -DFQDB_SHARED=OFF -DBUILD_TESTING=OFF -DFQDB_BUILD_TOOLS=OFF -DFQDB_BUILD_DIAGNOSTICS=OFF
-          cmake --build build/ios --config Release --target fengqudb --parallel 2
+            -DFQDB_SHARED=OFF -DBUILD_TESTING=OFF -DFQDB_BUILD_TOOLS=OFF -DFQDB_BUILD_DIAGNOSTICS=OFF -DFQDB_BUILD_INDEX=ON
+          cmake --build build/ios --config Release --target fengqudb_index --parallel 2

@@ -15,6 +15,15 @@
 
 namespace fengqudb::paged {
 inline std::atomic<uint64_t> next_store_id{1};
+inline uint64_t allocate_store_id() {
+    // Preserve the diagnostic high-bit namespace and never wrap/reuse a token.
+    auto next = next_store_id.load(std::memory_order_relaxed);
+    for (;;) {
+        require(next < (UINT64_C(1) << 63), FQDB_LIMIT);
+        if (next_store_id.compare_exchange_weak(next, next + 1, std::memory_order_relaxed))
+            return (UINT64_C(1) << 63) | next;
+    }
+}
 #ifdef FQDB_TESTING
 inline std::atomic<int> store_crash_point{0};
 inline std::atomic<int> maintenance_hold_point{0};
@@ -238,7 +247,7 @@ struct Core : std::enable_shared_from_this<Core> {
     Bytes expiry_resume;
     std::weak_ptr<Generation> expiry_generation;
     bool expiry_resume_valid = false;
-    const uint64_t id = (UINT64_C(1) << 63) | next_store_id.fetch_add(1, std::memory_order_relaxed);
+    const uint64_t id = allocate_store_id();
     uint64_t recovered_transactions = 0, repaired_bytes = 0;
     std::mutex configuration_mutex, background_mutex;
     std::condition_variable background_changed;

@@ -422,3 +422,4 @@ install(DIRECTORY bindings/ DESTINATION share/fengqudb/bindings PATTERN bin EXCL
 install(FILES README.md DESTINATION share/fengqudb)
 install(FILES proto/store_query.proto DESTINATION share/fengqudb/proto)
 install(FILES proto/store_select.proto DESTINATION share/fengqudb/proto)
+include(cmake/FengquIndex.cmake)

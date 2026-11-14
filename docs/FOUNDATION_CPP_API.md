@@ -1,0 +1,56 @@
+# C++ API
+
+## 新增、修改、读取、删除
+
+```cpp
+#include "fengqudb_index.hpp"
+namespace idx = fengqudb::index;
+
+fengqudb::Store db("saves/main"); // 保留在应用的存储服务中
+db.put("student/1", "小明");    // 同一 key 再 put 就是覆盖
+auto value = db.get("student/1");
+db.erase("student/1");
+```
+
+`transaction()` 原子处理多个键；`snapshot()` 提供固定视图；`get_many` 一次读取多条，`backup` 备份，`sync` 等待已确认写入可靠落盘。业务实体可以用项目自己的序列化器变成二进制再存入。
+
+## 同事务全文索引
+
+```cpp
+idx::Client index(db, "knowledge", "public");
+idx::Document d;
+d.id = "manual-1";
+d.texts = {{"title", "备份说明", 2}, {"body", "事务完成后可靠保存", 1}};
+d.metadata = {{"kind", idx::Value::text("manual")}};
+auto tx = db.transaction();
+tx.put("original/manual-1", "业务原文");
+index.upsert(tx, d);
+auto committed = tx.commit(true);
+if (!committed) throw fengqudb::Error(static_cast<fqdb_status>(committed.status));
+
+idx::Query q;
+q.text = "保存";
+q.where = idx::Filter::eq("kind", idx::Value::text("manual"));
+auto view = db.snapshot();
+auto result = index.query(view, q);
+for (const auto& hit : result.hits) { /* hit.id、score、payload、source_locator */ }
+```
+
+| 接口/设置 | 用途 |
+| --- | --- |
+| upsert(tx,d,expected_version) | 新增或整存；修改提高 projection_version |
+| patch(tx,Patch) | 仅增删元数据、域修订和来源修订；保留全文词项与向量 |
+| erase(tx,id,old,next,generation) | 删除并保留防复活墓碑；重新建同 ID 须提高生命周期 |
+| query(snapshot/tx,q) | 搜索；Get/Stats/List 提供按 ID、统计及游标遍历 |
+| Filter::eq/compare/in/exists/all/any/negate | 类型化比较、范围、IN、嵌套条件 |
+| phrases/prefix_last/excluded_terms/scoring_fields | 短语邻近、前缀、排除词、字段检索 |
+| include_positions/snippet_bytes/include_explain | 原文位置、摘录及评分明细 |
+| statistics_policy=1 | 仅使用过滤可见语料计算统计 |
+| dense=true / approximate=true | 精确余弦 / HNSW，配置 vector 和 vector_space |
+| maintain(tx,MaintenanceOptions) | Compact/RebuildGraph/Verify/CollectGraphs，有界批次与持久续做 |
+
+未显式建图默认保持精确搜索，避免所有向量写入承担建图开销。建图时多批调用 RebuildGraph 并提交至 finished；影子代次完成后原子发布，旧快照仍可查询。
+
+`Result` 拥有原生缓冲，Hit 的字符串视图随该 Result 生存。事务串行使用；不可变快照支持并发查询。修改的编码、原生调用或回包解码失败会取消整个外部事务，不能继续提交部分业务变更。
+
+Query 可设置倒排、候选、扫描、词项、内存、超时预算与取消回调。默认中断报错；显式 allow_partial 后检查 complete、termination、match_evidence。近似排名不等于预算中断，空结果也不总能证明没有匹配。
