@@ -26,6 +26,8 @@ WordGame 会话已整体更新 r2 Python SDK，报告 42 项相关回归通过�
 
 上述项目测试来自对应接入会话的验收记录，文件哈希复核由协调端直接执行；不混算为数据库核心测试。部署清单、验收来源及其摘要哈希保存在 `docs/evidence/foundation-deployments-20261114.json`。
 
+2026-11-15 补充：另一条由 FengquAI 原生技能中心管理的同名技能，已有 Codex/OpenCode 两个部署仍未更新。其普通源已备份并准备同版工具；唯一一次公开 `update` 请求被 `INVALID_PATH — Skill path crosses a link or its registered directory` 拒绝，API 未给出具体被拒路径。管理库和两个代理目录仍与旧包一致，未冒称新版验收通过。此拒绝来自原生管理器的路径校验，非自动审批系统。该范围与前述已完成的 7 个入口区分记录，后续须通过正常管理流程解决；未改写私有目录或转移管理归属。
+
 ## 更新规则
 
 三个分支使用一致的 Core 源码和公开桥接；公共原生索引归 Index 分支，RAG/Wiki 使用同一发布依赖。Python 共享包装由 Index 维护并同步到 Wiki 工作树，RAG 复用它。

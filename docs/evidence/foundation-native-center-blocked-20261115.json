@@ -1,0 +1,43 @@
+{
+  "status": "update rejected; no mutation retry or guard bypass",
+  "error": {
+    "code": "INVALID_PATH",
+    "message": "Skill path crosses a link or its registered directory"
+  },
+  "skill_id": "4d57b7ac-0af5-4f33-8338-a757c3ab6d2a",
+  "source_ref": "C:\\Users\\Administrator\\.fengquai\\skill-sources\\project-index",
+  "source_backup": "D:\\work\\PTpma\\artifacts\\cpp\\validation\\fengqudb-index\\native-center-source-before",
+  "prepared_source_index_sha256": "c50de0c14a2938df040b2873d45dd3c30c662fdefe2202dcf63bc72b5398cfac",
+  "prepared_release_id": "b5b646194800cd46ec929bf8144e7734ea72b254f20508162391a5d1d65c6f14",
+  "managed_index_sha256": "25a9bce45353e3b5bb18aed7fd5d3d3a02dfcb814927e911c7d95aa3eccadaac",
+  "catalog_bundle_hash_unchanged": "c71899f68dbfb0f2b1abcc75720fdfb9070adc9d2167dd9ad5ed48d75271ffab",
+  "existing_targets": [
+    "codex",
+    "opencode"
+  ],
+  "copy_verification": [
+    {
+      "entry": "library",
+      "path": "C:\\Users\\Administrator\\.fengquai\\skills-manager\\skills\\project-index",
+      "changed_old_bundle_files": [],
+      "verified_old_files": 16
+    },
+    {
+      "entry": "codex",
+      "path": "C:\\Users\\Administrator\\.codex\\skills\\project-index",
+      "changed_old_bundle_files": [],
+      "verified_old_files": 16
+    },
+    {
+      "entry": "opencode",
+      "path": "C:\\Users\\Administrator\\.config\\opencode\\skills\\project-index",
+      "changed_old_bundle_files": [],
+      "verified_old_files": 16
+    }
+  ],
+  "new_targets_added": false,
+  "managed_directories_written_directly": false,
+  "private_catalog_modified_directly": false,
+  "runtime_acceptance": "not run because deployment remains old",
+  "previous_seven_entries": "not retested or modified"
+}
