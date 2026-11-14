@@ -64,6 +64,8 @@ typedef struct fqdb_buffer {
 FQDB_API uint32_t FQDB_CALL fqdb_abi_version(void);
 FQDB_API const char *FQDB_CALL fqdb_status_message(fqdb_status status);
 FQDB_API void FQDB_CALL fqdb_buffer_free(fqdb_buffer *buffer);
+/* Copy arbitrary output bytes using this Core's allocator. Not subject to the
+   single stored-value limit. Callers enforce their own aggregate output budget. */
 FQDB_API fqdb_status FQDB_CALL fqdb_buffer_copy(fqdb_slice source, fqdb_buffer *out);
 
 #ifdef __cplusplus
