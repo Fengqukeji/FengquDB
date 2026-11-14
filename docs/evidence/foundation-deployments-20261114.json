@@ -1,0 +1,87 @@
+{
+  "date": "2026-11-14",
+  "release_id": "b5b646194800cd46ec929bf8144e7734ea72b254f20508162391a5d1d65c6f14",
+  "coordinator_checks": {
+    "deployment_runtime_entries": 7,
+    "deployment_runtime_files": 35,
+    "wordgame_sdk_files": 40,
+    "wordgame_sdk_all_hashes_match": true,
+    "wiki_production_matches_sdk": true
+  },
+  "reported_by_owners": {
+    "ptpma_records_windows_checks": 872,
+    "ptpma_records_linux_checks": 872,
+    "ptpma_windows_directed_ctest_groups": 8,
+    "wordgame_rag_checks": 42,
+    "wordgame_formal_sdk_rechecks": {
+      "count": 3,
+      "included_in_42": true
+    },
+    "wiki_windows_tests": 53,
+    "wiki_linux_tests": 53
+  },
+  "deployments": {
+    "release_id": "b5b646194800cd46ec929bf8144e7734ea72b254f20508162391a5d1d65c6f14",
+    "source_ref": "D:\\work\\PTFramework\\.agents\\skills\\project-index",
+    "presets": [],
+    "deployments": [
+      {
+        "agent": "source",
+        "path": "D:\\work\\PTFramework\\.agents\\skills\\project-index",
+        "release_id": "b5b646194800cd46ec929bf8144e7734ea72b254f20508162391a5d1d65c6f14",
+        "runtime_verified": true
+      },
+      {
+        "agent": "library",
+        "path": "C:\\Users\\Administrator\\.skills-manager\\skills\\project-index",
+        "release_id": "b5b646194800cd46ec929bf8144e7734ea72b254f20508162391a5d1d65c6f14",
+        "runtime_verified": true
+      },
+      {
+        "agent": "wordgame-project",
+        "path": "D:\\work\\WordGame\\.agents\\skills\\project-index",
+        "release_id": "b5b646194800cd46ec929bf8144e7734ea72b254f20508162391a5d1d65c6f14",
+        "runtime_verified": true
+      },
+      {
+        "agent": "webframework-project",
+        "path": "D:\\work\\webframework\\.agents\\skills\\project-index",
+        "release_id": "b5b646194800cd46ec929bf8144e7734ea72b254f20508162391a5d1d65c6f14",
+        "runtime_verified": true
+      },
+      {
+        "agent": "trio-project",
+        "path": "D:\\work\\PTpma\\.agents\\skills\\project-index",
+        "release_id": "b5b646194800cd46ec929bf8144e7734ea72b254f20508162391a5d1d65c6f14",
+        "runtime_verified": true
+      },
+      {
+        "agent": "fengquai",
+        "path": "C:\\Users\\Administrator\\.fengquai\\skills\\project-index",
+        "release_id": "b5b646194800cd46ec929bf8144e7734ea72b254f20508162391a5d1d65c6f14",
+        "runtime_verified": true
+      },
+      {
+        "agent": "fengquai3d-project",
+        "path": "D:\\work\\FengquAI3D\\.agents\\skills\\project-index",
+        "release_id": "b5b646194800cd46ec929bf8144e7734ea72b254f20508162391a5d1d65c6f14",
+        "runtime_verified": true
+      }
+    ],
+    "runtime_hashes": {
+      "fengquai-index.exe": "c50de0c14a2938df040b2873d45dd3c30c662fdefe2202dcf63bc72b5398cfac",
+      "fengquai-storage-host.exe": "7f441d293d4b6b5cd4e5ed975a5e1c38c4669fa4d59b811014764ff43e175e57",
+      "fengqudb.dll": "b35269a424f653fbccda077f588f0ddb98afc2077a3ead39f3103461ab0d59b4",
+      "fengqudb_index.dll": "8ce87fe62b4b5401ebabf525b4934338a5e1119a55319f959ed7c1380e7c159f",
+      "fengqudb-sdk-manifest.json": "54b40895fe7e000d17858f6f464f9487138d414c112590a5b1561eda24d6034e"
+    },
+    "ptframework_record_engine": "fengqudb-core-index-v1",
+    "unity_runtime_modified": false
+  },
+  "source_evidence_sha256": {
+    "D:\\work\\PTpma\\artifacts\\cpp\\validation\\fengqudb-index\\deployments-final.json": "9bc888981efa67b3a4828f9859ccdeb54d1880215c0b97400476b4b8757e3fa5",
+    "D:\\work\\PTpma\\artifacts\\cpp\\validation\\fengqudb-index\\integration-status.md": "5d033189cc6487c69f6f20ea6bfb8f9df165eebffe9da3fc81b70c6b775aebcc",
+    "D:\\work\\WordGame\\logs\\fengqudb-integration-20261114\\sdk-r2-acceptance.md": "8e8d7c09d206a5ab8379088ddc1e5923d031aabbe4f49a6fb089e6461db054a9",
+    "D:\\study\\FengquDB-llmwiki\\docs\\LLMWIKI_LEASE_FIX_20261114.md": "997732583a66e493aab2cbbbfb8f5ea43ff8d03128f496dc9563aba16cbbf224"
+  }
+}
