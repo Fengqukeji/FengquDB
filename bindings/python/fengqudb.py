@@ -5,6 +5,8 @@ import threading
 import sys
 import sysconfig
 import struct
+from collections import namedtuple
+from contextlib import ExitStack
 from pathlib import Path
 
 class Error(RuntimeError):
@@ -606,9 +608,131 @@ class StoreCommit(_Handle):
     def cancel(self):
         with self._lock: self._native.store_commit_cancel(self._live())
 
+class _StoreBridgeInfo(C.Structure):
+    _fields_ = [("struct_size", C.c_uint32), ("abi_version", C.c_uint32),
+                ("kind", C.c_uint32), ("reserved", C.c_uint32),
+                ("store_token", C.c_uint64), ("snapshot_version", C.c_uint64),
+                ("uuid", C.c_ubyte * 16)]
+
+StoreBridgeIdentity = namedtuple("StoreBridgeIdentity",
+    "struct_size abi_version kind reserved store_token snapshot_version uuid")
+
+class StoreNativeLease:
+    """One-shot, thread-affine public borrow of a native Store/txn/snapshot.
+
+    pointer is an integer address, available only inside the context. Use it
+    with library (the actual owning ctypes.CDLL), never a separately loaded
+    Core runtime. Do not retain/call a copied address after exiting. A txn borrow
+    serializes its operations while allowing cancel() from another thread.
+    """
+    def __init__(self, source, expected_store_token):
+        if expected_store_token is not None and (
+            isinstance(expected_store_token, bool) or
+            not isinstance(expected_store_token, int) or
+            not 0 < expected_store_token < (1 << 64)):
+            raise ValueError("expected_store_token must be a nonzero uint64")
+        self._source = source
+        self._expected = expected_store_token
+        self._stack = ExitStack()
+        self._entered = self._active = self._registered = False
+        self._native_handle = self._identity = self._library = None
+        self._pointer = None
+        self._thread = None
+    @property
+    def pointer(self):
+        if not self._active or threading.get_ident() != self._thread:
+            raise RuntimeError("Native lease pointer is valid only in its owning context/thread")
+        return self._pointer
+    @property
+    def identity(self):
+        if self._identity is None:
+            raise RuntimeError("Native lease has not been acquired")
+        return self._identity
+    @property
+    def library(self):
+        if self._library is None:
+            raise RuntimeError("Native lease has not been acquired")
+        return self._library
+    def __enter__(self):
+        if self._entered:
+            raise RuntimeError("Native leases cannot be entered twice")
+        self._entered = True
+        source = self._source
+        self._thread = threading.get_ident()
+        try:
+            operation_lock = getattr(source, "_operation_lock", None)
+            if operation_lock is not None:
+                self._stack.enter_context(operation_lock)
+            with source._bridge_mutex:
+                if source._bridge_closing:
+                    raise RuntimeError("Handle is closed or closing")
+                self._stack.enter_context(source._lock)
+                self._native_handle = source._live()
+                source._bridge_borrowers[self._thread] = source._bridge_borrowers.get(self._thread, 0) + 1
+                self._registered = True
+            function = source._native._bridge_identity_function(source._bridge_kind)
+            info = _StoreBridgeInfo(C.sizeof(_StoreBridgeInfo), 1)
+            source._native.check(function(self._native_handle, C.byref(info)))
+            if info.kind != source._bridge_kind or not info.store_token or info.reserved:
+                raise Error(12, "Invalid native Store bridge identity")
+            if self._expected is not None and info.store_token != self._expected:
+                raise ValueError("Native handle belongs to a different Store lifetime")
+            handle = self._native_handle
+            raw = handle.pointer if isinstance(handle, _NativeOwner) else handle
+            self._pointer = raw.value if isinstance(raw, C.c_void_p) else int(raw)
+            self._identity = StoreBridgeIdentity(info.struct_size, info.abi_version,
+                info.kind, info.reserved, info.store_token, info.snapshot_version, bytes(info.uuid))
+            self._library = source._native.lib
+            self._active = True
+            return self
+        except BaseException:
+            self._release()
+            raise
+    def _release(self):
+        self._active = False
+        self._pointer = None
+        source = self._source
+        if self._registered:
+            with source._bridge_mutex:
+                remaining = source._bridge_borrowers[self._thread] - 1
+                if remaining:
+                    source._bridge_borrowers[self._thread] = remaining
+                else:
+                    del source._bridge_borrowers[self._thread]
+                self._registered = False
+        # CPython's strong owner and other interpreters' explicit call lease
+        # both remain alive through the final pointer use.
+        self._native_handle = None
+        self._stack.close()
+    def __exit__(self, *_):
+        if threading.get_ident() != self._thread:
+            raise RuntimeError("Native lease must be exited by its acquiring thread")
+        self._release()
+
+class _StoreBridgeHandle:
+    def __init__(self, *args):
+        self._bridge_mutex = threading.RLock()
+        self._bridge_borrowers = {}
+        self._bridge_closing = False
+        super().__init__(*args)
+    def native_identity(self):
+        """Return immutable identity; detect optional bridge ABI only on use."""
+        with self.borrow_native() as lease:
+            return lease.identity
+    def borrow_native(self, expected_store_token=None):
+        return StoreNativeLease(self, expected_store_token)
+    def close(self):
+        with self._bridge_mutex:
+            if self._bridge_borrowers.get(threading.get_ident(), 0):
+                raise RuntimeError("Exit this thread's native leases before closing the handle")
+            self._bridge_closing = True
+        super().close()
+
 class _StoreNative(_Native):
     def __init__(self, library):
         super().__init__(library)
+        self._bridge_bind_lock = threading.Lock()
+        self._bridge_functions = None
         pointer, u64, status = C.c_void_p, C.c_uint64, C.c_int32
         signatures = {
             "write_configure": [pointer,C.POINTER(StoreWriteOptions)],
@@ -701,6 +825,27 @@ class _StoreNative(_Native):
             function.argtypes = arguments
             setattr(self, "store_" + name, function)
 
+    def _bridge_identity_function(self, kind):
+        # Optional extension: old libraries keep all existing operations usable.
+        with self._bridge_bind_lock:
+            if self._bridge_functions is None:
+                try:
+                    version = self.lib.fqdb_store_bridge_abi_version
+                    version.argtypes, version.restype = [], C.c_uint32
+                    if version() != 1:
+                        raise Error(12, "Unsupported native Store bridge ABI")
+                    functions = {}
+                    for number, name in ((1, "bridge_identity"), (2, "txn_bridge_identity"),
+                                         (3, "snapshot_bridge_identity")):
+                        function = getattr(self.lib, "fqdb_store_" + name)
+                        function.argtypes = [C.c_void_p, C.POINTER(_StoreBridgeInfo)]
+                        function.restype = C.c_int32
+                        functions[number] = function
+                except AttributeError as exc:
+                    raise Error(12, "Native Store bridge ABI 1 is unavailable") from exc
+                self._bridge_functions = functions
+            return self._bridge_functions[kind]
+
 def _store_scan(owner, method, begin, end, reverse):
     low, low_owner = _slice(begin)
     high, high_owner = _slice(end)
@@ -709,7 +854,8 @@ def _store_scan(owner, method, begin, end, reverse):
         owner._native.check(getattr(owner._native, method)(owner._live(), low, high, int(bool(reverse)), C.byref(output)))
         return StoreCursor(owner._native, output)
 
-class Store(_Handle):
+class Store(_StoreBridgeHandle, _Handle):
+    _bridge_kind = 1
     def write_state(self):
         out=StoreWriteState()
         with self._lock: self._native.check(self._native.store_write_state_get(self._live(),C.byref(out)))
@@ -1026,7 +1172,8 @@ class Store(_Handle):
             self._native.check(self._native.store_snapshot_create(self._live(), C.byref(output)))
             return StoreSnapshot(self._native, output)
 
-class StoreSnapshot(_Handle):
+class StoreSnapshot(_StoreBridgeHandle, _Handle):
+    _bridge_kind = 3
     _closer = "store_snapshot_close"
     def __init__(self, native, handle):
         super().__init__(native, handle)
@@ -1037,7 +1184,8 @@ class StoreSnapshot(_Handle):
     def scan(self, begin=b"", end=b"", *, reverse=False):
         return _store_scan(self, "store_cursor_open", begin, end, reverse)
 
-class StoreTransaction(_Handle):
+class StoreTransaction(_StoreBridgeHandle, _Handle):
+    _bridge_kind = 2
     def submit(self,force_reliable=False):
         out=C.c_void_p()
         with self._operation_lock,self._lock:

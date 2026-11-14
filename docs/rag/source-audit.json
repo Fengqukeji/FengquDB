@@ -1,0 +1,208 @@
+{
+  "schema": 1,
+  "audited_on": "2026-11-14",
+  "timezone": "Asia/Shanghai",
+  "status": "design only; no implementation or runtime validation",
+  "original_fengqudb_root": "D:\\study\\FengquDB",
+  "original_branch": "develop",
+  "original_uncommitted_sdk_changes": "not copied into the isolated worktree",
+  "repositories": [
+    {
+      "name": "FengquDB design branch",
+      "root": "D:\\study\\FengquDB-rag",
+      "head": "32348fb7d269a4b328936d8ab1d208d70b7f9a64",
+      "branch": "codex/rag-foundation",
+      "files": [
+        {
+          "path": "include/fengqudb.h",
+          "sha256": "8ba832f6ded141bac04e3c226fab46984db7249e65c7c30488948113b12c73f9",
+          "git_status": "",
+          "reading": "full or selected relevant sections; no runtime execution"
+        },
+        {
+          "path": "include/fengqudb_store.h",
+          "sha256": "3f814d4701bd09cbb290b513bf8b25c6790c3eef04ed621524f33a546dd813a5",
+          "git_status": "",
+          "reading": "full or selected relevant sections; no runtime execution"
+        },
+        {
+          "path": "include/fengqudb_store.hpp",
+          "sha256": "b7ac451ef269bddbde5fa78b15d52aa7c31977d945153418b77a6800d3c5c18b",
+          "git_status": "",
+          "reading": "full or selected relevant sections; no runtime execution"
+        },
+        {
+          "path": "docs/DEVELOPMENT.md",
+          "sha256": "c6e95136ee6289b9cb0f59bf7bd0a96cefdfa4e513ebd6ae7800999a47d99f29",
+          "git_status": "",
+          "reading": "full or selected relevant sections; no runtime execution"
+        }
+      ]
+    },
+    {
+      "name": "WordGame current workspace",
+      "root": "D:\\work\\WordGame",
+      "head": "9bf85d064f3754f3046d18018e6c6e20034ae34c",
+      "branch": "develop",
+      "files": [
+        {
+          "path": "AGENTS.md",
+          "sha256": "787ce0408dc3a5778c0a0f90a1172e67077684d3fa0207a688801417ccdccddd",
+          "git_status": "",
+          "reading": "full or selected relevant sections; no runtime execution"
+        },
+        {
+          "path": "backend/RAG.md",
+          "sha256": "ff985502dc6e2260ee08fcb9cb7fe1f314d0441f3334a4868d48e5fa9988ed65",
+          "git_status": "",
+          "reading": "full or selected relevant sections; no runtime execution"
+        },
+        {
+          "path": "backend/NPC_SYSTEM.md",
+          "sha256": "7c4a1866ff9908dd5a852f915f71ae5431560d2c7ef9527653c32d57b64b6237",
+          "git_status": "",
+          "reading": "full or selected relevant sections; no runtime execution"
+        },
+        {
+          "path": "backend/app/models/rag.py",
+          "sha256": "b65e8032e4d69024469e5477cc8301c49bfc1518d35e96bea5cd45d661c86926",
+          "git_status": "",
+          "reading": "full or selected relevant sections; no runtime execution"
+        },
+        {
+          "path": "backend/app/services/rag.py",
+          "sha256": "cb1641d1d4700c75fa839a19b8d5edeb9fc95711ec45a2ca40cc0cd486b286ed",
+          "git_status": "",
+          "reading": "full or selected relevant sections; no runtime execution"
+        },
+        {
+          "path": "backend/app/api/v1/rag.py",
+          "sha256": "611072fa4b73d163c5303072ed0350251ecdfc389724ffecb8659cc1ef25aaea",
+          "git_status": "",
+          "reading": "full or selected relevant sections; no runtime execution"
+        },
+        {
+          "path": "backend/app/services/ai/rag_tool.py",
+          "sha256": "675fd77f4a2c9dfa295fa8fb910158075fee7e29c4efe4d02a4096becb1b64e7",
+          "git_status": "",
+          "reading": "full or selected relevant sections; no runtime execution"
+        },
+        {
+          "path": "backend/app/services/ai/provider.py",
+          "sha256": "f9a08cb1eaba2395a1c95247c6bee0a2df03d0fc2013cebd3548f310cb901de0",
+          "git_status": "",
+          "reading": "full or selected relevant sections; no runtime execution"
+        },
+        {
+          "path": "backend/app/services/ai/embedding_provider.py",
+          "sha256": "1838bb2f51ca7f9d482922fffd2d1616baf95331114f84ae920ace413cfd8bd7",
+          "git_status": "",
+          "reading": "full or selected relevant sections; no runtime execution"
+        },
+        {
+          "path": "backend/app/core/config.py",
+          "sha256": "7392d96d96c103812eae700ecb6d5b5afc25a8aeff2d8e7ca6ed36cbb0e2152d",
+          "git_status": "",
+          "reading": "full or selected relevant sections; no runtime execution"
+        },
+        {
+          "path": "backend/app/services/game/events.py",
+          "sha256": "42a9e3cda12fa114dee0d435e4e01d8a27dc37ede8e07bd32a6d68b79adde5a2",
+          "git_status": "",
+          "reading": "full or selected relevant sections; no runtime execution"
+        },
+        {
+          "path": "backend/app/services/game/npc_memory.py",
+          "sha256": "c6674c85fb455bae44c9a1127dc696e28d51a81a527db62cccbc9240a392685e",
+          "git_status": "",
+          "reading": "full or selected relevant sections; no runtime execution"
+        },
+        {
+          "path": "backend/app/services/game/npc_cleanup.py",
+          "sha256": "05a4a439c5a7b657eed7059494b11edc68a3f4d151917c68b59f4ed9ce58c10b",
+          "git_status": "",
+          "reading": "full or selected relevant sections; no runtime execution"
+        },
+        {
+          "path": "backend/app/services/game/scene.py",
+          "sha256": "e61ce6333e019e1fd1abe333f727eb73a1d2f3d6a3881f7d0af1096310d17acf",
+          "git_status": "",
+          "reading": "full or selected relevant sections; no runtime execution"
+        },
+        {
+          "path": "backend/app/services/game/engagement.py",
+          "sha256": "6953e64314b2154cc0764625420b40fac389f29d9679cd9039e64a515aa57ac9",
+          "git_status": "",
+          "reading": "full or selected relevant sections; no runtime execution"
+        },
+        {
+          "path": "backend/app/services/game/item_icons.py",
+          "sha256": "f0f371121c11a560e2daa7ecd619f441c4c73c9ea04e6795a8dc95d2d19ce74a",
+          "git_status": " M backend/app/services/game/item_icons.py",
+          "reading": "full or selected relevant sections; no runtime execution"
+        },
+        {
+          "path": "backend/tests/test_rag.py",
+          "sha256": "e3df1adfc370a4a2e912165d0c5c70bfe321c15c6a96c3550478955817f6e748",
+          "git_status": "",
+          "reading": "full or selected relevant sections; no runtime execution"
+        },
+        {
+          "path": "backend/tests/test_rag_governance.py",
+          "sha256": "97ef79b386aae5d6a2843bbea99c0d486bd0d13bc2511253d0d477e06c56dd8f",
+          "git_status": "",
+          "reading": "full or selected relevant sections; no runtime execution"
+        },
+        {
+          "path": "backend/tests/test_game.py",
+          "sha256": "f56d5b47f4b09a248845387b115e6f11c8e0d86ba81b700d5f8d6276806cc3ee",
+          "git_status": "",
+          "reading": "full or selected relevant sections; no runtime execution"
+        },
+        {
+          "path": "backend/tests/test_npcs.py",
+          "sha256": "788789594baab6a4af4163b2356ba889fed2d7fdfbe01f0c4fbb0a6404046a22",
+          "git_status": "",
+          "reading": "full or selected relevant sections; no runtime execution"
+        },
+        {
+          "path": "backend/tests/smoke_game_rag.py",
+          "sha256": "9419257b22a8d2e82b16c1d472b923509e20fc9a761af303b2c4e45572577b54",
+          "git_status": "",
+          "reading": "full or selected relevant sections; no runtime execution"
+        },
+        {
+          "path": "backend/scripts/index_item_icons.py",
+          "sha256": "bbcfab021d39dea788da5321c68b9048163d98b20a8ef9676e6bb2b6ea061a7c",
+          "git_status": " M backend/scripts/index_item_icons.py",
+          "reading": "full or selected relevant sections; no runtime execution"
+        },
+        {
+          "path": "backend/scripts/migrate_embedding.py",
+          "sha256": "ffca740dbb9f27ac93b1880a98d3afbc85cfe4db3364cc59fb65d451dbb06c3e",
+          "git_status": "",
+          "reading": "full or selected relevant sections; no runtime execution"
+        },
+        {
+          "path": "backend/scripts/verify_rag.py",
+          "sha256": "a4babfd0705407358d0097b3e14125081260382d2cc03a6e54041cbd431ccb84",
+          "git_status": "",
+          "reading": "full or selected relevant sections; no runtime execution"
+        },
+        {
+          "path": "frontend/src/pages/rag.js",
+          "sha256": "af04c666eb1af3f9bf4f49c0e82ff8feb09f82f6e2defb34bb5c01e41e1741ec",
+          "git_status": "",
+          "reading": "full or selected relevant sections; no runtime execution"
+        }
+      ]
+    }
+  ],
+  "data_access": "No player RAG documents, model inference or business databases were read or modified.",
+  "limitations": [
+    "Git HEAD does not describe dirty workspaces; selected current file hashes are provided.",
+    "The source list covers decisive requirements; navigation/search may touch other source metadata.",
+    "Hashes identify the inspected snapshot, not runtime correctness."
+  ],
+  "tests_run": []
+}
