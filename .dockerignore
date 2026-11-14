@@ -1,0 +1,7 @@
+.git
+.agents
+build
+artifacts
+**/__pycache__
+**/*.pyc
+wiki-data

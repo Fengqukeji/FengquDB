@@ -1,0 +1,18 @@
+services:
+  wiki:
+    build:
+      context: ../..
+      dockerfile: deploy/llmwiki/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8098:8098"
+    environment:
+      WIKI_TOKEN: ${WIKI_TOKEN:?Set WIKI_TOKEN to at least 24 ASCII characters}
+      WIKI_MODEL_URL: ${WIKI_MODEL_URL:-}
+      WIKI_MODEL: ${WIKI_MODEL:-}
+      WIKI_MODEL_KEY: ${WIKI_MODEL_KEY:-}
+    volumes:
+      - wiki-data:/data
+    stop_grace_period: 120s
+volumes:
+  wiki-data:

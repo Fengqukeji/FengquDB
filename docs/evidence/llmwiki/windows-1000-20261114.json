@@ -1,0 +1,44 @@
+{
+  "sources": 1000,
+  "source_characters": 1080,
+  "queries": 100,
+  "compiled": 1000,
+  "ingest_sources_per_second": 90.58,
+  "compile_pages_per_second": 72.3,
+  "unchanged_sources_per_second": 11426.78,
+  "search_ms": {
+    "p50": 26.748,
+    "p95": 79.271,
+    "max": 204.679
+  },
+  "query_classes_ms": {
+    "rare_term": {
+      "p50": 0.579,
+      "p95": 0.874
+    },
+    "broad_chinese": {
+      "p50": 64.658,
+      "p95": 82.631
+    }
+  },
+  "truncated_queries": 50,
+  "max_postings_visited": 12000,
+  "status": {
+    "namespace": "default",
+    "schema": 1,
+    "provider": "extractive-v1",
+    "search": {
+      "count": 2000,
+      "length": 949000
+    },
+    "jobs": {
+      "done": 1000
+    },
+    "database": {
+      "version": 4001,
+      "durable_version": 4001,
+      "file_bytes": 166778661
+    }
+  },
+  "conditions": "single process; warm cache; reliable commits; offline extractive compiler; synthetic bilingual corpus"
+}

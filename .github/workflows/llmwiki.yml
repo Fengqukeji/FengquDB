@@ -1,0 +1,40 @@
+name: LLM Wiki
+on:
+  push:
+    paths: ['llmwiki/**', 'tests/test_llmwiki.py', 'scripts/*llmwiki*', 'deploy/llmwiki/**', 'src/**', 'include/**', 'bindings/python/fengqudb.py', 'CMakeLists.txt', '.github/workflows/llmwiki.yml']
+  pull_request:
+    paths: ['llmwiki/**', 'tests/test_llmwiki.py', 'scripts/*llmwiki*', 'deploy/llmwiki/**', 'src/**', 'include/**', 'bindings/python/fengqudb.py', 'CMakeLists.txt', '.github/workflows/llmwiki.yml']
+jobs:
+  wiki:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Configure
+        run: cmake -S . -B build/wiki -DCMAKE_BUILD_TYPE=Release -DFQDB_BUILD_TOOLS=OFF -DFQDB_BUILD_DIAGNOSTICS=OFF -DBUILD_TESTING=OFF -DFQDB_RELEASE_IPO=OFF
+      - name: Build runtime
+        run: cmake --build build/wiki --config Release --target fengqudb --parallel 2
+      - name: Windows integration
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $env:FENGQUDB_LIBRARY = (Resolve-Path build/wiki/Release/fengqudb.dll).Path
+          python -m unittest discover -s tests -p test_llmwiki.py -v
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python scripts/package-llmwiki.py --library build/wiki/Release/fengqudb.dll --output artifacts/FengquWiki-win-x64.zip
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python scripts/verify-llmwiki-package.py artifacts/FengquWiki-win-x64.zip
+          exit $LASTEXITCODE
+      - name: Linux integration
+        if: runner.os == 'Linux'
+        env:
+          FENGQUDB_LIBRARY: ${{ github.workspace }}/build/wiki/libfengqudb.so
+        run: |
+          python -m unittest discover -s tests -p test_llmwiki.py -v
+          python scripts/package-llmwiki.py --library build/wiki/libfengqudb.so --output artifacts/FengquWiki-linux-x64.zip
+          python scripts/verify-llmwiki-package.py artifacts/FengquWiki-linux-x64.zip
