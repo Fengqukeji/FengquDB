@@ -74,3 +74,11 @@ python tools/llmwiki_benchmark.py --sources 1000 --queries 100 --output build/wi
 本轮仍使用 `32348fb` 核心与已有原生库，不改数据库、公共绑定或共享构建。相关测试在 Windows x64 **24/24** 通过（3.917 秒），Docker Linux x64 **24/24** 通过（2.730 秒）。新增 4 项覆盖 Provider 全链路路由、禁止静默切换格式、旧 Python 索引认领和拒绝非原子异步实现。
 
 未实现原生 Provider、结构化过滤、异步索引水位和稳定句柄借用桥接；文档将其列为公共索引接入要求。没有另写 C++ 倒排/HNSW，也没有启动模型下载、蒸馏或训练。此前最终 ZIP 和 release manifest 仍对应 `92efa28` 首版，不能把它们当成本轮源码的部署包。
+
+### 公共契约核对与结果状态
+
+根据索引工作树的 `docs/FOUNDATION_COORDINATION.md`，本轮明确记录 domain_revision 与独立 projection_version、生命周期及发布代数、原件归属和 index_space/统计隔离要求。页面 stale 镜像不被当成完整的版本化投影实现；版本化 CAS/patch/erase 仍待原生接入。
+
+运行时新增排名、终止、覆盖、命中总量关系及空结果确认的独立字段，search/ask 均传播；仅有空数组的旧 Provider 回包采用 unknown 覆盖，近似且正常结束不自动算截断。Python 穷尽评分使用未舍入分数排序，预算受限时明确标记 approximate 和具体限制。
+
+Windows x64 **28/28** 测试通过（4.027 秒），Docker Linux x64 **28/28** 通过（2.800 秒）。新增验证确认词法未命中、受限空结果不能确认未命中、近似完成与截断分离、旧 Provider 覆盖未知；既有问答与预算测试同时验证最终字段传播。本轮未重新测量性能或更新此前发布包，未改其他工作树、公共绑定或共享构建，未启动训练。

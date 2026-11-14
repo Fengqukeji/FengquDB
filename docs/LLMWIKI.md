@@ -141,6 +141,8 @@ FengquWiki 的写事务使用 `force_reliable=True`，返回前等待可靠提�
 
 问答只使用检索证据，默认 6 条、24,000 字符上下文，模型输出必须包含有效 `[E1]` 标签。返回 `evidence`、`citation_validated`、`stale`、`truncated`。`citation_validated=true` 只表示引用标签与提供的证据集合一致；不保证每一句话都得到证据支持。`stale=true` 表示模型响应期间来源或页面发生变化，调用方应重试或展示旧版本提示。`observed_database_version` 是取证时观察到的数据库版本，不冒充底层快照的精确版本号。
 
+search/ask 同时返回 `ranking_kind`、`termination`、`index_coverage`、`total_hits` 与 `empty_result_confirmed`，分别描述排名、终止、覆盖和空结果证明。近似排名本身不等于预算截断；未确认无匹配项的空结果不会被描述成完整未命中。当前精确 `snapshot_version` / `applied_sequence` 为 null。
+
 ## HTTP API
 
 服务暴露非回环地址时必须设置至少 24 个 ASCII 字符的 `WIKI_TOKEN`。除 `/health` 外所有接口都校验 `Authorization: Bearer <token>`。默认最多 24 个同时处理的连接、15 秒 socket 超时、2 MiB 请求体；不允许跨域 CORS。服务是面向受信客户端的轻量后端，对外部署应由 TLS 反向代理承担 TLS、速率限制和组织级身份认证。

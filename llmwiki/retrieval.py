@@ -76,7 +76,7 @@ def index_document(tx, doc_id, document):
 def search(view, query, *, limit=10, posting_budget=12000, candidate_budget=1024):
     stats = view.get("search/stats", {"count": 0, "length": 0})
     terms = list(dict.fromkeys(term_key(t) for t in tokens(query)))
-    truncated = len(terms) > 32
+    reasons = ["query_term_limit"] if len(terms) > 32 else []
     terms = terms[:32]
     dfs = view.get_many(["df/" + t for t in terms])
     ranked = sorted((df, term) for term, df in zip(terms, dfs) if df)
@@ -86,17 +86,20 @@ def search(view, query, *, limit=10, posting_budget=12000, candidate_budget=1024
         idf = math.log(1 + (stats["count"] - df + 0.5) / (df + 0.5))
         for key, (frequency, length) in view.scan("post/" + term + "/"):
             if visited >= posting_budget:
-                truncated = True
+                if "posting_limit" not in reasons:
+                    reasons.append("posting_limit")
                 break
             visited += 1
             doc_id = key.rsplit("/", 1)[1]
             if doc_id not in scores and len(scores) >= candidate_budget:
-                truncated = True
+                if "candidate_limit" not in reasons:
+                    reasons.append("candidate_limit")
                 continue
             score = idf * frequency * 2.2 / (frequency + 1.2 * (0.25 + 0.75 * length / max(avg, 1)))
             scores[doc_id] = scores.get(doc_id, 0) + score
         if visited >= posting_budget:
-            truncated |= term_index + 1 < len(ranked)
+            if term_index + 1 < len(ranked) and "posting_limit" not in reasons:
+                reasons.append("posting_limit")
             break
     # Fetch candidates in one native batch; do not scan the whole corpus.
     candidates = heapq.nlargest(candidate_budget, scores, key=lambda key: (scores[key], key))
@@ -113,10 +116,17 @@ def search(view, query, *, limit=10, posting_budget=12000, candidate_budget=1024
                 continue
         results.append({k: v for k, v in document.items() if k not in ("terms", "length")} |
                        {"id": doc_id, "score": round(scores[doc_id], 6)})
-    results.sort(key=lambda d: (-d["score"], d["id"]))
+    # Rank with unrounded scores; presentation rounding must not change Top K.
+    results.sort(key=lambda d: (-scores[d["id"]], d["id"]))
+    total_hits = len(results)
     results = results[:limit]
     for result, body in zip(results, view.get_many(["body/" + d["id"] for d in results])):
         result["text"] = (body or "")[:4000]
         result["text_truncated"] = len(body or "") > 4000
+    truncated = bool(reasons)
     return {"results": results, "truncated": truncated, "postings_visited": visited,
-            "candidates": len(candidates)}
+            "candidates": len(candidates), "ranking_kind": "approximate" if truncated else "exact",
+            "termination": reasons[-1] if reasons else "finished", "degraded_reasons": reasons,
+            "index_coverage": "complete", "snapshot_version": None, "applied_sequence": None,
+            "total_hits": {"value": total_hits, "relation": "lower_bound" if truncated else "exact"},
+            "empty_result_confirmed": not truncated and total_hits == 0}

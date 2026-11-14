@@ -89,6 +89,10 @@ class WikiTests(unittest.TestCase):
         self.add("test:three", "anotherterm")
         result = self.wiki.search("rarecommon anotherterm", posting_budget=1)
         self.assertTrue(result["truncated"])
+        self.assertEqual("approximate", result["ranking_kind"])
+        self.assertEqual("posting_limit", result["termination"])
+        self.assertEqual("complete", result["index_coverage"])
+        self.assertEqual("lower_bound", result["total_hits"]["relation"])
 
     def test_topics_backlinks_and_selective_rebuild(self):
         first, second = self.add(), self.add("test:two", "Storage uses write-ahead logging.", "Logging")
@@ -256,6 +260,9 @@ class WikiTests(unittest.TestCase):
         self.drain()
         answer = self.wiki.ask("atomic transactions")
         self.assertTrue(answer["citation_validated"])
+        self.assertEqual("finished", answer["termination"])
+        self.assertEqual("complete", answer["index_coverage"])
+        self.assertEqual("exact", answer["ranking_kind"])
         self.assertFalse(answer["stale"])
         self.assertIn("[E1]", answer["answer"])
         self.assertFalse(self.wiki.ask("nonexistentterm") ["citation_validated"])
@@ -365,6 +372,58 @@ class WikiTests(unittest.TestCase):
         with self.assertRaises(WikiError):
             Wiki(unopened, library=LIBRARY, index_provider=Asynchronous())
         self.assertFalse(unopened.exists())
+
+    def test_complete_lexical_empty_result_is_explicitly_confirmed(self):
+        self.add()
+        result = self.wiki.search("unmatcheduniqueterm")
+        self.assertEqual("exact", result["ranking_kind"])
+        self.assertEqual("finished", result["termination"])
+        self.assertEqual("complete", result["index_coverage"])
+        self.assertEqual({"value": 0, "relation": "exact"}, result["total_hits"])
+        self.assertTrue(result["empty_result_confirmed"])
+        self.assertIsNone(result["snapshot_version"])
+        self.assertIsNone(result["applied_sequence"])
+        self.assertTrue(self.wiki.ask("unmatcheduniqueterm")["empty_result_confirmed"])
+
+    def test_interrupted_empty_result_is_not_a_confirmed_miss(self):
+        class Partial(PythonIndexProvider):
+            def search(self, *_args, **_kwargs):
+                return {"results": [], "ranking_kind": "approximate", "termination": "candidate_limit",
+                        "index_coverage": "complete", "total_hits": {"value": 0, "relation": "lower_bound"},
+                        "empty_result_confirmed": True}
+        self.wiki.close()
+        self.wiki = Wiki(self.path, library=LIBRARY, index_provider=Partial())
+        result = self.wiki.ask("storage")
+        self.assertFalse(result["empty_result_confirmed"])
+        self.assertTrue(result["truncated"])
+        self.assertEqual("candidate_limit", result["termination"])
+        self.assertIn("has not been confirmed", result["answer"])
+
+    def test_approximate_finished_empty_result_is_not_truncation_or_proof(self):
+        class Approximate(PythonIndexProvider):
+            def search(self, *_args, **_kwargs):
+                return {"results": [], "ranking_kind": "approximate", "termination": "finished",
+                        "index_coverage": "complete", "total_hits": {"value": None, "relation": "unknown"}}
+        self.wiki.close()
+        self.wiki = Wiki(self.path, library=LIBRARY, index_provider=Approximate())
+        result = self.wiki.ask("storage")
+        self.assertFalse(result["empty_result_confirmed"])
+        self.assertFalse(result["truncated"])
+        self.assertEqual("finished", result["termination"])
+        self.assertEqual("approximate", result["ranking_kind"])
+        self.assertIn("has not been confirmed", result["answer"])
+
+    def test_legacy_empty_provider_has_unknown_coverage(self):
+        class Legacy(PythonIndexProvider):
+            def search(self, *_args, **_kwargs):
+                return {"results": [], "truncated": False}
+        self.wiki.close()
+        self.wiki = Wiki(self.path, library=LIBRARY, index_provider=Legacy())
+        result = self.wiki.search("storage")
+        self.assertEqual("unknown", result["termination"])
+        self.assertEqual("unknown", result["index_coverage"])
+        self.assertTrue(result["truncated"])
+        self.assertFalse(result["empty_result_confirmed"])
 
     def test_http_auth_validation_and_routes(self):
         token = "test-secret-with-at-least-24-characters"

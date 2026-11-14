@@ -42,6 +42,31 @@ class IndexProvider(Protocol):
 DEFAULT_DEFINITION = IndexDefinition("python-bm25", 1, retrieval.TOKENIZER_VERSION)
 
 
+def normalize_search_result(result):
+    """Keep quality, termination and coverage separate; never infer a proved miss."""
+    normalized = dict(result)
+    normalized.setdefault("ranking_kind", "approximate")
+    normalized.setdefault("termination", "unknown")
+    normalized.setdefault("index_coverage", "unknown")
+    normalized.setdefault("snapshot_version", None)
+    normalized.setdefault("applied_sequence", None)
+    normalized.setdefault("total_hits", {"value": None, "relation": "unknown"})
+    normalized.setdefault("degraded_reasons", [])
+    incomplete = (normalized["termination"] != "finished" or normalized["index_coverage"] != "complete")
+    # Approximate ANN ranking can finish without interruption; it is not itself truncation.
+    normalized["truncated"] = bool(normalized.get("truncated", False) or incomplete)
+    total = normalized["total_hits"]
+    normalized["empty_result_confirmed"] = bool(
+        normalized.get("empty_result_confirmed", False) and not normalized.get("results") and
+        not normalized["truncated"] and total.get("relation") == "exact" and total.get("value") == 0)
+    return normalized
+
+
+def search_quality(result):
+    return {name: result[name] for name in ("ranking_kind", "termination", "index_coverage", "snapshot_version",
+        "applied_sequence", "total_hits", "degraded_reasons", "empty_result_confirmed")}
+
+
 class PythonIndexProvider:
     """Compatibility/reference adapter, not a second implementation of retrieval."""
 

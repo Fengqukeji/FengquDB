@@ -7,7 +7,8 @@ import uuid
 from pathlib import Path
 
 from . import retrieval
-from .index_provider import DEFAULT_DEFINITION, IndexDefinition, PythonIndexProvider
+from .index_provider import (DEFAULT_DEFINITION, IndexDefinition, PythonIndexProvider,
+                             normalize_search_result, search_quality)
 from .providers import ExtractiveProvider, PROMPT_VERSION, ProviderError
 from .storage import Repository, encode
 
@@ -256,7 +257,8 @@ class Wiki:
         bounded_limit(posting_budget, 100000)
         bounded_limit(candidate_budget, 4096)
         with self.repo.snapshot() as view:
-            return self.index.search(view, query, limit=limit, posting_budget=posting_budget, candidate_budget=candidate_budget)
+            return normalize_search_result(self.index.search(view, query, limit=limit,
+                posting_budget=posting_budget, candidate_budget=candidate_budget))
 
     def _claim(self, lease_ms):
         stamp = now_ms()
@@ -412,7 +414,7 @@ class Wiki:
         bounded_limit(context_chars, 60000)
         # Retrieval and evidence extraction use one consistent snapshot.
         with self.repo.snapshot() as view:
-            found = self.index.search(view, question, limit=limit)
+            found = normalize_search_result(self.index.search(view, question, limit=limit))
             evidence, remaining, seen = [], context_chars, set()
             for item in found["results"]:
                 if remaining <= 0:
@@ -429,8 +431,10 @@ class Wiki:
                                  "title": item["title"], "citations": item["citations"], "document_id": item["id"]})
             observed_version = self.repo.store.info().version
         if not evidence:
-            return {"answer": "No supporting evidence found.", "evidence": [], "citation_validated": False,
-                    "truncated": found["truncated"]}
+            message = ("No supporting evidence found." if found["empty_result_confirmed"] else
+                       "No evidence returned; absence of matching evidence has not been confirmed.")
+            return {"answer": message, "evidence": [], "citation_validated": False,
+                    "truncated": found["truncated"], **search_quality(found)}
         answer = self.provider.answer(question, evidence)
         allowed = {e["label"] for e in evidence}
         used = set(re.findall(r"\[(E\d+)\]", answer)) if isinstance(answer, str) else set()
@@ -449,7 +453,8 @@ class Wiki:
                     stale |= page is None or page["stale"]
         return {"answer": answer, "evidence": evidence, "citation_validated": True, "stale": stale,
                 "observed_database_version": observed_version,
-                "truncated": found["truncated"] or remaining == 0 or any(d["text_truncated"] for d in found["results"])}
+                "truncated": found["truncated"] or remaining == 0 or any(d["text_truncated"] for d in found["results"]),
+                **search_quality(found)}
 
     def status(self):
         with self.repo.snapshot() as view:

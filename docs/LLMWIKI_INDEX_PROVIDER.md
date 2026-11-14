@@ -2,6 +2,8 @@
 
 日期：2026-11-14。作用域：`D:/study/FengquDB-llmwiki` / `codex/llmwiki`。本文件供 FengquIndex、FengquRAG 与 Wiki 协作对齐，接口字段为逻辑契约，不定义公共 C ABI 的结构体布局。
 
+共同词汇以 [FOUNDATION_COORDINATION.md](D:/study/FengquDB-index/docs/FOUNDATION_COORDINATION.md) 为准。共同数据库基线仍为 `32348fb`；本轮只改 Wiki 工作树，不实现公共 C++ 检索或启动模型训练。
+
 ## 已落地的边界
 
 `llmwiki/index_provider.py` 定义 `IndexProvider`、`IndexDefinition` 和 `PythonIndexProvider`。`Wiki(..., provider=...)` 仍是模型接口；新增 `Wiki(..., index_provider=...)` 才是检索接口，两者互不绑定。
@@ -41,13 +43,37 @@ Wiki 继续拥有来源摄入、不可变原文、分块边界、编译规格、
 | scope | 当前 Wiki namespace 的稳定分区标识；不是权限凭据 |
 | collection | `raw_chunks` 或 `wiki_pages` |
 | id | 原文块 `c-<source-id>-<ordinal>`；页 `p-<page-id>`，保持稳定 |
-| revision | 原文块使用原始来源 SHA-256 修订；页使用编译指纹 |
+| domain_revision | 当前文档的 `revision`：原文块使用来源 SHA-256 修订，页使用编译指纹 |
+| source_revision | 原文块来源修订；页面保留每条引用各自的来源修订 |
+| projection_version | 独立、单调的检索投影版本，不能从 domain_revision 推断；原生对接待实现 |
+| lifecycle_generation | 删除、清空和身份重建代次；不能拿普通正文修订替代，原生对接待实现 |
 | title / body | 来源标题及原文块，或主题标题及编译 Markdown |
 | metadata | kind、source_id/page_id、来源修订、页可见性；未来业务过滤字段另设有类型的 schema |
 | sources | Wiki 提供的引用列表：source_id、revision、URI、标题和 `[start,end)` |
 | deleted | 当前检索投影的删除状态；不可变原文历史仍由 Wiki 保留 |
 
 文档 revision、来源 revision、数据库 commit version 与异步索引水位是不同概念。页的编译指纹不能代替每条引用的原文版本；URI 和时间戳也不能代替版本保护。一个页可能引用多个来源，不能只留下第一条来源。
+
+### 投影版本与页面发布状态的具体要求
+
+当前 Python 端口已经覆盖 upsert、delete、页面状态镜像、元信息读取、检索和统计，绝非只包装 search；但它尚未提供独立 projection_version/lifecycle_generation 的版本化 CAS，不能描述成公共原生投影契约已经实现。
+
+| Wiki 变化 | domain_revision | 必须推进的投影/领域状态 |
+| --- | --- | --- |
+| 来源正文或标题更新 | 来源 SHA-256 修订变化 | 受影响 chunk 的 projection_version、来源发布版本及所有依赖页状态投影 |
+| 已发布页 ready → dirty | 页正文指纹可以不变 | page 的 projection_version，保留原 publication_generation 并变更状态 |
+| dirty 页再次被新资料作废 | 页正文指纹仍可不变 | 若编译目标/来源发布集合改变，推进状态投影；不能因 stale 已经为 true 就忽略新目标 |
+| 新结果发布为 ready | 指纹可能变化；相同输入缓存再发布时也可能不变 | 新 publication_generation 与 projection_version，绑定此次来源/规格快照 |
+| chunk 所属发布版本变化 | 块正文或来源哈希可相同 | 新的所属发布标识与 projection_version，候选和物化阶段都核对 |
+| 删除/退役、删后重建、清空 | 旧哈希可能在日后再次出现 | 推进 projection_version，保留最小墓碑和 lifecycle_generation；旧请求不可复活新代次 |
+
+`job.generation` 是编译调度代数，`spec.generation` 是编译规格代数，二者都不能直接充当 publication_generation 或 projection_version。现有任务 token 能拦截旧模型响应，但不是公共索引后台任务的生命周期屏障。
+
+下一阶段由 Wiki 在领域事务内持久化这些权威状态，并向原生 Provider 传入完整身份、期望投影版本、新版本、输入摘要及来源定位。相同投影版本且摘要不同为冲突，旧版本 update/erase 不得覆盖新投影；幂等重放只接受完整身份、版本和摘要一致。当前 `delete(tx,id)` 以及状态字典只是兼容端口，正式原生适配时需要 expected_projection_version 的 erase/patch 接口，不能在内部假装已有该保护。
+
+`index_space` 由 Provider 的格式、Analyzer、统计分区决定。当前 IndexDefinition 只记录本地格式身份，不是完整的 index_space/Analyzer 指纹；原生对接时由公共配置补齐并持久化。Wiki namespace 至少隔离各自 BM25 统计；未来同 namespace 下若加入不可互见的资料范围，还必须细分获授权统计分区，不能通过 DF、总量、Explain 或分数泄露其他私有范围。外部填写的 scope/owner 字符串不是授权证明。
+
+权威 raw/page 始终由 Wiki 持有。Python 对照的 `body/` 是可重建正文副本；公共原生索引不必再持有一份完整原文，可返回域原件定位引用并在同一快照经域回调物化。不能把旧 Python 物理键布局变成公共索引的强制存储规范。
 
 当前 Wiki 的原文引用范围是 **Unicode code point 偏移**；公共索引计划使用 **UTF-8 原文字节偏移**。适配层必须明确转换：原文块命中字节范围先在未归一化块正文中验证 UTF-8 边界，再转换字符偏移，并加上块在原始来源中的 `start`。NFKC/casefold 后的位置不能直接切原文。Markdown 页内命中只能直接指向页的正文修订，不能据此伪造对底层原文逐字精确的引用。
 
@@ -82,15 +108,15 @@ Python 对照的 `search` 不支持上述结构化表达式；接入后由 Provi
 
 文档正文/元信息、倒排、DF/文档长度统计、过滤字段、删除与 stale 状态必须从同一个提交快照读取。查询开始后不得临时读取 Store 当前值“补全”命中，因为那会混合两个修订。返回的来源修订要能通过 Wiki 的历史读取接口解析。
 
-目前 Python 绑定没有暴露 snapshot 的精确 commit version，Wiki 的 `observed_database_version` 只是取证时观察到的 Store 版本。因此不能把它回填为 `snapshot_version`、`indexed_through` 或“已追平”证明。待公共接口提供精确版本后再映射；在此之前明确返回未知，或使用事务内维护的应用序列。
+目前 Python 绑定没有暴露 snapshot 的精确 commit version，Wiki 的 `observed_database_version` 只是取证时观察到的 Store 版本。因此不能把它回填为 `snapshot_version`、`applied_sequence` 或“已追平”证明。待公共接口提供精确版本后再映射；在此之前明确返回未知，或使用事务内维护的应用序列。
 
 ### 可选异步派生索引
 
-建议最小水位标识为 `(scope, generation, mutation_sequence)`：
+建议水位按 `index_space` 和重建 generation 分区，以领域的 `mutation_sequence` 为目标、连续完成的 `applied_sequence` 为实际值：
 
 - 每次影响检索内容、删除状态或页面可见性的提交推进同一 scope 的 `mutation_sequence`；领取任务、日志查询等无关行为不应伪装成内容更新。
 - `generation` 在重建/格式切换时更换。旧 generation 的游标、租约和水位不能自动解释成新 generation 的已完成工作。
-- `indexed_through` 表示该 generation 中**此前所有变更**均已处理的连续水位，不能取“曾经处理的最大序号”掩盖缺口。向量还须携带 model-space 身份及自己的连续水位。
+- `applied_sequence` 表示该 generation 中**此前所有变更**均已处理的连续水位，不能取“曾经处理的最大序号”掩盖缺口。向量还须携带 model-space 身份及自己的连续水位。
 - 原文/页写入与 durable outbox 事件同事务提交。worker 重启按检查点幂等重放；通知只用来唤醒，不能成为唯一恢复来源。
 - 后台向量/索引结果同时校验来源修订、mutation_sequence 和删除/重建代次。资料删后以相同正文重新出现时，内容哈希可能相同，旧结果也不能绕过删除代次保护。
 
@@ -117,17 +143,38 @@ Python 对照的 `search` 不支持上述结构化表达式；接入后由 Provi
   }],
   "truncated": false,
   "postings_visited": 2,
-  "candidates": 1
+  "candidates": 1,
+  "ranking_kind": "exact",
+  "termination": "finished",
+  "index_coverage": "complete",
+  "snapshot_version": null,
+  "applied_sequence": null,
+  "total_hits": {"value": 1, "relation": "exact"},
+  "degraded_reasons": [],
+  "empty_result_confirmed": false
 }
 ```
 
 `citations` 实际使用时必须是 Wiki 摄入/发布时提供的有效引用。页命中带 page_id，原文块带 source_id。返回纯复制值，不能把 C++ 借用视图泄露到已关闭快照后。
 
-公共索引可增加 `strategy`、`exact_top_k`、`degraded_reasons`、命中字段/字节范围、评分解释、稳定游标、精确 snapshot/version 或序列、水位等。字段名由公共接口统一确定，Wiki 适配器负责映射，不建立另一套同名 C ABI。
+本轮 Python 实现和 Wiki 最终 search/ask 回包已采用共同字段：
+
+| 字段 | 本轮实际含义 |
+| --- | --- |
+| `ranking_kind` | Python 穷尽已请求词项与候选时为 exact；预算裁剪后为 approximate。未来 ANN 可以 approximate 且正常 finished |
+| `termination` | finished / candidate_limit / posting_limit / query_term_limit；多个限制保存在 degraded_reasons |
+| `index_coverage` | 默认 Python 同事务索引为 complete；其他 Provider 未提供时为 unknown，不从空结果推断 |
+| `snapshot_version`、`applied_sequence` | 当前为 null；没有拿 observed_database_version 冒充精确快照或连续水位 |
+| `total_hits` | 穷尽可见候选时 exact，裁剪时 lower_bound；不是仅统计输出的 K 条 |
+| `empty_result_confirmed` | 必须是显式确认、执行完成且覆盖完整、exact total_hits=0，才能为 true |
+
+仅有空数组的旧 Provider 默认回填 unknown 覆盖/终止状态，不能被升级成确认无结果。ANN finished/complete 但没有 exact 空结果证明时，empty_result_confirmed 仍为 false；approximate 排名本身不使 truncated 变成 true。`ask` 无证据但未确认无匹配项时，返回“absence ... has not been confirmed”，不把它写成完整未命中。
+
+公共索引可再提供命中字段/字节范围、评分解释、稳定游标及精确版本值；Wiki 适配器映射共同字段，不建立另一套 C ABI。`ask.truncated` 还可表示上下文摘录被裁剪，排名/覆盖/termination 字段只描述本次检索，不把上下文预算混入索引终止原因。
 
 以下情况不得返回看似完整的成功：词项、倒排、候选、时间、内存预算耗尽，取消，索引未追平，或可选语义能力不可用。兼容层至少将实际裁剪映射为 `truncated=true`，保留具体状态；取消/不支持也可直接返回错误，不能丢掉原因。正文摘录截断与搜索覆盖截断分别报告。
 
-Python 对照按词面 BM25 评分，保留最多 32 个词项，默认 12,000 条倒排、1,024 个候选。它是有界近似 Top K，不能被当作原生 Block-Max/WAND 精确评分的正确性金标准。对照精确排名时须在小语料上提高预算到穷尽，并明确区分分词/字段权重差异。
+Python 对照按词面 BM25 评分，保留最多 32 个词项，默认 12,000 条倒排、1,024 个候选。超限结果是有界近似 Top K，不能被当作原生 Block-Max/WAND 精确评分的正确性金标准。小语料上预算足以穷尽时，用未四舍五入的内部得分排序后才输出展示分数，可作为本套分词/权重的精确排名对照；分词或字段权重不同的实现需要另外核对。
 
 ## 迁入原生索引与保留在 Wiki 的逻辑
 
