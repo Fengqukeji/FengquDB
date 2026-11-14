@@ -16,7 +16,7 @@ from .index_provider import (IndexDefinition,
                              normalize_search_result, search_quality)
 from .native_index_provider import NativeIndexProvider
 from .providers import ExtractiveProvider, PROMPT_VERSION, ProviderError
-from .storage import Repository, canonical, encode
+from .storage import Error, Repository, canonical, encode
 from .limits import WikiError, ConflictError, BudgetError, Limits
 from .knowledge import KnowledgeMixin, validate_knowledge
 
@@ -412,9 +412,10 @@ class Wiki(KnowledgeMixin):
                 posting_budget=posting_budget, candidate_budget=candidate_budget, **options))
 
     def _claim(self, lease_ms):
-        stamp = now_ms()
-
         def operation(tx):
+            # Admission/lock waits and transaction retries must not consume a
+            # lease whose owner has not received the claim yet.
+            stamp = now_ms()
             # Due-time ordered durable queue; no scan of completed job history.
             for key, page_id in tx.scan("queue/", limit=64):
                 if int(key.split("/")[1], 16) > stamp:
@@ -427,7 +428,7 @@ class Wiki(KnowledgeMixin):
                     job.update(state="failed", token=None, error="attempt budget exhausted")
                     self._set_job(tx, job)
                     continue
-                job.update(state="running", token=uuid.uuid4().hex, due_ms=stamp + lease_ms,
+                job.update(state="running", token=uuid.uuid4().hex, due_ms=now_ms() + lease_ms,
                            attempts=job["attempts"] + 1)
                 self._set_job(tx, job)
                 tx.put(self._queue_key(job), page_id)
@@ -476,7 +477,10 @@ class Wiki(KnowledgeMixin):
     def _renew(self, job, lease_ms):
         def operation(tx):
             current = tx.get("job/" + job["page_id"])
-            if not current or current["token"] != job["token"] or current["state"] != "running" or current["due_ms"] <= now_ms():
+            # Expiry permits a competing claim; it does not itself replace the
+            # token. A delayed heartbeat can renew until a claimant wins this
+            # same transactional fence, just like publication checks below.
+            if not current or current["token"] != job["token"] or current["state"] != "running":
                 return False
             tx.delete(self._queue_key(current))
             current["due_ms"] = now_ms() + lease_ms
@@ -488,13 +492,24 @@ class Wiki(KnowledgeMixin):
     @contextmanager
     def _heartbeat(self, job, lease_ms):
         finished = threading.Event()
+        interval = max(0.01, min(30, lease_ms / 3000))
         def renew():
-            while not finished.wait(max(0.01, min(30, lease_ms / 3000))):
+            # Start earlier if durable claim admission already used part of
+            # the lease. Fast jobs still avoid an unnecessary renewal write.
+            delay = min(interval, max(0, (job["due_ms"] - now_ms()) / 3000))
+            while not finished.wait(delay):
                 try:
                     if not self._renew(job, lease_ms):
                         return
+                except Error as exc:
+                    # A transient write failure does not prove token loss.
+                    # Retry at the bounded heartbeat cadence; a replacement
+                    # token will make the next successful check return False.
+                    if exc.code not in (4, 7, 17):  # I/O, conflict, timeout
+                        return
                 except Exception:
-                    return  # Publication still checks the durable fencing token.
+                    return
+                delay = interval
         thread = threading.Thread(target=renew, name="wiki-lease", daemon=True)
         thread.start()
         try:
@@ -509,6 +524,10 @@ class Wiki(KnowledgeMixin):
         job = self._claim(lease_ms)
         if not job:
             return None
+        with self._heartbeat(job, lease_ms):
+            return self._execute_job(job)
+
+    def _execute_job(self, job):
         page_id = job["page_id"]
         compiler = self.compiler or self.provider
         try:
@@ -541,8 +560,7 @@ class Wiki(KnowledgeMixin):
                     model_sources = [{k: v for k, v in s.items() if k != "knowledge_pending"} for s in sources]
                     if context:
                         model_sources[0]["verified_knowledge"] = context
-                    with self._heartbeat(job, lease_ms):
-                        artifact = compiler.compile(spec["title"], model_sources, spec["links"])
+                    artifact = compiler.compile(spec["title"], model_sources, spec["links"])
                     artifact = self._validate_artifact(artifact, sources, spec["links"])
                 else:
                     artifact = self._validate_artifact(artifact, sources, spec["links"])

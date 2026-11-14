@@ -191,9 +191,16 @@ class WikiTests(unittest.TestCase):
                 return artifact
         self.wiki.provider = FirstBlocks()
         source = self.add()
-        with ThreadPoolExecutor(1) as pool:
+        stopped = threading.Event()
+        def abandoned_heartbeat(*_args):
+            stopped.set()
+            return False
+        # Explicitly simulate an abandoned heartbeat before advancing time;
+        # a live delayed heartbeat may legitimately win the renewal CAS.
+        with patch.object(self.wiki, "_renew", side_effect=abandoned_heartbeat), ThreadPoolExecutor(1) as pool:
             future = pool.submit(lambda: self.wiki.run_once(lease_ms=1))
             self.assertTrue(entered.wait(10))
+            self.assertTrue(stopped.wait(5))
             with patch("llmwiki.wiki.now_ms", return_value=now_ms() + 10000):
                 self.assertEqual("done", self.wiki.run_once()["state"])
             release.set()

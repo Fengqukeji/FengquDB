@@ -5,7 +5,6 @@ import os
 import subprocess
 import tempfile
 import threading
-import time
 import unittest
 import urllib.error
 import urllib.request
@@ -17,6 +16,7 @@ from llmwiki import BudgetError, ConflictError, Limits, Wiki, WikiError
 from llmwiki.connectors import load_files
 from llmwiki.providers import ExtractiveProvider
 from llmwiki.server import WikiServer
+from llmwiki.wiki import now_ms
 
 CORE = os.environ.get("FENGQUDB_LIBRARY") or os.environ.get("FQDB_LIBRARY")
 
@@ -229,7 +229,13 @@ class FoundationTests(unittest.TestCase):
         self.assertFalse(result["citation_validated"])
         self.assertTrue(result["retryable"])
 
-    def test_worker_limits_counts_cancel_and_lease_renewal(self):
+    @patch("llmwiki.wiki.now_ms")
+    def test_worker_limits_counts_cancel_and_lease_renewal(self, wall_clock):
+        base = now_ms() + 1000
+        clock = [base]
+        wall_clock.side_effect = lambda: clock[0]
+        # run_jobs drains due work, not future work. Keep scheduling and
+        # renewal on one explicit timeline, independent of wall-clock steps.
         self.wiki.ingest_many([{"uri": "worker:" + str(i), "content": "work " + str(i)} for i in range(7)])
         result = self.wiki.run_jobs(limit=4, workers=3)
         self.assertEqual(4, len(result["items"]))
@@ -246,11 +252,23 @@ class FoundationTests(unittest.TestCase):
                 return super().compile(*args)
         self.wiki.compiler = Slow()
         self.wiki.ingest("worker:slow", "slow")
-        with ThreadPoolExecutor(1) as pool:
+        renewed = threading.Event()
+        renew = self.wiki._renew
+        def observe(job, lease_ms):
+            started = clock[0]
+            result = renew(job, lease_ms)
+            if result and started >= base + 300:
+                renewed.set()
+            return result
+        with patch.object(self.wiki, "_renew", side_effect=observe), ThreadPoolExecutor(1) as pool:
             future = pool.submit(self.wiki.run_once, lease_ms=150)
             try:
                 self.assertTrue(entered.wait(5))
-                time.sleep(.3)
+                # Keep the 150ms lease and simulate the reported 300ms stall.
+                # Synchronize actual renewal, rather than assuming OS thread
+                # scheduling always runs a heartbeat before a wall-clock sleep.
+                clock[0] = base + 300
+                self.assertTrue(renewed.wait(5))
                 self.assertIsNone(self.wiki._claim(150))
             finally:
                 release.set()
