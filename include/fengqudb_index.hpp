@@ -200,6 +200,8 @@ struct Query {
     std::optional<double> min_similarity;
     uint64_t posting_budget = 12000, candidate_budget = 1024, scan_budget = 100000;
     uint64_t memory_budget = 16ull << 20, timeout_ms = 0;
+    uint32_t result_projection = FQIDX_PROJECT_FULL;
+    uint64_t output_budget = FQIDX_DEFAULT_OUTPUT_BYTES;
     uint64_t expected_projection_version = 0, expected_mutation_sequence = 0;
 };
 // Views point into Result's owned native buffer. Keep Result alive and unmoved
@@ -241,7 +243,7 @@ class Result {
         return value;
     }
     template <class F> static void fields(std::string_view data, F fn) {
-        wire::Reader r(data);
+        wire::Reader r(data, data.size()); // admitted native response, not a stored value
         wire::Field f;
         while (r.next(f))
             if (!fn(r, f))
@@ -257,6 +259,7 @@ class Result {
              layout_generation = 0;
     std::optional<uint64_t> total_hits;
     uint32_t termination = 0, ranking_kind = 0, index_coverage = 0, match_evidence = 0;
+    uint32_t result_projection = FQIDX_PROJECT_FULL;
     std::string_view next_cursor, strategy, analyzer;
     explicit Result(Buffer data) : bytes_(std::move(data)) {
         fields(bytes_.view(), [&](wire::Reader &r, wire::Field f) {
@@ -265,6 +268,9 @@ class Result {
                 fields(bytes(r, f), [&](wire::Reader &a, wire::Field q) {
                     if (q.number == 1) {
                         h.document_wire = bytes(a, q);
+                        detail::check(h.document_wire.size() <= FQDB_MAX_VALUE_BYTES
+                                          ? FQDB_OK
+                                          : FQDB_CORRUPT);
                         fields(h.document_wire, [&](wire::Reader &d, wire::Field t) {
                             switch (t.number) {
                             case 1:
@@ -349,6 +355,12 @@ class Result {
                 hits.push_back(std::move(h));
             } else
                 switch (f.number) {
+                case 22: {
+                    auto projection = number(r, f);
+                    detail::check(projection <= FQIDX_PROJECT_HEADER ? FQDB_OK : FQDB_CORRUPT);
+                    result_projection = static_cast<uint32_t>(projection);
+                    break;
+                }
                 case 2:
                     snapshot_version = number(r, f);
                     break;
@@ -501,6 +513,8 @@ class Client {
             w.bytes_field(31, t);
         for (const auto &field : q.scoring_fields)
             w.bytes_field(32, field);
+        w.uint_field(33, q.result_projection);
+        w.uint_field(34, q.output_budget);
         return w.take();
     }
 

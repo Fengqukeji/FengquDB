@@ -1,0 +1,19 @@
+Start testing: Nov 14 15:14 UTC
+----------------------------------------------------------
+34/37 Testing: native_index_cpp
+34/37 Test: native_index_cpp
+Command: "/src/build/index-large-asan/fqdb_index_cpp_tests"
+Directory: /src/build/index-large-asan
+"native_index_cpp" start time: Nov 14 15:14 UTC
+Output:
+----------------------------------------------------------
+PASS C++ index convenience API
+<end of output>
+Test time =   3.20 sec
+----------------------------------------------------------
+Test Passed.
+"native_index_cpp" end time: Nov 14 15:14 UTC
+"native_index_cpp" time elapsed: 00:00:03
+----------------------------------------------------------
+
+End testing: Nov 14 15:14 UTC

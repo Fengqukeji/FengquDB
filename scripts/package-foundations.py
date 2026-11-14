@@ -14,7 +14,27 @@ def copy_tree(source, destination):
     shutil.copytree(source, destination, ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
 
 
+def check_shared_sources(rag, wiki):
+    # Each branch may own a different optional foundation, but must not ship a
+    # different Core underneath its public handle/allocator bridge.
+    shared = [p.relative_to(ROOT) for p in (ROOT / "src").rglob("*")
+              if p.is_file() and "index" not in p.relative_to(ROOT / "src").parts]
+    shared += [p.relative_to(ROOT) for p in (ROOT / "include").iterdir()
+               if p.is_file() and not p.name.startswith("fengqudb_index")]
+    shared += [Path("bindings/python/fengqudb.py")]
+    mismatches = []
+    for tree in (rag, wiki):
+        paths = shared + ([Path("bindings/python") / name for name in
+                          ("fengqudb_index.py", "fengqudb_index_wire.py")] if tree == wiki else [])
+        for path in paths:
+            if not (tree / path).is_file() or (ROOT / path).read_bytes() != (tree / path).read_bytes():
+                mismatches.append(str(tree / path))
+    if mismatches:
+        raise ValueError("Synchronize shared Core/bindings before packaging:\n" + "\n".join(mismatches))
+
+
 def build(output, rag, wiki):
+    check_shared_sources(rag, wiki)
     # Refuse stale mixed packages; a caller chooses a fresh output directory.
     output.mkdir(parents=True, exist_ok=False)
     python = output / "python/FengquDB"
@@ -32,13 +52,13 @@ def build(output, rag, wiki):
     (python / "__init__.py").write_text('''"""FengquDB native storage, retrieval, RAG and Wiki foundations."""
 from .bindings.python.fengqudb import Store, Error, StoreWriteMode
 from .bindings.python.fengqudb_index import NativeIndex, QueryControl
-from .bindings.python.fengqudb_index_wire import Document, Mutation, Query, Predicate, Phrase, Maintenance, vector
+from .bindings.python.fengqudb_index_wire import Document, Mutation, Query, Predicate, Phrase, Maintenance, Projection, vector
 from .bindings.python.fengqudb_rag import (MemoryStore, MemoryWrite, MemoryImport,
     MemorySearch, MemoryList, MemoryDelete, EmbeddingContract, CallbackEmbedding, QueryBudget)
 from .llmwiki import Wiki, WikiError
 
 __all__ = ["Store", "Error", "StoreWriteMode", "NativeIndex", "QueryControl", "Document", "Mutation", "Query",
-    "Predicate", "Phrase", "Maintenance", "vector", "MemoryStore", "MemoryWrite", "MemoryImport",
+    "Predicate", "Phrase", "Maintenance", "Projection", "vector", "MemoryStore", "MemoryWrite", "MemoryImport",
     "MemorySearch", "MemoryList", "MemoryDelete", "EmbeddingContract", "CallbackEmbedding", "QueryBudget",
     "Wiki", "WikiError"]
 ''', encoding="utf-8")
@@ -94,13 +114,21 @@ set_target_properties(FengquDB::Index PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "
         if file.is_file():
             manifest["files"][file.relative_to(output).as_posix()] = {
                 "bytes": file.stat().st_size, "sha256": hashlib.sha256(file.read_bytes()).hexdigest()}
+    manifest["release_id"] = hashlib.sha256(json.dumps(manifest["files"], sort_keys=True).encode()).hexdigest()
+    # A consumer copies just one FengquDB folder, so its release identity and
+    # hashes must travel inside that folder (and therefore inside its ZIP).
+    for sdk in (python, cpp):
+        prefix = sdk.relative_to(output).as_posix() + "/"
+        sdk_manifest = {"format": 1, "release_id": manifest["release_id"], "files": {
+            name[len(prefix):]: value for name, value in manifest["files"].items() if name.startswith(prefix)}}
+        (sdk / "manifest.json").write_text(json.dumps(sdk_manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     (output / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     for folder, name in (("python", "Python"), ("cpp", "CPP")):
         with zipfile.ZipFile(output / f"FengquDB-{name}.zip", "w", zipfile.ZIP_DEFLATED) as archive:
             for file in sorted((output / folder).rglob("*")):
                 if file.is_file():
                     archive.write(file, file.relative_to(output / folder).as_posix())
-    print(json.dumps({"output": str(output), "files": len(manifest["files"]),
+    print(json.dumps({"output": str(output), "release_id": manifest["release_id"], "files": len(manifest["files"]),
                       "zip_bytes": {p.name: p.stat().st_size for p in output.glob("*.zip")}}, ensure_ascii=False))
 
 

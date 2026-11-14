@@ -1,0 +1,8 @@
+{
+  "records": 80,
+  "body_bytes_each": 900011,
+  "total_body_bytes": 72000880,
+  "output_budget": 134217728,
+  "all_bodies_equal": true,
+  "default_64_mib_returns_limit": true
+}

@@ -49,6 +49,10 @@ with db.snapshot() as view:
 
 查询可设候选、扫描、倒排、词项、内存、超时预算和 `QueryControl` 取消。默认超限报错；启用 `allow_partial` 后检查 `termination/index_coverage/match_evidence`。近似 Top K 与预算中断是不同状态，空数组本身不能证明没有匹配。
 
+查询默认返回完整文档，整批结果可以超过单条数据的 16 MiB 限制。默认结果预算为 64 MiB；更大结果可用 `NativeIndex(max_response_bytes=256 << 20)`，`execute` 会把该预算传给原生引擎，也可用 `output_budget` 为某次查询设置更低预算。该预算与 `memory_budget` 独立；实际内存还包括输出缓冲和 Python 对象。装不下时返回 `LIMIT`，不会截断后冒充成功，`allow_partial` 也不会绕过结果大小限制。
+
+只要概要时传 `result_projection=Projection.HEADER`（`from FengquDB import Projection`）：返回 ID、评分、版本、元数据、来源和 payload，省去文本与向量；存储内容和排名不变，再用 Get 可读完整文档。`after_id` 只用于 List 按 ID 分页，Search 暂无排名分页，传入会报错。
+
 ## RAG
 
 | 方法 | 常见用途 |

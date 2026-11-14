@@ -50,6 +50,8 @@ Linux 使用配套 `.so` 路径。文本和元数据名使用 `str`，ID、资�
 
 `execute(...,operation=Query.GET,id=...)` 读取单条，`Query.STATS` 读取统计，`Query.LIST` 分页。下一页传结果中的 `next_cursor` 到 `after_id`，并传 `expected_mutation_sequence`；保持同一快照可获得稳定遍历。
 
+默认回包包含完整文档，整批结果不受单条数据 16 MiB 限制。`NativeIndex(max_response_bytes=256 << 20)` 可提高默认 64 MiB 结果预算，`execute(...,output_budget=...)` 可限制某次查询；超限返回 `LIMIT`，不静默截断，`allow_partial` 也不绕过该限制。工作内存预算另算，实际内存包含输出与 Python 对象。传 `result_projection=Projection.HEADER` 可省略回包文本与向量，保留身份、版本、元数据、来源和 payload，Get 默认仍取完整内容。Search 不支持 `after_id` 排名分页，传入会明确报错。
+
 `Predicate` 操作号：1 相等、2 不等、3 小于、4 小于等于、5 大于、6 大于等于、7 IN、8 存在、9 AND、10 OR、11 NOT。组合条件通过 `children=(...)` 传入子条件；类型须与元数据一致。
 
 向量保存使用 `vector_f32_le=vector([...])` 和 `vector_space=b"模型空间身份"`；查询使用 `mode=1` 和对应的这两个字段，省略 `text`。原生核心做过滤后的精确余弦搜索，模型由业务提供。

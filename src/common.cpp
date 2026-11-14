@@ -1,6 +1,7 @@
 #include "fengqudb.h"
 #include <cstdlib>
 #include <cstring>
+#include <limits>
 
 uint32_t FQDB_CALL fqdb_abi_version(void) {
     return FQDB_ABI_VERSION;
@@ -36,7 +37,8 @@ const char *FQDB_CALL fqdb_status_message(fqdb_status s) {
     case FQDB_UNSUPPORTED:
         return "unsupported version/options";
     case FQDB_ASYNC_REQUIRED:
-        return "periodic writes require submit/poll; disable write scheduling for synchronous commit";
+        return "periodic writes require submit/poll; disable write scheduling for synchronous "
+               "commit";
     case FQDB_HISTORY_LOST:
         return "change cursor expired; rebuild from a snapshot";
     case FQDB_ALREADY_EXISTS:
@@ -63,8 +65,12 @@ fqdb_status FQDB_CALL fqdb_buffer_copy(fqdb_slice source, fqdb_buffer *out) {
     if (!out)
         return FQDB_INVALID_ARGUMENT;
     *out = {nullptr, 0};
-    if (source.size > FQDB_MAX_VALUE_BYTES || (source.size && !source.data))
+    if (source.size && !source.data)
         return FQDB_INVALID_ARGUMENT;
+    // Aggregate query responses are not individual stored values. Admission and
+    // output budgets belong to the caller; only addressability limits copying.
+    if (source.size > std::numeric_limits<size_t>::max())
+        return FQDB_LIMIT;
     if (!source.size)
         return FQDB_OK;
     auto data = std::malloc(static_cast<size_t>(source.size));

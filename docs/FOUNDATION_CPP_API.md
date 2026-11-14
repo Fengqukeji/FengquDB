@@ -54,3 +54,7 @@ for (const auto& hit : result.hits) { /* hit.id、score、payload、source_locat
 `Result` 拥有原生缓冲，Hit 的字符串视图随该 Result 生存。事务串行使用；不可变快照支持并发查询。修改的编码、原生调用或回包解码失败会取消整个外部事务，不能继续提交部分业务变更。
 
 Query 可设置倒排、候选、扫描、词项、内存、超时预算与取消回调。默认中断报错；显式 allow_partial 后检查 complete、termination、match_evidence。近似排名不等于预算中断，空结果也不总能证明没有匹配。
+
+查询默认返回完整文档，整批结果可以超过单条数据的 16 MiB 限制。`q.output_budget` 默认 64 MiB，可按需要增大；它限制编码后整批结果的大小，与工作内存预算独立。实际内存还包括输出缓冲及回包复制。结果装不下时返回 `FQDB_LIMIT`，不会截断后冒充成功，`allow_partial` 也不会绕过这个限制。
+
+只需要 ID、评分、版本、元数据、来源和 payload 时，设置 `q.result_projection=FQIDX_PROJECT_HEADER`。这只省去回包中的文本和向量，不修改存储内容、检索范围或排名；之后用 Get 可取完整文档。`after_id` 只用于 List 的 ID 分页，Search 暂无排名分页，传入该参数会报错。

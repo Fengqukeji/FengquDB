@@ -71,6 +71,10 @@ message Query {
   bool include_explain=30;
   repeated string excluded_terms=31; // lexical NOT: reject a document containing any analyzed term
   repeated string scoring_fields=32; // empty => all text fields; otherwise match/score only these fields
+  uint32 result_projection=33; // 0=full (default), 1=header: omit texts/vector, keep metadata/payload
+  uint64 output_budget=34; // default 64MiB; independent of single-value/working-memory limits
+  // Exceeding output_budget always returns LIMIT with no buffer, even with allow_partial.
+  // after_id is accepted only by List; Search has no ranking cursor in this protocol.
 }
 message MatchPosition { string field=1; uint64 begin=2; uint64 end=3; bytes snippet=4; uint64 snippet_begin=5; }
 message ScoreDetail { string term=1; string field=2; uint64 tf=3; uint64 length=4; double average_length=5; double idf=6; double weight=7; double contribution=8; }
@@ -97,6 +101,7 @@ message Result {
   uint64 blocks_visited=19;
   uint64 graph_visited=20;
   uint64 layout_generation=21;
+  uint32 result_projection=22; // same enum as Query.result_projection
 }
 message MaintenanceRequest {
   bytes index_space=1; bytes partition=2;

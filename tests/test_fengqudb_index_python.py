@@ -247,6 +247,8 @@ class NativeWireTests(unittest.TestCase):
         self.assertIsNone(result["total_hits"])
         with self.assertRaises(wire.WireError):
             wire.decode_result(wire._b(2, b"wrong snapshot version wire"))
+        with self.assertRaises(wire.WireError):
+            wire.decode_result(wire._u(22, 2 ** 32))
         for malformed in (b"\x80", b"\x0a\x05xx", b"\x00", b"\x80" * 10 + b"\x00"):
             with self.assertRaises(wire.WireError):
                 wire.decode_result(malformed)
@@ -352,6 +354,76 @@ class NativeLibraryIntegrationTests(unittest.TestCase):
         self.path = Path(self.directory.name) / "db"
     def tearDown(self):
         self.directory.cleanup()
+
+    def test_twenty_large_records_full_projection_and_independent_output_budget(self):
+        instance = {"index_space": b"bulk", "partition": b"public"}
+        body = "bulkneedle " + "x" * 900000
+        ids = {("row%03d" % i).encode() for i in range(20)}
+        with Store(self.path, library=CORE) as store:
+            for id in sorted(ids):
+                with store.transaction() as tx:
+                    self.client.mutate(tx, **instance, operation=wire.Mutation.UPSERT,
+                        document=wire.Document(id=id, projection_version=1, lifecycle_generation=1,
+                            texts={"summary": "bulkneedle", "body": body}, metadata={"kind": "bulk"},
+                            vector_f32_le=wire.vector([1, 0, 0]), vector_space=b"bulk-v1",
+                            payload=b"etag", source_locator=b"source/" + id))
+                    tx.commit(force_reliable=True)
+            with store.snapshot() as view:
+                query = dict(instance, text="bulkneedle", memory_budget=64 << 20)
+                for limit in (19, 20):
+                    for scoring_fields in ((), ("summary",)):
+                        raw = self.client.query(view, wire.encode_query(**query, limit=limit,
+                            scoring_fields=scoring_fields))
+                        self.assertGreater(len(raw), wire.MAX_MESSAGE)
+                        result = wire.decode_result(raw)
+                        self.assertEqual(limit, len(result["hits"]))
+                        self.assertEqual(20, result["total_hits"])
+                        self.assertEqual(0, result["termination"])
+                        for hit in result["hits"]:
+                            self.assertIn(hit["document"]["id"], ids)
+                            self.assertEqual(body, hit["document"]["texts"]["body"][0])
+                            self.assertEqual(b"etag", hit["document"]["payload"])
+                            self.assertEqual(12, len(hit["document"]["vector_f32_le"]))
+                header_raw = self.client.query(view, wire.encode_query(**query, limit=20,
+                    result_projection=wire.Projection.HEADER))
+                header = wire.decode_result(header_raw)
+                self.assertLess(len(header_raw), 16 * 1024)
+                self.assertEqual(wire.Projection.HEADER, header["result_projection"])
+                self.assertEqual(ids, {h["document"]["id"] for h in header["hits"]})
+                full = self.client.execute(view, **query, limit=20)
+                for thin, whole in zip(header["hits"], full["hits"]):
+                    self.assertEqual(whole["score"], thin["score"])
+                    self.assertEqual({}, thin["document"]["texts"])
+                    self.assertEqual(b"", thin["document"]["vector_f32_le"])
+                    for name in ("id", "projection_version", "lifecycle_generation", "metadata", "source_locator", "payload"):
+                        self.assertEqual(whole["document"][name], thin["document"][name])
+                exact = dict(query, limit=20, result_projection=wire.Projection.HEADER)
+                self.assertEqual(header, self.client.execute(view, **exact, output_budget=len(header_raw)))
+                for budget in (1, len(header_raw) - 1):
+                    for partial in (False, True):
+                        with self.assertRaises(Error) as raised:
+                            self.client.execute(view, **exact, output_budget=budget, allow_partial=partial)
+                        self.assertEqual(9, raised.exception.code)
+                # Even malformed/future callers using C directly receive LIMIT
+                # with an empty buffer, not a truncated successful result.
+                request = wire.encode_query(**exact, output_budget=1)
+                request_slice, owner = self.client._request(request)
+                with view.borrow_native() as lease:
+                    output = Slice()
+                    status = self.client.library.fqidx_snapshot_query(lease.pointer,
+                        store.native_identity().store_token, request_slice, None, C.byref(output))
+                    self.assertEqual(9, status)
+                    self.assertFalse(output.data)
+                    self.assertEqual(0, output.size)
+                get = self.client.execute(view, **instance, operation=wire.Query.GET, id=b"row000")
+                self.assertEqual(body, get["hits"][0]["document"]["texts"]["body"][0])
+                with self.assertRaises(wire.WireError):
+                    wire.encode_query(**query, after_id=b"row000")
+                # Bypass wrapper validation to exercise the native contract too.
+                search_after = wire.encode_query(**query) + wire._b(17, b"row000")
+                with self.assertRaises(Error) as raised:
+                    self.client.query(view, search_after)
+                self.assertEqual(3, raised.exception.code)
 
     def test_external_transaction_query_and_failed_apply_cancels_everything(self):
         instance = {"index_space": b"integration", "partition": b"p"}

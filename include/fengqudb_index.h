@@ -22,6 +22,10 @@ extern "C" {
 enum { FQIDX_APPLY_UPSERT = 1, FQIDX_APPLY_PATCH = 2, FQIDX_APPLY_ERASE = 3 };
 enum { FQIDX_QUERY_SEARCH = 1, FQIDX_QUERY_GET = 2, FQIDX_QUERY_STATS = 3, FQIDX_QUERY_LIST = 4 };
 enum { FQIDX_LEXICAL = 0, FQIDX_DENSE_EXACT = 1, FQIDX_DENSE_ANN = 2 };
+
+/* HEADER keeps identity, revisions, metadata, source locator and payload. */
+enum { FQIDX_PROJECT_FULL = 0, FQIDX_PROJECT_HEADER = 1 };
+#define FQIDX_DEFAULT_OUTPUT_BYTES 67108864ull
 enum {
     FQIDX_FINISHED = 0,
     FQIDX_POSTING_LIMIT = 1,

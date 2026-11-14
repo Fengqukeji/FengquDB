@@ -53,6 +53,8 @@ for (const auto& hit : result.hits) {
 
 `Query::Get` 配合 `id` 读取单条；`Query::Stats` 返回记录数；`Query::List` 按 ID 分页。下一页传 `after_id=result.next_cursor` 和 `expected_mutation_sequence=result.mutation_sequence`，并保持原快照；改用新快照后发生修改会报告冲突。事务内调用 `index.query(tx,q)` 可以读取本事务的修改。
 
+默认回包包含完整文档，整批结果不受单条数据 16 MiB 限制；`output_budget` 默认 64 MiB，可增大，超出返回 `LIMIT`，包括开启 `allow_partial` 时。工作内存预算另算，实际内存包含输出与复制。`result_projection=FQIDX_PROJECT_HEADER` 可选择只返回身份、版本、元数据、来源和 payload，省去文本与向量；Get 默认仍取完整内容。Search 不支持 `after_id` 排名分页，传入会明确报错。
+
 ## 修改与删除
 
 ```cpp

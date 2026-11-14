@@ -8,12 +8,12 @@ from dataclasses import dataclass
 try:
     from . import fengqudb as _core_binding
     from .fengqudb import Error, Slice
-    from .fengqudb_index_wire import (Document, Maintenance, Mutation, Phrase, Predicate, Query, UInt, WireError,
+    from .fengqudb_index_wire import (Document, Maintenance, Mutation, Phrase, Predicate, Projection, Query, UInt, WireError,
                                      decode_maintenance, decode_result, encode_maintenance, encode_mutation, encode_query, fields, vector)
 except ImportError:
     import fengqudb as _core_binding
     from fengqudb import Error, Slice
-    from fengqudb_index_wire import (Document, Maintenance, Mutation, Phrase, Predicate, Query, UInt, WireError,
+    from fengqudb_index_wire import (Document, Maintenance, Mutation, Phrase, Predicate, Projection, Query, UInt, WireError,
                                     decode_maintenance, decode_result, encode_maintenance, encode_mutation, encode_query, fields, vector)
 
 
@@ -89,8 +89,8 @@ class NativeIndex:
     The default identity adapter uses only StoreNativeLease's public properties.
     """
 
-    def __init__(self, library=None, *, identity_adapter=None, max_response_bytes=16 * 1024 * 1024):
-        if type(max_response_bytes) is not int or not 1 <= max_response_bytes <= 64 * 1024 * 1024:
+    def __init__(self, library=None, *, identity_adapter=None, max_response_bytes=64 * 1024 * 1024):
+        if type(max_response_bytes) is not int or not 1 <= max_response_bytes <= sys.maxsize:
             raise ValueError("invalid index response byte budget")
         filename = "fengqudb_index.dll" if os.name == "nt" else (
             "libfengqudb_index.dylib" if sys.platform == "darwin" else "libfengqudb_index.so")
@@ -194,7 +194,7 @@ class NativeIndex:
     def query(self, handle, request, *, expected_store_token=None, control=None):
         if self._maintain_function is None:
             for number, _wire, value in fields(request):
-                if number in (23, 24, 26, 27, 28, 29, 30, 31, 32) or (number == 7 and value == 2) or (number == 21 and value == 1):
+                if number in (23, 24, 26, 27, 28, 29, 30, 31, 32, 33, 34) or (number == 7 and value == 2) or (number == 21 and value == 1):
                     raise IndexUnavailable("this Index runtime does not expose the extended query/maintenance group")
         return self._output(handle, request, expected_store_token=expected_store_token, control=control)
 
@@ -231,8 +231,9 @@ class NativeIndex:
         return self.apply(transaction, request, expected_store_token=expected_store_token)
 
     def execute(self, handle, *, expected_store_token=None, control=None, **query):
+        query.setdefault("output_budget", self.max_response_bytes)
         return decode_result(self.query(handle, encode_query(**query),
-            expected_store_token=expected_store_token, control=control))
+            expected_store_token=expected_store_token, control=control), max_bytes=self.max_response_bytes)
 
     def maintain_raw(self, transaction, request, *, expected_store_token=None, control=None):
         try:

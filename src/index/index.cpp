@@ -299,9 +299,9 @@ void apply(const Reader &r, const Mutation &m) {
 struct Query {
     std::string base, text, id, after, space;
     uint32_t op = 1, mode = 0, limit = 8, statistics_policy = 0, ef = 96, snippet = 160,
-             term_budget = 128;
+             term_budget = 128, projection = FQIDX_PROJECT_FULL;
     uint64_t postings = 12000, candidates = 1024, scan = 100000, memory = 16ull << 20, timeout = 0,
-             expected = 0, sequence = 0;
+             expected = 0, sequence = 0, output = FQIDX_DEFAULT_OUTPUT_BYTES;
     bool all = false, partial = false, prefix = false, positions = false, explain = false;
     std::vector<Phrase> phrases;
     std::set<std::string> excluded, scoring_fields;
@@ -445,6 +445,15 @@ Query query(std::string_view s) {
             q.scoring_fields.emplace(name);
             break;
         }
+        case 33: {
+            auto n = number(r, f);
+            require(n <= FQIDX_PROJECT_HEADER, FQDB_UNSUPPORTED);
+            q.projection = uint32_t(n);
+            break;
+        }
+        case 34:
+            q.output = number(r, f);
+            break;
         case 30: {
             auto n = number(r, f);
             require(n <= 1);
@@ -462,6 +471,8 @@ Query query(std::string_view s) {
             q.space.size() <= 512);
     require(q.postings && q.candidates && q.scan && q.memory >= 4096 &&
             q.memory <= uint64_t(1) << 32 && q.timeout <= 86400000);
+    require(q.output && q.output <= std::string().max_size() / 2);
+    require(q.after.empty() || q.op == FQIDX_QUERY_LIST);
     if (q.minimum)
         require(*q.minimum >= -1 && *q.minimum <= 1);
     if (q.op == FQIDX_QUERY_SEARCH && q.mode != FQIDX_LEXICAL) {
@@ -982,6 +993,50 @@ void approximate_search(const Reader &r, const Query &q, const Stats &st, Work &
         out.strategy = "dense_exact_empty_ann_validation";
     }
 }
+// Retain contiguous public wire ranges. Skip bodies/vectors by their encoded
+// length, never by decoding or comparing their contents. Core owns/validates
+// the stored buffer; these views stay within the per-hit Blob's lifetime.
+struct OutputDocument {
+    std::vector<std::string_view> ranges;
+    size_t size = 0;
+};
+OutputDocument output_document(std::string_view data, std::string_view id, uint32_t projection) {
+    OutputDocument out;
+    w::Reader reader(data, FQDB_MAX_VALUE_BYTES);
+    w::Field f;
+    size_t start = 0;
+    bool found_id = false;
+    while (true) {
+        auto before = reader.position();
+        if (!reader.next(f))
+            break;
+        if (f.number == 1) {
+            std::string_view stored_id;
+            require(f.type == w::Type::Bytes && reader.bytes(stored_id) && stored_id == id,
+                    FQDB_CORRUPT);
+            found_id = true;
+        } else if (f.number == 12) {
+            uint64_t deleted = 0;
+            require(f.type == w::Type::Varint && reader.varint(deleted) && !deleted, FQDB_CORRUPT);
+        } else
+            require(reader.skip(f), FQDB_CORRUPT);
+        const bool keep = f.number <= 12 &&
+                          (projection == FQIDX_PROJECT_FULL || (f.number != 5 && f.number != 7));
+        if (!keep) {
+            if (before > start) {
+                out.ranges.push_back(data.substr(start, before - start));
+                out.size += before - start;
+            }
+            start = reader.position();
+        }
+    }
+    require(reader.done() && found_id, FQDB_CORRUPT);
+    if (data.size() > start) {
+        out.ranges.push_back(data.substr(start));
+        out.size += data.size() - start;
+    }
+    return out;
+}
 std::string result_bytes(const Reader &r, const Query &q, const Stats &st, Work &work,
                          Result &result) {
     if (q.op != FQIDX_QUERY_LIST)
@@ -1014,28 +1069,30 @@ std::string result_bytes(const Reader &r, const Query &q, const Stats &st, Work 
     out.uint_field(19, result.blocks);
     out.uint_field(20, result.graph);
     out.uint_field(21, st.layout);
+    out.uint_field(22, q.projection);
+    auto encoded = out.take();
+    require(encoded.size() <= q.output, FQDB_LIMIT);
     for (const auto &hit : result.best) {
         work.check();
         auto blob = r.get(q.base + "R" + component(hit.id));
         require(blob.found, FQDB_CORRUPT);
-        ScopedCharge temporary(work, blob.value.size() * 2 + 4096);
-        Document d;
-        try {
-            d = document(blob.value);
-        } catch (const Error &) {
-            throw Error{FQDB_CORRUPT};
-        }
-        require(!d.deleted && d.id == hit.id, FQDB_CORRUPT);
-        auto encoded = encode(d);
-        work.take(encoded.size() * 2 + 512);
+        ScopedCharge temporary(work, blob.value.size() * (q.positions ? 2 : 1) + 4096);
+        auto projected = output_document(blob.value, hit.id, q.projection);
+        // Reject a hit that cannot fit before any optional body/position work.
+        require(w::bytes_size(1, projected.size) <= q.output - encoded.size(), FQDB_LIMIT);
         w::Writer h;
-        h.bytes_field(1, encoded);
         h.double_field(2, hit.score);
         if (q.mode)
             h.double_field(3, hit.score);
         for (const auto &f : hit.fields)
             h.bytes_field(4, f);
-        if (q.positions)
+        if (q.positions) {
+            Document d;
+            try {
+                d = document(blob.value, false, false, false);
+            } catch (const Error &) {
+                throw Error{FQDB_CORRUPT};
+            }
             for (const auto &p :
                  positions(d, q.text, q.phrases, q.prefix, q.snippet, work, q.scoring_fields)) {
                 work.take(p.snippet.size() + p.field.size() + 128);
@@ -1047,6 +1104,7 @@ std::string result_bytes(const Reader &r, const Query &q, const Stats &st, Work 
                 a.uint_field(5, p.snippet_begin);
                 h.bytes_field(5, a.data());
             }
+        }
         for (const auto &detail : hit.details) {
             w::Writer a;
             a.bytes_field(1, detail.term);
@@ -1059,9 +1117,17 @@ std::string result_bytes(const Reader &r, const Query &q, const Stats &st, Work 
             a.double_field(8, detail.contribution);
             h.bytes_field(6, a.data());
         }
-        out.bytes_field(1, h.data());
+        const auto hit_size = w::bytes_size(1, projected.size) + h.data().size();
+        require(w::bytes_size(1, hit_size) <= q.output - encoded.size(), FQDB_LIMIT);
+        w::Writer header;
+        header.message_header(1, hit_size);
+        header.message_header(1, projected.size);
+        encoded.append(header.data());
+        for (auto range : projected.ranges)
+            encoded.append(range.data(), range.size());
+        encoded.append(h.data());
     }
-    return out.take();
+    return encoded;
 }
 fqdb_status stop_status(uint32_t stop) {
     return stop == FQIDX_CANCELLED  ? FQDB_CANCELLED
