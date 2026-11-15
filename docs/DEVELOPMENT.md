@@ -37,7 +37,7 @@ ctest --test-dir build/san-address --output-on-failure \
   -R '^paged_(write_policy|committed_cache|atomic_owner|store_sdk|select|query)$'
 ```
 
-TSan 使用独立目录、`-DFQDB_SANITIZER=thread` 和 `TSAN_OPTIONS=halt_on_error=1`，其余目标和过滤相同。CI 配置这两种独立任务，并上传 JUnit 和 CTest 日志；远程任务是否实际通过应查对应运行记录。若运行器因 TSan shadow 映射而在测试启动前失败，应保留诊断并修复环境，不能作为测试通过或静默跳过。
+TSan 使用独立目录、`-DFQDB_SANITIZER=thread` 和 `TSAN_OPTIONS=halt_on_error=1`，其余目标和过滤相同。Windows、Linux、Android 的构建及消毒器验证在本地执行，保留 JUnit 和 CTest 日志。GitHub 只保留手动触发的 macOS/iOS 构建。若运行器因 TSan shadow 映射而在测试启动前失败，应保留诊断并修复环境，不能作为测试通过或静默跳过。
 
 ## 异常与持久化
 

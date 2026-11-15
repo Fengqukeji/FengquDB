@@ -26,12 +26,12 @@
 
 ## 验证范围
 
-[1.0.0 平台验证运行](https://github.com/Fengqukeji/FengquDB/actions/runs/43706853433) 的 Apple 任务已完成两种 macOS 架构和 iOS 真机/模拟器 arm64 的编译链接，并在 macOS 原生宿主实际执行写入、关闭、重开读取。桌面 SDK 独立接入由 [发布包验证流程](../.github/workflows/release-sdk.yml) 执行；附件提供 SHA-256。
+[1.0.0 平台验证运行](https://github.com/Fengqukeji/FengquDB/actions/runs/43706853433) 的 Apple 任务已完成两种 macOS 架构和 iOS 真机/模拟器 arm64 的编译链接，并在 macOS 原生宿主实际执行写入、关闭、重开读取。Windows、Linux 和 Android 在本地构建；桌面 SDK 使用 [本地组包脚本](../scripts/build-client-sdk.ps1)，独立接入检查由 `tests/codegen/package_verify.py` 执行。附件提供 SHA-256。
 
 Unity 包检查文件清单、文档、原生目标架构和 `.meta` 平台选择配置，并验证从 `Assets/Plugins` 运行手动生成工具。尚未完成 Unity macOS/iOS Player 和移动真机运行验收。
 
 ## 再次构建
 
-生产方在 macOS/Xcode 环境运行 `sh scripts/build-apple-sdk.sh`。常规 CI 的 Apple 任务使用同一脚本；`scripts/assemble-unity-sdk.py` 合并各平台真实构建产物。用户通过独立 ZIP 接入，脚本与编译环境属于生产方工具链。
+生产方在 macOS/Xcode 环境运行 `sh scripts/build-apple-sdk.sh`。GitHub 只保留手动触发的 Apple 构建，使用同一脚本；`scripts/assemble-unity-sdk.py` 在本地合并各平台真实构建产物。用户通过独立 ZIP 接入，脚本与编译环境属于生产方工具链。
 
 早期私有构建输入与体积核查属于发布前历史，见 [Windows 包体核查](PACKAGE_SIZE_AUDIT_20261115.md)。历史性能测量没有因 1.0.0 发布而重新测量。
