@@ -1,6 +1,7 @@
 // PTpma's bounded asynchronous local logs, adapted for FengquDB diagnostics.
 #pragma once
 #include <json.hpp>
+#include "fengqudb_log.h"
 #include <cstdint>
 #include <filesystem>
 #include <string>
@@ -19,6 +20,7 @@ class LocalLog {
     LocalLog(const LocalLog &) = delete;
     LocalLog &operator=(const LocalLog &) = delete;
     void write(std::string_view level, std::string_view event, const Fields &fields = {}) noexcept;
+    void write(const fqdb_log_event &event, bool throttle = true) noexcept;
     Json status() const;
     Json query(const Json &args = Json::object()) const;
     Json configure(const Json &args);

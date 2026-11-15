@@ -230,34 +230,64 @@ class CompactTarget {
 };
 class OutputDirectory {
     std::string path_, destination_;
+    std::string source_directory_;
+    std::string owner_path_;
+    OutputIntent intent_;
     std::vector<std::string> files_;
     std::vector<std::pair<std::string, std::function<void()>>> generations_;
     storage::File lease_;
     bool owns_ = false;
 
   public:
-    explicit OutputDirectory(const std::string &destination)
-        : destination_(directory_path(destination)) {
+    OutputDirectory(const std::string &destination, const std::string &source_directory,
+                    const Uuid &source)
+        : destination_(directory_path(destination)), source_directory_(source_directory) {
         auto path = std::filesystem::u8path(destination_);
         std::error_code error;
         require(!std::filesystem::exists(path, error), FQDB_ALREADY_EXISTS);
         require(!error, FQDB_IO_ERROR);
         // A short destination can have a longer staging sibling. Validate its
         // internal-file headroom before creating anything on disk.
-        path_ = directory_path(
-            (path.parent_path() / std::filesystem::u8path(temporary_name('t', new_uuid())))
-                .u8string());
-        files_.reserve(3);
-        require(std::filesystem::create_directory(std::filesystem::u8path(path_), error) && !error,
-                FQDB_IO_ERROR);
-        owns_ = true;
+        (void)directory_path((path.parent_path() /
+                             std::filesystem::u8path(temporary_name('t', Uuid{}))).u8string());
+        require(std::filesystem::is_directory(path.parent_path(), error) && !error, FQDB_IO_ERROR);
+        files_.reserve(4);
+        intent_ = register_output(source_directory_, source, destination_);
+        destination_ = intent_.destination;
+        path_ = intent_.temporary;
         try {
+            maintenance_at(30);
+            require(std::filesystem::create_directory(std::filesystem::u8path(path_), error) &&
+                        !error, FQDB_IO_ERROR);
+            owns_ = true;
+            maintenance_at(31);
+            owner_path_ = join(path_, "OWNER");
+            files_.push_back(owner_path_);
+            {
+                const auto bytes = output_identity(intent_, "FQOWN001");
+                IOWritePermit permit(bytes.size());
+                NativeFile owner;
+                try {
+                    owner.open(owner_path_, true);
+                    owner.write(0, bytes.data(), bytes.size());
+                    owner.sync();
+                    require(storage::sync_parent(owner_path_.c_str()), FQDB_IO_ERROR);
+                } catch (...) {
+                    if (owner.exclusively_created()) {
+                        owner.retire();
+                        remove_owned(owner_path_);
+                    }
+                    throw;
+                }
+            }
+            maintenance_at(32);
             auto lock_path = join(path_, "LOCK");
             auto status = lease_.open(lock_path.c_str(), true);
             require(status == FQDB_OK, status);
             files_.push_back(std::move(lock_path));
         } catch (...) {
             clean();
+            (void)recover_output(source_directory_, intent_.source);
             throw;
         }
     }
@@ -285,14 +315,13 @@ class OutputDirectory {
             }
         }
         for (const auto &file : files_)
-            if (std::none_of(generations_.begin(), generations_.end(),
+            if (file != owner_path_ &&
+                std::none_of(generations_.begin(), generations_.end(),
                              [&](const auto &g) { return g.first == file; }))
                 remove_owned(file);
-        try {
-            std::error_code ignored;
-            std::filesystem::remove(std::filesystem::u8path(path_), ignored);
-        } catch (...) {
-        }
+        // OWNER remains until all other files have gone, including on a crash
+        // during cleanup. Recovery validates the complete directory first.
+        (void)recover_output(source_directory_, intent_.source);
         owns_ = false;
     }
     void release_lease() {
@@ -301,8 +330,10 @@ class OutputDirectory {
     fqdb_status publish() {
         lease_.close();
         auto status = publish_directory(path_, destination_);
-        if (status == FQDB_OK)
+        if (status == FQDB_OK) {
             owns_ = false;
+            (void)recover_output(source_directory_, intent_.source);
+        }
         return status;
     }
 };
@@ -455,7 +486,7 @@ inline fqdb_store_maintenance_info Core::backup(const std::string &destination,
     MaintenanceJob job(*this, settings);
     auto base = job.capture();
     auto source = base->view;
-    OutputDirectory output(destination);
+    OutputDirectory output(destination, directory, source->generation->uuid);
     auto uuid = new_uuid();
     auto filename = generation_name(uuid, 1);
     output.retain_file(join(output.path(), "CURRENT"));

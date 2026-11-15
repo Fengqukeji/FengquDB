@@ -139,10 +139,8 @@ class SegmentedFile {
         if (create) {
             // Publish only a durable identity header. A killed/failed creator
             // may leave an unpublished temp, never a torn authoritative header.
-            std::random_device random;
-            const auto token = (uint64_t(random()) << 32) ^ random();
             const auto temporary =
-                (std::filesystem::u8path(directory_) / ("t" + digits(token, 16) + ".tmp"))
+                (std::filesystem::u8path(directory_) / "SEGMENT.tmp")
                     .u8string();
             bool uncertain = false;
             try {

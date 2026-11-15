@@ -168,7 +168,7 @@ inline Current read_current(const std::string &directory) {
 }
 inline fqdb_status write_current(const std::string &directory, const Current &current) {
     auto target = join(directory, "CURRENT");
-    auto temporary = join(directory, temporary_name('m', new_uuid()));
+    auto temporary = join(directory, "CURRENT.tmp");
     bool created = false;
     try {
         wire::Writer payload;
@@ -475,6 +475,50 @@ class Generation {
                 payload.fixed64_field(12 + i, parent[i]);
         }
         return payload.take();
+    }
+    bool has_reclaim_floor(const Checkpoint &checkpoint) {
+        // A logical version alone is not a reclaim barrier. Both physical
+        // roots must already seal this exact floor, including after reopen.
+        if (checkpoint.sequence < 2 || checkpoint.floor != checkpoint.version ||
+            checkpoint.end != tail || checkpoint.parent || !checkpoint.history_frame ||
+            !checkpoint.history_start)
+            return false;
+        const auto expected = checkpoint_payload(checkpoint);
+        try {
+            for (unsigned slot = 0; slot < 2; ++slot) {
+                std::array<unsigned char, 64> block{};
+                read_super(slot, block);
+                const bool latest = slot == checkpoint.sequence % 2;
+                if (std::memcmp(block.data(), "FQROOT05", 8) ||
+                    storage::crc32(block.data(), 60) != storage::get32(block.data() + 60) ||
+                    storage::get64(block.data() + 8) != checkpoint.sequence - !latest ||
+                    storage::get64(block.data() + 32) != checkpoint.version ||
+                    storage::get64(block.data() + 40) != checkpoint.history_start ||
+                    storage::get64(block.data() + 48) != checkpoint.history_frame)
+                    return false;
+                const auto offset = storage::get64(block.data() + 16);
+                if (offset < data_start || offset >= tail ||
+                    (!latest && offset != checkpoint.history_frame))
+                    return false;
+                const auto sealed = frame(offset, tail);
+                if (!sealed || sealed->kind != Frame::Kind::seal ||
+                    sealed->version != checkpoint.version || sealed->length != expected.size() ||
+                    sealed->end != storage::get64(block.data() + 24) ||
+                    sealed->end != (latest ? checkpoint.end : checkpoint.history_start))
+                    return false;
+                Bytes actual(sealed->length, '\0');
+                file->read(sealed->payload, actual.data(), actual.size());
+                if (actual != expected)
+                    return false;
+            }
+        } catch (const Error &error) {
+            // An unusable alternate root needs a fresh pair, never permission
+            // to reclaim. Real I/O/quota failures still propagate to callers.
+            if (error.status != FQDB_CORRUPT)
+                throw;
+            return false;
+        }
+        return true;
     }
     void seal_payload(Checkpoint &checkpoint, std::string_view payload, bool history_boundary = false) {
         require(checkpoint.sequence != UINT64_MAX, FQDB_LIMIT);
