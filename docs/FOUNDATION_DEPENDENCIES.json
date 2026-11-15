@@ -1,6 +1,6 @@
 {
   "format": 1,
-  "release_id": "b5b646194800cd46ec929bf8144e7734ea72b254f20508162391a5d1d65c6f14",
+  "release_id": "8368499292891011dfc4c53269c9dc0b8a533019b8fd4f68c595536d4f675c67",
   "core_source_sha256": "54328b2c21d033315636b757efba92561d7681939c1bb1bf8b78425e59d159a6",
   "native": {
     "native/linux-x64/libfengqudb.so.2": {
@@ -9,7 +9,7 @@
     },
     "native/linux-x64/libfengqudb_index.so.1": {
       "bytes": 453088,
-      "sha256": "233d38393038f5ef86ccadbf2c52e3d51001d267080726a38998624ddf6b2c4b"
+      "sha256": "ac1c515a662f21c6f84535dbeabe103fc08f8f094470a4f40a73f60f0b8ee81d"
     },
     "native/win-x64/fengqudb.dll": {
       "bytes": 1206272,
@@ -20,8 +20,8 @@
       "sha256": "76217e06fa9a30ee08fe338261cfb131424e25d0c321a1e5b701c209d508215c"
     },
     "native/win-x64/fengqudb_index.dll": {
-      "bytes": 503296,
-      "sha256": "8ce87fe62b4b5401ebabf525b4934338a5e1119a55319f959ed7c1380e7c159f"
+      "bytes": 508416,
+      "sha256": "0b00e394c1bf40112876b28ea95c191d4ea2e0f3838a72b05e908a2fa6c0f441"
     },
     "native/win-x64/fengqudb_index.lib": {
       "bytes": 3040,

@@ -2,6 +2,8 @@
 
 需要 Python 3.10+、同 ABI 的 Core/Index、公共 fengqudb.py、fengqudb_index.py、fengqudb_index_wire.py。RAG 无模型运行库依赖。当前测试的二进制和 wrapper 摘要见 build/rag-memory-verification.json。
 
+2026-11-15 当前依赖发行号为 `8368499292891011dfc4c53269c9dc0b8a533019b8fd4f68c595536d4f675c67`，完整包为 `D:/study/FengquDB-index/artifacts/foundation-20261115-query-budget/python/FengquDB`。原生 Index 包含提交 `132f9b2` 的长查询计划器/原始 token 硬限修复；Core 字节与先前 r2 相同。跨平台摘要以 [FOUNDATION_DEPENDENCIES.json](../FOUNDATION_DEPENDENCIES.json) 为准，不将早期 frozen/SDK 路径当作最新发行引用。
+
 组合 SDK 可直接使用 `from FengquDB.bindings.python.fengqudb_rag import MemoryStore`。RAG 优先使用同一组合包的 Core/Index/wire wrapper，不创建全局模块别名，也不修改进程搜索路径；动态库参数仍默认 None，由公共 wrapper 解析组合包 native 目录。组合发行物由主会话统一组装，不能把本工作树临时依赖路径当发布布局。
 
 独立源码模式仍可将 bindings/python 和公共 wrapper 目录加入宿主 Python 路径；WordGame 门面另加入 integrations。此模式保持旧顶层导入。组合包依赖损坏不会由 RAG 静默回退至其他项目的同名模块。不要部署 build 下临时数据库。
@@ -66,5 +68,7 @@ D:/work/WordGame/.venv/Scripts/python.exe tests/rag/test_wordgame_adapter.py --c
 默认账户句柄8、写批次1024、总文本4MiB、账户原生 cache/delta 各16MiB、模型缓存4MiB。store_options 可配置原生预算，不能覆盖 library/create/name；超限整批拒绝，不自动拆写。这不是进程总 RSS 上限。
 
 QueryBudget 控制 timeout、posting、candidate、scan、原生 memory、结果字节。MemoryStore 默认 candidate100000、scan250000；owner/public 和 hybrid 合计扣减。模型调用与可靠提交不支持任意抢占，只在边界检查取消/超时；清理超时可能留下已可靠保存的屏障，recover/reopen 继续。
+
+词法查询沿用原生默认128个不同词项的预算（分词后的词项，不等于输入字数）；超预算返回 RagLimit，不截断输入。当前 RAG QueryBudget 不单独暴露 term_budget，高级 NativeIndex 调用可显式配置该原生预算，仍须遵守上限和终止契约。
 
 RagConflict：版本/身份/生命周期冲突；RagNotFound：不存在或屏蔽；RagStaleRead：重新检索；RagLimit/RagDeadline/RagCancelled：显式超限/截止/取消；RagIntegrityError：数据/契约异常；RagRecoveryRequired：关闭并重开。门面可转换为宿主 AppError。直接写保留键空间不受 SDK 并发与权限保证。

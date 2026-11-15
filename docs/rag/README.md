@@ -2,7 +2,7 @@
 
 2026-11-14：已实现通用 Python RAG 底座及 WordGame 兼容门面。存储和检索使用公共原生 Core/Index，没有新建向量引擎、下载模型或引入远程数据库。证据和限制见 [ACCEPTANCE.md](ACCEPTANCE.md)。
 
-独立工作树 D:/study/FengquDB-rag，分支 codex/rag-foundation，基线 32348fb7d269a4b328936d8ab1d208d70b7f9a64。未提交、未推送，未修改 WordGame。其他工作树的未提交修改由各自负责人管理。
+独立工作树 D:/study/FengquDB-rag，分支 codex/rag-foundation，基线 32348fb7d269a4b328936d8ab1d208d70b7f9a64。领域实现与公共依赖后来已由主会话集成提交；当前提交以 Git 为准，当前发行摘要见 [FOUNDATION_DEPENDENCIES.json](../FOUNDATION_DEPENDENCIES.json)。其他工作树及 WordGame 接入由各自负责人管理。
 
 ## 已交付
 

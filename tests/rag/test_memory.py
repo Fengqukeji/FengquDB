@@ -496,6 +496,41 @@ class MemoryTests(unittest.TestCase):
         self.assertEqual(len(rows), 1)
         self.assertIsNone(rows[0]["similarity"])
 
+    def test_long_queries_preserve_text_visibility_and_explicit_work_budget(self):
+        terms = ["t" + chr(97 + i // 26) + chr(97 + i % 26) for i in range(257)]
+        text = " ".join(terms)
+        visible = self.put(text, owner_id="one", known_at=1)
+        self.put(text, owner_id="two", known_at=1)
+        self.put(text, owner_id="one", known_at=20)
+        observed = []
+        original = self.client.execute
+
+        def execute(view, **query):
+            if query.get("mode") == 0:
+                observed.append(query["text"])
+            return original(view, **query)
+
+        self.client.execute = execute
+        queries = [" ".join(terms[:count]) for count in (33, 65, 128)]
+        queries.append(" ".join([terms[0]] * 300))
+        for query in queries:
+            for mode in ("lexical", "hybrid"):
+                with self.subTest(words=len(query.split()), mode=mode):
+                    rows = self.search(query=query, mode=mode, owner_id="one", include_public=False, as_of=10)
+                    self.assertEqual([row["id"] for row in rows], [visible["id"]])
+                    self.assertEqual(observed[-1], query)
+        for count in (129, 257):
+            query = " ".join(terms[:count])
+            for mode in ("lexical", "hybrid"):
+                with self.subTest(words=count, mode=mode), self.assertRaises(RagLimit):
+                    self.memory.search("alice", MemorySearch(query=query, mode=mode,
+                        owner_id="one", include_public=False, as_of=10))
+                self.assertEqual(observed[-1], query)
+        with self.assertRaises(RagLimit):
+            self.memory.search("alice", MemorySearch(query=queries[0], mode="lexical", owner_id="one",
+                include_public=False, as_of=10), budget=QueryBudget(posting_budget=1))
+        self.assertEqual(observed[-1], queries[0])
+
     def test_context_budget_citations_exclusions_and_final_validation(self):
         self.put("first evidence", source_id="recent")
         row = self.put("second evidence", source_id="keep")

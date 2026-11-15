@@ -1,10 +1,10 @@
 # RAG 实现验收记录
 
-日期 2026-11-14。工作树 D:/study/FengquDB-rag，分支 codex/rag-foundation，基线 32348fb7d269a4b328936d8ab1d208d70b7f9a64。未提交、未推送。完整实现入口见 [API.md](API.md) 和 [ARCHITECTURE.md](ARCHITECTURE.md)。
+初轮验收日期 2026-11-14。工作树 D:/study/FengquDB-rag，分支 codex/rag-foundation，基线 32348fb7d269a4b328936d8ab1d208d70b7f9a64。领域实现及公共依赖后续已由主会话集成提交；当前提交以 Git 为准，发行摘要见 docs/FOUNDATION_DEPENDENCIES.json。完整实现入口见 [API.md](API.md) 和 [ARCHITECTURE.md](ARCHITECTURE.md)。
 
 结论：通用 MemoryStore、WordGame 兼容门面、原生检索与治理已实现；隔离的真实路由和现有 KaLM 接入可运行。正式游戏切换、全游戏 G01–G12 和生产规模对照没有执行，因此不宣称线上替换已经完成。
 
-最终冻结库的当前验收见末尾“最终冻结版回归”；前面的首轮测试与性能保留为历史证据。主清单 build/rag-memory-verification.json 指向最终冻结结果，早期记录保留在 build/rag-initial-memory-verification.json。
+当前发行同步与验收见末尾“2026-11-15 长查询预算修复同步”；前面的首轮与冻结版测试和性能保留为历史证据。主清单 build/rag-memory-verification.json 指向当前结果，早期记录保留在 build/rag-initial-memory-verification.json 及 build/rag-frozen-verification.json。
 
 ## 验证结果
 
@@ -123,3 +123,13 @@ tests/rag/test_sdk_imports.py 在全新子进程组装 FengquDB/bindings/python 
 | Linux Docker / 便携库 | 2029.3 | 3.40 / 3.70 | 11.72 / 12.01 | 23.47 / 24.10 |
 
 磁盘文件合计两平台均约12.73MB，非稳态压缩或峰值资源。结果较首轮有变化，但10次微型样本不足以独立归因每项原生优化；不声称所有负载都获得同等提升。原始结果为 build/rag-benchmark-{win,linux}-frozen.json。输入摘要 build/rag-frozen-inputs.json；最终机器清单 build/rag-frozen-verification.json，日志 build/test-{memory,sources,sdk-imports}-{win,linux}-frozen.log。无新模型、迁移或正式WordGame通知。
+
+## 2026-11-15 长查询预算修复同步
+
+当前完整 SDK 为 D:/study/FengquDB-index/artifacts/foundation-20261115-query-budget/python/FengquDB，release_id 为 8368499292891011dfc4c53269c9dc0b8a533019b8fd4f68c595536d4f675c67，Index 修复提交为132f9b2。RAG 分支没有持有 Index 源码或二进制副本，故不复制、分叉或重做其修复；docs/FOUNDATION_DEPENDENCIES.json 已更新两平台 Index/发行摘要。Core 两平台和公共包装的字节与前一版一致。正式包的50个文件已逐项按 manifest 校验，RAG 领域生产模块与包内副本一致。
+
+新增 test_long_queries_preserve_text_visibility_and_explicit_work_budget：词法和混合模式均验证33/65/128个不同词项，以及300次重复词的完整查询；通过原生调用参数捕获确认没有截断或改写，结果仍遵守 owner/知情时间边界。原生默认 term_budget=128，129/257个不同词项应报 RagLimit；另用默认词项预算内的33词查询验证 posting_budget=1 仍明确失败。当前 RAG QueryBudget 未单独暴露 term_budget；本轮不改业务默认预算，也不将原文截短以逃避终止契约。
+
+Windows 与 Linux Docker 均使用这份完整包的 Core/Index 和公共 wrapper，执行 MemoryStore39项、source26项、SDK/门面导入2项，各67项全部通过、无跳过，合计134次执行。首次新增断言曾错误要求129/257词在默认128词预算下成功，已按原生契约修正预期；最终通过不依赖增加预算或改变生产代码。无根数据库性能矩阵、性能重测、真实模型/HTTP重跑、旧数据迁移或WordGame重复通知。
+
+日志为 build/test-{memory,sources,sdk-imports}-{win,linux}-query-budget.log。当前机器清单为 build/rag-query-budget-verification.json，并同步为 build/rag-memory-verification.json；包含当前SDK、源文件、依赖和日志摘要，旧性能仍只属于相应历史版。
