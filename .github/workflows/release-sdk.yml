@@ -1,0 +1,73 @@
+name: release-sdk
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    env:
+      DOTNET_CLI_USE_MSBUILD_SERVER: '0'
+      MSBUILDDISABLENODEREUSE: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23.x'
+          cache: false
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: ilammy/msvc-dev-cmd@v1
+        if: runner.os == 'Windows'
+      - name: Build release libraries and native generator
+        shell: pwsh
+        run: |
+          cmake -S . -B build/release -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF -DFQDB_BUILD_TOOLS=ON -DFQDB_BUILD_DIAGNOSTICS=OFF -DFQDB_BUILD_JNI=ON
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          cmake --build build/release --config Release --parallel 2 --target fengqudb fengqudb_jni fqdb_codegen
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          dotnet build bindings/csharp/FengquDB.csproj -c Release --nologo
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          dotnet build bindings/csharp/Generator/FengquDB.Generator.csproj -c Release --nologo
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Package and execute eight independent SDKs
+        shell: pwsh
+        run: |
+          $native = if ($IsWindows) { "$PWD/build/release/Release" } else { "$PWD/build/release" }
+          $codegen = if ($IsWindows) { "$PWD/build/release/tools/codegen/Release/fqdb-codegen.exe" } else { "$PWD/build/release/tools/codegen/fqdb-codegen" }
+          $platform = if ($IsWindows) { 'win-x64' } else { 'linux-x64' }
+          ./scripts/build-client-sdk.ps1 -Platform $platform -NativeDir $native -Codegen $codegen -BuildDir build/release-client -OutputDir artifacts/client
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python tests/codegen/package_verify.py --packages artifacts/client --output build/release-consumers --java-bin "$env:JAVA_HOME/bin" --dotnet
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python examples/quickstart/main.py --sdk "artifacts/client/FengquDB-python-$platform/FengquDB" --root build/release-quickstart
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FengquDB-release-${{ matrix.os }}
+          if-no-files-found: error
+          path: artifacts/client/*.zip
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: FengquDB-release-verification-${{ matrix.os }}
+          path: |
+            build/release-consumers/report.json
+            build/release-consumers/*.log

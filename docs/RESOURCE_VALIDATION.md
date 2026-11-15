@@ -27,7 +27,7 @@ cmake -S . -B build/resource-linux -DCMAKE_BUILD_TYPE=Release \
 cmake --build build/resource-linux --target fqdb_store_resource_probe --parallel 2
 python3 scripts/verify-store-resources.py \
   --probe build/resource-linux/fqdb_store_resource_probe \
-  --library build/resource-linux/libfengqudb.so.0.3.2 \
+  --library build/resource-linux/libfengqudb.so \
   --output build/resource-run
 ```
 
@@ -43,7 +43,7 @@ Windows 宿主可通过 WSL 构建 Linux 产物，再用 Windows Python 和 Dock
 
 ```sh
 python3 scripts/verify-diagnostics-retention.py \
-  --library build/resource-linux/libfengqudb.so.0.3.2 \
+  --library build/resource-linux/libfengqudb.so \
   --diagnostics build/resource-linux/libfengqudb_diagnostics.so \
   --output build/diagnostics-retention
 ```

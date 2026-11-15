@@ -9,6 +9,7 @@
     <AssemblyName>fqdb-csharp-codegen</AssemblyName>
     <PackageId>FengquDB.CodeGen</PackageId>
     <Version>1.0.0</Version>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <Description>Force-generate FengquDB C# entity serializers from projects or source files.</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>

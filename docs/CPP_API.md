@@ -5,7 +5,7 @@
 ## CMake
 
 ```cmake
-find_package(FengquDB 0.3.2 CONFIG REQUIRED)
+find_package(FengquDB CONFIG REQUIRED)
 target_link_libraries(my_app PRIVATE FengquDB::Cpp)
 ```
 

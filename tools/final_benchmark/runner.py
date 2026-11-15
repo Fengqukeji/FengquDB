@@ -295,7 +295,7 @@ def main():
             report["trials"].append(result)
             print(json.dumps({"stage": "trial_passed", "trial": index, "mode": trial["mode"], "workload": trial["workload"],
                               "threads": trial["threads"], "records_per_second": result["measurement"]["records_per_second"]}), flush=True)
-        report["library_sha256"] = hashlib.sha256(Path("/opt/bench/lib/libfengqudb.so.0.3.2").read_bytes()).hexdigest()
+        report["library_sha256"] = hashlib.sha256(Path("/opt/bench/lib/libfengqudb.so").read_bytes()).hexdigest()
         report["executable_sha256"] = hashlib.sha256(BIN.read_bytes()).hexdigest()
         report["packages_sha256"] = hashlib.sha256(Path("/opt/bench/packages.txt").read_bytes()).hexdigest()
         if len(trials) == 1:

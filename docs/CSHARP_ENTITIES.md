@@ -144,7 +144,7 @@ CLI 对当前编译临时设置 `FQDB_FORCE_ENTITY_GENERATION`，因此启用手
 
 ```powershell
 dotnet pack tools/FengquDB.CodeGen/FengquDB.CodeGen.csproj -c Release -o build/codegen-packages
-dotnet tool install FengquDB.CodeGen --tool-path ./codegen-tools --add-source ./build/codegen-packages --version 0.3.2
+dotnet tool install FengquDB.CodeGen --tool-path ./codegen-tools --add-source ./build/codegen-packages --version 1.0.0
 ```
 
 CLI 和生成器均在构建阶段运行，数据库运行时的编码、缓存及原生接口路径沿用生成代码。

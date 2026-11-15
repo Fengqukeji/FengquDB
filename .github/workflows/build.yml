@@ -83,7 +83,7 @@ jobs:
       - run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DFQDB_BUILD_JNI=ON
       - uses: ilammy/msvc-dev-cmd@v1
         if: runner.os == 'Windows'
-      - run: cmake --build build --config Release --parallel
+      - run: cmake --build build --config Release --parallel 2
       - run: ctest --test-dir build -C Release --output-on-failure
       - name: Bindings and SDK
         shell: pwsh
@@ -135,7 +135,7 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           cmake -S . -B build/static -DCMAKE_BUILD_TYPE=Release -DFQDB_SHARED=OFF -DFQDB_BUILD_JNI=OFF
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          cmake --build build/static --config Release --parallel
+          cmake --build build/static --config Release --parallel 2
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           ctest --test-dir build/static -C Release -R 'paged_store_sdk|shared_c_abi|wire|logging|diagnostics' --output-on-failure
           if ($LASTEXITCODE) { exit $LASTEXITCODE }

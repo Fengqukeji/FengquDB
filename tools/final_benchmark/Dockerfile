@@ -9,6 +9,6 @@ RUN cmake -S /src/tools/final_benchmark -B /build -DCMAKE_BUILD_TYPE=Release -DF
     cmake --build /build --parallel 2 && \
     cp /build/fqdb_final_bench /opt/bench/bin/ && \
     cp -P /build/core/libfengqudb.so* /opt/bench/lib/ && \
-    strip /opt/bench/bin/fqdb_final_bench /opt/bench/lib/libfengqudb.so.0.3.2
+    strip /opt/bench/bin/fqdb_final_bench /opt/bench/lib/libfengqudb.so
 COPY tools/final_benchmark/runner.py /opt/bench/runner.py
 ENTRYPOINT ["python3", "/opt/bench/runner.py"]
