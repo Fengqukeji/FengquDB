@@ -1,0 +1,30 @@
+cmake_minimum_required(VERSION 3.24)
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+  project(FengquDBCodegen VERSION 0.3.2 LANGUAGES CXX)
+  include(GNUInstallDirs)
+endif()
+# Runtime templates are embedded in the executable, never searched at run time.
+file(READ runtime/wire.h FQ_RUNTIME_C)
+file(READ runtime/wire.py FQ_RUNTIME_PYTHON)
+file(READ runtime/wire.js FQ_RUNTIME_NODE)
+file(READ runtime/Wire.java FQ_RUNTIME_JAVA)
+file(READ runtime/wire.go FQ_RUNTIME_GO)
+file(READ runtime/wire.rs FQ_RUNTIME_RUST)
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+  runtime/wire.h runtime/wire.py runtime/wire.js runtime/Wire.java runtime/wire.go runtime/wire.rs)
+configure_file(runtimes.hpp.in runtimes.hpp @ONLY)
+add_executable(fqdb_codegen main.cpp emit_native.cpp emit_managed.cpp emit_dynamic.cpp emit_systems.cpp
+  source.cpp source_emit_dynamic.cpp source_emit_managed.cpp source_emit_systems.cpp source_emit_native.cpp)
+set_target_properties(fqdb_codegen PROPERTIES OUTPUT_NAME fqdb-codegen CXX_STANDARD 17
+  CXX_STANDARD_REQUIRED YES CXX_EXTENSIONS NO
+  MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+target_include_directories(fqdb_codegen PRIVATE "${CMAKE_CURRENT_BINARY_DIR}" ../../third_party/json)
+if(MSVC)
+  target_compile_options(fqdb_codegen PRIVATE /W4 /permissive- /utf-8 /EHsc)
+else()
+  target_compile_options(fqdb_codegen PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+install(TARGETS fqdb_codegen RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(PROGRAMS ../../scripts/fqdb-generate.command DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(FILES ../../scripts/fqdb-generate.bat DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(FILES ../../third_party/json/LICENSE.MIT DESTINATION share/fengqudb/licenses/nlohmann-json)

@@ -102,6 +102,17 @@ class RedisConnection final : public Connection {
         auto reply = db_.command({"SCRIPT", "LOAD", script});
         transfer_sha_ = bytes(reply.get());
     }
+    void erase(uint64_t id) override {
+        auto name = key(id);
+        auto r = db_.command({"DEL", name});
+        require(r->type == REDIS_REPLY_INTEGER && r->integer == 1, "Redis delete did not remove one profile");
+    }
+    uint64_t count() override {
+        auto total = db_.command({"DBSIZE"});
+        auto marker = db_.command({"EXISTS", "__benchmark_sync"});
+        require(total->type == REDIS_REPLY_INTEGER && marker->type == REDIS_REPLY_INTEGER && total->integer >= marker->integer, "Redis profile count");
+        return static_cast<uint64_t>(total->integer - marker->integer);
+    }
     Profile get(uint64_t id) override {
         auto name = key(id);
         auto r = db_.command(read_args(name));
@@ -234,6 +245,19 @@ class HybridConnection final : public Connection {
   public:
     HybridConnection(std::unique_ptr<Connection> sql, std::shared_ptr<CacheLocks> locks)
         : sql_(std::move(sql)), locks_(std::move(locks)) {}
+    void erase(uint64_t id) override {
+        std::unique_lock<std::shared_mutex> guard(locks_->locks[stripe(id)]);
+        sql_->erase(id);
+        invalidate(id);
+    }
+    uint64_t count() override {
+        auto size = sql_->count();
+        if (!size) {
+            auto cached = cache_.command({"DBSIZE"});
+            require(cached->type == REDIS_REPLY_INTEGER && !cached->integer, "Hybrid retained stale profiles after delete");
+        }
+        return size;
+    }
     Profile get(uint64_t id) override {
         std::shared_lock<std::shared_mutex> guard(locks_->locks[stripe(id)]);
         auto k = cache_key(id);

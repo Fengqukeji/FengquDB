@@ -1,0 +1,212 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+  "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns:xlink="http://www.w3.org/1999/xlink" width="720pt" height="648pt" viewBox="0 0 720 648" xmlns="http://www.w3.org/2000/svg" version="1.1">
+ <metadata>
+  <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+   <cc:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+    <dc:date>2026-11-15T14:12:30.510077</dc:date>
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <cc:Agent>
+      <dc:title>Matplotlib v3.10.3, https://matplotlib.org/</dc:title>
+     </cc:Agent>
+    </dc:creator>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="figure_1">
+  <g id="patch_1">
+   <path d="M 0 648 
+L 720 648 
+L 720 0 
+L 0 0 
+z
+" style="fill: #ffffff"/>
+  </g>
+  <g id="axes_1">
+   <g id="patch_2">
+    <path d="M 360 217.166407 
+Q 360 242.221123 360 265.598788 
+" clip-path="url(#pd4d718e1b4)" style="fill: none; stroke: #126247; stroke-width: 1.5; stroke-linecap: round"/>
+    <path d="M 363.2 259.198788 
+L 360 265.598788 
+L 356.8 259.198788 
+z
+" clip-path="url(#pd4d718e1b4)" style="fill: #126247; stroke: #126247; stroke-width: 1.5; stroke-linecap: round"/>
+   </g>
+   <g id="patch_3">
+    <path d="M 360 336.205988 
+Q 360 355.850045 360 373.81705 
+" clip-path="url(#pd4d718e1b4)" style="fill: none; stroke: #126247; stroke-width: 1.5; stroke-linecap: round"/>
+    <path d="M 363.2 367.41705 
+L 360 373.81705 
+L 356.8 367.41705 
+z
+" clip-path="url(#pd4d718e1b4)" style="fill: #126247; stroke: #126247; stroke-width: 1.5; stroke-linecap: round"/>
+   </g>
+   <g id="patch_4">
+    <path d="M 360 444.423639 
+Q 360 472.183463 360 498.266235 
+" clip-path="url(#pd4d718e1b4)" style="fill: none; stroke: #126247; stroke-width: 1.5; stroke-linecap: round"/>
+    <path d="M 363.2 491.866235 
+L 360 498.266235 
+L 356.8 491.866235 
+z
+" clip-path="url(#pd4d718e1b4)" style="fill: #126247; stroke: #126247; stroke-width: 1.5; stroke-linecap: round"/>
+   </g>
+   <g id="patch_5">
+    <path d="M 72.036 216.79164 
+L 264.924 216.79164 
+Q 273.132 216.79164 273.132 210.29868 
+L 273.132 155.10852 
+Q 273.132 148.61556 264.924 148.61556 
+L 72.036 148.61556 
+Q 63.828 148.61556 63.828 155.10852 
+L 63.828 210.29868 
+Q 63.828 216.79164 72.036 216.79164 
+z
+" clip-path="url(#pd4d718e1b4)" style="fill: #e9f1eb; stroke: #8d9c94; stroke-width: 1.2; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_6">
+    <path d="M 284.076 216.79164 
+L 449.604 216.79164 
+Q 457.812 216.79164 457.812 210.29868 
+L 457.812 155.10852 
+Q 457.812 148.61556 449.604 148.61556 
+L 284.076 148.61556 
+Q 275.868 148.61556 275.868 155.10852 
+L 275.868 210.29868 
+Q 275.868 216.79164 284.076 216.79164 
+z
+" clip-path="url(#pd4d718e1b4)" style="fill: #f5e5df; stroke: #8d9c94; stroke-width: 1.2; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_7">
+    <path d="M 461.916 216.79164 
+L 654.804 216.79164 
+Q 663.012 216.79164 663.012 210.29868 
+L 663.012 155.10852 
+Q 663.012 148.61556 654.804 148.61556 
+L 461.916 148.61556 
+Q 453.708 148.61556 453.708 155.10852 
+L 453.708 210.29868 
+Q 453.708 216.79164 461.916 216.79164 
+z
+" clip-path="url(#pd4d718e1b4)" style="fill: #e9f1eb; stroke: #8d9c94; stroke-width: 1.2; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_8">
+    <path d="M 140.436 335.82924 
+L 579.564 335.82924 
+Q 587.772 335.82924 587.772 329.33628 
+L 587.772 274.14612 
+Q 587.772 267.65316 579.564 267.65316 
+L 140.436 267.65316 
+Q 132.228 267.65316 132.228 274.14612 
+L 132.228 329.33628 
+Q 132.228 335.82924 140.436 335.82924 
+z
+" clip-path="url(#pd4d718e1b4)" style="fill: #e9f1eb; stroke: #8d9c94; stroke-width: 1.2; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_9">
+    <path d="M 140.436 444.04524 
+L 579.564 444.04524 
+Q 587.772 444.04524 587.772 437.55228 
+L 587.772 382.36212 
+Q 587.772 375.86916 579.564 375.86916 
+L 140.436 375.86916 
+Q 132.228 375.86916 132.228 382.36212 
+L 132.228 437.55228 
+Q 132.228 444.04524 140.436 444.04524 
+z
+" clip-path="url(#pd4d718e1b4)" style="fill: #e9f1eb; stroke: #8d9c94; stroke-width: 1.2; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_10">
+    <path d="M 82.296 565.78824 
+L 295.704 565.78824 
+Q 303.912 565.78824 303.912 559.29528 
+L 303.912 509.51592 
+Q 303.912 503.02296 295.704 503.02296 
+L 82.296 503.02296 
+Q 74.088 503.02296 74.088 509.51592 
+L 74.088 559.29528 
+Q 74.088 565.78824 82.296 565.78824 
+z
+" clip-path="url(#pd4d718e1b4)" style="fill: #e9f1eb; stroke: #8d9c94; stroke-width: 1.2; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_11">
+    <path d="M 318.276 565.78824 
+L 483.804 565.78824 
+Q 492.012 565.78824 492.012 559.29528 
+L 492.012 509.51592 
+Q 492.012 503.02296 483.804 503.02296 
+L 318.276 503.02296 
+Q 310.068 503.02296 310.068 509.51592 
+L 310.068 559.29528 
+Q 310.068 565.78824 318.276 565.78824 
+z
+" clip-path="url(#pd4d718e1b4)" style="fill: #e9f1eb; stroke: #8d9c94; stroke-width: 1.2; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_12">
+    <path d="M 499.536 565.78824 
+L 644.544 565.78824 
+Q 652.752 565.78824 652.752 559.29528 
+L 652.752 509.51592 
+Q 652.752 503.02296 644.544 503.02296 
+L 499.536 503.02296 
+Q 491.328 503.02296 491.328 509.51592 
+L 491.328 559.29528 
+Q 491.328 565.78824 499.536 565.78824 
+z
+" clip-path="url(#pd4d718e1b4)" style="fill: #e9f1eb; stroke: #8d9c94; stroke-width: 1.2; stroke-linejoin: miter"/>
+   </g>
+   <g id="text_1">
+    <text style="font-weight: 700; font-size: 15px; font-family: 'Microsoft YaHei'; text-anchor: start; fill: #152a2d" x="65.88" y="123.1848" transform="rotate(-0 65.88 123.1848)">Old / published</text>
+   </g>
+   <g id="text_2">
+    <text style="font-size: 15px; font-family: 'Microsoft YaHei'; text-anchor: middle; fill: #152a2d" x="168.48" y="186.92235" transform="rotate(-0 168.48 186.92235)">Keep prefix</text>
+   </g>
+   <g id="text_3">
+    <text style="font-size: 15px; font-family: 'Microsoft YaHei'; text-anchor: middle; fill: #152a2d" x="366.84" y="186.834459" transform="rotate(-0 366.84 186.834459)">Remove span</text>
+   </g>
+   <g id="text_4">
+    <text style="font-size: 15px; font-family: 'Microsoft YaHei'; text-anchor: middle; fill: #152a2d" x="558.36" y="186.834459" transform="rotate(-0 558.36 186.834459)">Keep tail</text>
+   </g>
+   <g id="text_5">
+    <text style="font-size: 13px; font-family: 'Microsoft YaHei'; text-anchor: middle; fill: #152a2d" x="360" y="305.359872" transform="rotate(-0 360 305.359872)">One isolation copy into a private contiguous buffer</text>
+   </g>
+   <g id="text_6">
+    <text style="font-size: 13px; font-family: 'Microsoft YaHei'; text-anchor: middle; fill: #152a2d" x="360" y="413.4997" transform="rotate(-0 360 413.4997)">Crop the span; move the tail only when length changes</text>
+   </g>
+   <g id="text_7">
+    <text style="font-weight: 700; font-size: 15px; font-family: 'Microsoft YaHei'; text-anchor: start; fill: #152a2d" x="65.88" y="491.1192" transform="rotate(-0 65.88 491.1192)">New / private</text>
+   </g>
+   <g id="text_8">
+    <text style="font-size: 13px; font-family: 'Microsoft YaHei'; text-anchor: middle; fill: #152a2d" x="189" y="538.06185" transform="rotate(-0 189 538.06185)">Keep prefix</text>
+   </g>
+   <g id="text_9">
+    <text style="font-size: 13px; font-family: 'Microsoft YaHei'; text-anchor: middle; fill: #152a2d" x="401.04" y="537.9481" transform="rotate(-0 401.04 537.9481)">New bytes</text>
+   </g>
+   <g id="text_10">
+    <text style="font-size: 13px; font-family: 'Microsoft YaHei'; text-anchor: middle; fill: #152a2d" x="572.04" y="537.985678" transform="rotate(-0 572.04 537.985678)">Keep tail</text>
+   </g>
+   <g id="text_11">
+    <text style="font-size: 12px; font-family: 'Microsoft YaHei'; text-anchor: middle; fill: #506264" x="360" y="610.791713" transform="rotate(-0 360 610.791713)">Transfer the same buffer into cache when ownership and capacity allow.</text>
+   </g>
+  </g>
+  <g id="text_12">
+   <text style="font-weight: 700; font-size: 22px; font-family: 'Microsoft YaHei'; text-anchor: start; fill: #152a2d" x="36" y="43.784688" transform="rotate(-0 36 43.784688)">02  Binary subtraction: crop and reuse a buffer</text>
+  </g>
+  <g id="text_13">
+   <text style="font-size: 12px; font-family: 'Microsoft YaHei'; text-anchor: start; fill: #506264" x="36" y="67.9125" transform="rotate(-0 36 67.9125)">Published old bytes remain immutable; make an isolation copy when required.</text>
+  </g>
+ </g>
+ <defs>
+  <clipPath id="pd4d718e1b4">
+   <rect x="18" y="90.72" width="684" height="541.08"/>
+  </clipPath>
+ </defs>
+</svg>

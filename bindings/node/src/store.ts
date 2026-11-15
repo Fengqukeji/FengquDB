@@ -30,6 +30,20 @@ export interface WriteOptions {
   forceReliable?: boolean;
 }
 
+/** 整库写入配置，保存在该数据库目录中。 */
+export interface WritePolicy {
+  mode: "performance" | "reliable";
+  periodMs: number;
+  thresholdBytes: bigint;
+}
+
+/** 省略的字段保留当前配置。 */
+export interface WritePolicyOptions {
+  mode?: "performance" | "reliable";
+  periodMs?: number;
+  thresholdBytes?: number | bigint;
+}
+
 export interface StoreInfo {
   version: bigint; durableVersion: bigint; fileBytes: bigint; indexedKeys: bigint; storedKeys: bigint;
   storedValueBytes: bigint; deltaBytes: bigint; cacheBytes: bigint; pinnedBytes: bigint;
@@ -398,6 +412,23 @@ export class Store implements Selectable {
   }
   sync(): void {
     native().storeSync(this.handle());
+  }
+  /** 读取当前数据库的写入配置。 */
+  writeOptions(): WritePolicy {
+    const [mode, periodMs, thresholdBytes] = native().storeWriteOptions(this.handle());
+    return { mode: mode === 0 ? "reliable" : "performance", periodMs, thresholdBytes };
+  }
+  /** 切换并保存配置；可能等待待写数据落盘。 */
+  configureWrite(options: WritePolicyOptions): void {
+    if (options === null || typeof options !== "object") throw new TypeError("write options must be an object");
+    const { mode, periodMs, thresholdBytes } = options;
+    if (mode !== undefined && mode !== "performance" && mode !== "reliable") throw new TypeError("invalid write mode");
+    native().storeWriteConfigure(this.handle(), mode === undefined ? undefined : mode === "reliable" ? 0 : 1,
+      periodMs, thresholdBytes);
+  }
+  /** 恢复并保存默认性能模式、50 ms、1 MiB。 */
+  resetWriteOptions(): void {
+    native().storeWriteReset(this.handle());
   }
   info(): StoreInfo {
     return native().storeInfo(this.handle()) as unknown as StoreInfo;

@@ -9,7 +9,7 @@ project(fengqudb_node LANGUAGES CXX)
 #   cmake --build build
 #
 # Output: build/fengqudb_native.node (looked up by dist/src/native.js).
-# Windows + MSVC: written to work but NOT verified (no Windows C++ toolchain was available).
+# Windows release SDKs ship a prebuilt N-API module; the source build uses MSVC.
 # It additionally needs NODE_LIB (node.lib from the Node.js headers/libs package).
 
 set(CMAKE_CXX_STANDARD 17)
@@ -43,6 +43,7 @@ add_library(fengqudb_native MODULE
 set_target_properties(fengqudb_native PROPERTIES
   PREFIX ""
   OUTPUT_NAME "fengqudb_native"
+  MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>"
   SUFFIX ".node"
   CXX_VISIBILITY_PRESET hidden
   VISIBILITY_INLINES_HIDDEN ON
@@ -59,7 +60,7 @@ target_compile_definitions(fengqudb_native PRIVATE NAPI_VERSION=8 NAPI_DISABLE_C
 target_link_libraries(fengqudb_native PRIVATE "${FQDB_LIBRARY}")
 
 if(MSVC)
-  target_compile_options(fengqudb_native PRIVATE /W4 /permissive-)
+  target_compile_options(fengqudb_native PRIVATE /W4 /permissive- /utf-8)
   target_compile_definitions(fengqudb_native PRIVATE _CRT_SECURE_NO_WARNINGS)
   if(NODE_LIB)
     target_link_libraries(fengqudb_native PRIVATE "${NODE_LIB}")
@@ -68,6 +69,9 @@ else()
   target_compile_options(fengqudb_native PRIVATE -Wall -Wextra -O2)
   if(APPLE)
     target_link_options(fengqudb_native PRIVATE -undefined dynamic_lookup)
+    set_target_properties(fengqudb_native PROPERTIES INSTALL_RPATH "@loader_path")
+  else()
+    set_target_properties(fengqudb_native PROPERTIES INSTALL_RPATH "$ORIGIN")
   endif()
   if(FQDB_LIB_DIR)
     # Optional convenience: find libfengqudb next to the build without LD_LIBRARY_PATH.

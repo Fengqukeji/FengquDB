@@ -15,10 +15,34 @@ use crate::shared::{PreparedKey, Reader, SharedValue};
 /// 持久化模式。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Durability {
-    /// 每次提交同步落盘。
+    /// 允许同步落盘；最终确认时机由库内写入策略决定，新库默认性能模式。
     Sync = 0,
     /// 缓冲写入，手动 `sync()`。
     Buffered = 1,
+}
+
+/// 写入成功的确认时机，与打开选项的 Durability 分开。
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u32)]
+pub enum WriteMode {
+    /// 等待可靠落盘后返回。
+    Reliable = 0,
+    /// 内存生效后返回，按周期或字节阈值刷盘。
+    Performance = 1,
+}
+
+/// 保存在数据库目录中的写入配置。
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct WriteOptions {
+    pub mode: WriteMode,
+    pub period_ms: u32,
+    pub threshold_bytes: u64,
+}
+
+impl Default for WriteOptions {
+    fn default() -> Self {
+        Self { mode: WriteMode::Performance, period_ms: 50, threshold_bytes: 1 << 20 }
+    }
 }
 
 /// 打开选项；`Default` 对应头文件中 NULL 选项的默认值（SYNC，不存在则创建）。
@@ -211,6 +235,38 @@ impl Store {
     pub fn sync(&self) -> Result<()> {
         // SAFETY: raw() 返回的句柄在 self 存活期间有效。
         check(unsafe { sys::fqdb_store_sync(self.raw()?) }, "fqdb_store_sync")
+    }
+
+    /// 读取当前数据库的写入配置。
+    pub fn write_options(&self) -> Result<WriteOptions> {
+        let mut raw = sys::fqdb_store_write_options::default();
+        // SAFETY: 句柄有效，raw 的布局与 C ABI 一致且是有效输出。
+        check(unsafe { sys::fqdb_store_write_options_get(self.raw()?, &mut raw) }, "fqdb_store_write_options_get")?;
+        let mode = match raw.mode {
+            sys::FQDB_WRITE_RELIABLE => WriteMode::Reliable,
+            sys::FQDB_WRITE_PERFORMANCE => WriteMode::Performance,
+            _ => return Err(Error::Invalid("unknown write mode returned by native library")),
+        };
+        Ok(WriteOptions { mode, period_ms: raw.period_ms, threshold_bytes: raw.threshold_bytes })
+    }
+
+    /// 切换并保存写入配置；可能等待待写数据落盘。
+    pub fn configure_write(&self, options: &WriteOptions) -> Result<()> {
+        let raw = sys::fqdb_store_write_options {
+            struct_size: std::mem::size_of::<sys::fqdb_store_write_options>() as u32,
+            abi_version: 1,
+            mode: options.mode as u32,
+            period_ms: options.period_ms,
+            threshold_bytes: options.threshold_bytes,
+        };
+        // SAFETY: 句柄和配置在本次同步调用期间有效，核心不保留配置指针。
+        check(unsafe { sys::fqdb_store_write_configure(self.raw()?, &raw) }, "fqdb_store_write_configure")
+    }
+
+    /// 恢复并保存默认性能模式、50 ms、1 MiB。
+    pub fn reset_write_options(&self) -> Result<()> {
+        // SAFETY: 句柄有效，C ABI 规定空指针表示恢复默认配置。
+        check(unsafe { sys::fqdb_store_write_configure(self.raw()?, ptr::null()) }, "fqdb_store_write_configure")
     }
 
     /// 统计信息。

@@ -402,6 +402,9 @@ public sealed partial class StoreTransaction : IDisposable {
     public unsafe void Put(byte[] key, byte[] value, ulong expiresAtMs = 0) {
         if (key == null || value == null)
             throw new ArgumentNullException();
+        Put(key.AsSpan(), value.AsSpan(), expiresAtMs);
+    }
+    public unsafe void Put(ReadOnlySpan<byte> key, ReadOnlySpan<byte> value, ulong expiresAtMs = 0) {
         lock (gate) fixed(byte *k = key, v = value) Native.Check(
             StoreNative.fqdb_store_txn_put(handle, new Slice((IntPtr)k, (ulong)key.Length),
                                            new Slice((IntPtr)v, (ulong)value.Length), expiresAtMs));

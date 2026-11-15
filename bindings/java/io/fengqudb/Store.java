@@ -1,6 +1,10 @@
 package io.fengqudb;
 import java.nio.charset.StandardCharsets;
 import java.nio.ByteBuffer;
+import java.net.URISyntaxException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.lang.ref.PhantomReference;
 import java.lang.ref.ReferenceQueue;
 import java.util.concurrent.ConcurrentHashMap;
@@ -19,6 +23,37 @@ import java.util.function.LongUnaryOperator;
  * Long.compareUnsigned/Long.toUnsignedString. Sizes and timeouts are nonnegative.
  */
 public final class Store implements AutoCloseable {
+    /** Locate the copyable SDK relative to its JAR, independently of the working directory. */
+    private static final class NativeLibrary {
+        static void load() {
+            String explicit = System.getProperty("fengqudb.nativeDir");
+            if (explicit != null) {
+                loadAt(Paths.get(explicit));
+                return;
+            }
+            Path directory = null;
+            try {
+                if (Store.class.getProtectionDomain().getCodeSource() != null) {
+                    Path origin = Paths.get(Store.class.getProtectionDomain().getCodeSource().getLocation().toURI());
+                    directory = (Files.isDirectory(origin) ? origin : origin.getParent()).resolve("Native");
+                }
+            } catch (URISyntaxException | IllegalArgumentException | SecurityException e) {
+                // Custom class loaders may have no filesystem location. Use the JVM loader below.
+            }
+            if (directory != null && Files.isRegularFile(directory.resolve(System.mapLibraryName("fengqudb")))) {
+                loadAt(directory);
+            } else {
+                System.loadLibrary("fengqudb");
+                System.loadLibrary("fengqudb_jni");
+            }
+        }
+
+        private static void loadAt(Path directory) {
+            Path absolute = directory.toAbsolutePath().normalize();
+            System.load(absolute.resolve(System.mapLibraryName("fengqudb")).toString());
+            System.load(absolute.resolve(System.mapLibraryName("fengqudb_jni")).toString());
+        }
+    }
     public static final class DbException extends RuntimeException {
         public final int code;
         public DbException(int code) {
@@ -34,8 +69,7 @@ public final class Store implements AutoCloseable {
     private static native long nReaderAcquire(long handle, ByteBuffer[] buffers, long[] metadata);
     private static native void nReaderRelease(long handle);
     static {
-        System.loadLibrary("fengqudb");
-        System.loadLibrary("fengqudb_jni");
+        NativeLibrary.load();
         if (nAbiVersion() != 2)
             throw new UnsupportedOperationException("Use matching FengquDB ABI 2 libraries");
     }

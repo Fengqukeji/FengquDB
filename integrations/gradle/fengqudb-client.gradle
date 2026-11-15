@@ -1,0 +1,24 @@
+// Apply from a Java project's build.gradle. SDK defaults to rootProject/FengquDB.
+def fqdbSdk = rootProject.file(findProperty('fqdbSdk') ?: 'FengquDB')
+def fqdbTool = new File(fqdbSdk, 'Tools/' + (System.getProperty('os.name').toLowerCase().contains('windows') ? 'fqdb-codegen.exe' : 'fqdb-codegen'))
+def fqdbGenerated = new File(projectDir, 'Generated')
+plugins.withId('java') {
+    dependencies.add('implementation', files(new File(fqdbSdk, 'fengqudb.jar')))
+    sourceSets.main.java.srcDir(new File(fqdbGenerated, 'java'))
+    def generate = tasks.register('generateFengquDBModels', Exec) {
+        onlyIf {
+            new File(projectDir, 'FengquDB.schema.lock.json').exists() ||
+                fileTree(projectDir) {
+                    include '**/*.java'
+                    exclude 'build/**', 'Generated/**', 'FengquDB/**'
+                }.any { it.getText('UTF-8').contains('fqdb:entity') }
+        }
+        commandLine fqdbTool.absolutePath, 'generate', '--source', projectDir,
+                '--source-language', 'java', '--output', fqdbGenerated,
+                '--schema-lock', new File(projectDir, 'FengquDB.schema.lock.json')
+    }
+    tasks.named('compileJava').configure { dependsOn(generate) }
+    tasks.withType(JavaCompile).configureEach { task ->
+        if (task.options.encoding == null) task.options.encoding = 'UTF-8'
+    }
+}

@@ -1,0 +1,27 @@
+{
+  "date": "2026-11-15",
+  "source": "https://dev.mysql.com/downloads/mysql/8.4.html?os=3",
+  "archive_url": "https://cdn.mysql.com//Downloads/MySQL-8.4/mysql-8.4.13-winx64.zip",
+  "archive_content_range": "bytes 281089355-281154911/281154912",
+  "central_directory_content_range": "bytes 281117135-281154889/281154912",
+  "central_directory_sha256": "52a77301b3f31db9f51abd55b5491b303d539aee9e4aa319b9a852569ca85262",
+  "entries": [
+    {
+      "path": "mysql-8.4.13-winx64/bin/mysql.exe",
+      "bytes": 7179384,
+      "compressed_bytes": 2051772
+    },
+    {
+      "path": "mysql-8.4.13-winx64/bin/mysqld.exe",
+      "bytes": 51644544,
+      "compressed_bytes": 16412104
+    },
+    {
+      "path": "mysql-8.4.13-winx64/lib/libmysql.dll",
+      "bytes": 7032960,
+      "compressed_bytes": 1994943
+    }
+  ],
+  "metadata_bytes_fetched": 103312,
+  "fqdb_windows_dll_bytes": 1206272
+}

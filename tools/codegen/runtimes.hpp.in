@@ -1,0 +1,9 @@
+#pragma once
+namespace codegen {
+inline constexpr const char *runtime_c = R"FQDB_C(@FQ_RUNTIME_C@)FQDB_C";
+inline constexpr const char *runtime_python = R"FQDB_PY(@FQ_RUNTIME_PYTHON@)FQDB_PY";
+inline constexpr const char *runtime_node = R"FQDB_JS(@FQ_RUNTIME_NODE@)FQDB_JS";
+inline constexpr const char *runtime_java = R"FQDB_JAVA(@FQ_RUNTIME_JAVA@)FQDB_JAVA";
+inline constexpr const char *runtime_go = R"FQDB_GO(@FQ_RUNTIME_GO@)FQDB_GO";
+inline constexpr const char *runtime_rust = R"FQDB_RS(@FQ_RUNTIME_RUST@)FQDB_RS";
+}

@@ -1,12 +1,19 @@
 # fengqudb: Node.js / TypeScript binding
 
-N-API addon (C++17, only `node_api.h`, no node-addon-api, no node-gyp download) plus a TypeScript layer with the
+N-API addon (only `node_api.h`, no node-addon-api, no node-gyp download) plus a TypeScript layer with the
 query model, a typed query builder and `.d.ts` files. The runtime has no npm dependencies.
 Everything is synchronous. A `sync` durability write blocks the event loop, so use `worker_threads` for heavy work.
 
+Start with the [current integration guide](../../docs/languages/node.md). A new
+database defaults to performance mode (50 ms / 1 MiB): ordinary success confirms
+in-memory publication. Use `forceReliable: true` for critical writes. The low-level
+`durability` option and the effective write policy are separate settings; `buffered`
+means manual synchronization, not concurrent operation.
+The test/benchmark commands below target the development repository; those
+fixtures and programs are intentionally excluded from the small client SDK.
+
 **Verified on:** Linux (container `fqdb-lang-dev:1`, Node 24, g++ 15, CMake 4.2).
-**Windows / MSVC: not verified.** The CMake file has an MSVC branch (needs `-DNODE_LIB=<node.lib>`), but no Windows
-C++ toolchain was available, so it has never been built or run. macOS is also untested.
+**Windows / MSVC:** the prebuilt SDK was built and verified for module loading, CRUD and reliable sync on 2026-11-14. Windows worker/conformance suites and macOS runtime remain unverified.
 
 ## Build and test (in the Docker image)
 
@@ -35,7 +42,7 @@ The addon is found at `build/fengqudb_native.node`; `libfengqudb` must be loadab
 ```ts
 import { Store, from, u64, text, s64, count } from "fengqudb";
 
-const db = Store.open("/data/game", { durability: "buffered" });   // "sync" is the default
+const db = Store.open("/data/game");  // new database: performance mode
 db.put("player/42", bytes, { expiresAtMs: Date.now() + 60_000 });
 const copy = db.get("player/42");                                  // Uint8Array copy or null
 

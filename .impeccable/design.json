@@ -1,0 +1,300 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-15T01:25:29Z",
+  "title": "Design System: FengquDB 业务性能实测",
+  "extensions": {
+    "colorMeta": {
+      "green": {
+        "role": "primary",
+        "displayName": "报告深绿",
+        "tonalRamp": [
+          "oklch(15% 0.03412 164.85)",
+          "oklch(26% 0.05913 164.85)",
+          "oklch(38% 0.08643 164.85)",
+          "oklch(50% 0.08643 164.85)",
+          "oklch(62% 0.08643 164.85)",
+          "oklch(74% 0.08643 164.85)",
+          "oklch(86% 0.04654 164.85)",
+          "oklch(95% 0.01662 164.85)"
+        ]
+      },
+      "mysql-bar": {
+        "role": "secondary",
+        "displayName": "灰蓝 · MySQL",
+        "tonalRamp": [
+          "oklch(15% 0.01154 217.32)",
+          "oklch(26% 0.02000 217.32)",
+          "oklch(38% 0.02923 217.32)",
+          "oklch(50% 0.02923 217.32)",
+          "oklch(62% 0.02923 217.32)",
+          "oklch(74% 0.02923 217.32)",
+          "oklch(86% 0.01574 217.32)",
+          "oklch(95% 0.00562 217.32)"
+        ]
+      },
+      "redis-bar": {
+        "role": "secondary",
+        "displayName": "蓝灰 · Redis",
+        "tonalRamp": [
+          "oklch(15% 0.01384 236.76)",
+          "oklch(26% 0.02398 236.76)",
+          "oklch(38% 0.03505 236.76)",
+          "oklch(50% 0.03505 236.76)",
+          "oklch(62% 0.03505 236.76)",
+          "oklch(74% 0.03505 236.76)",
+          "oklch(86% 0.01887 236.76)",
+          "oklch(95% 0.00674 236.76)"
+        ]
+      },
+      "hybrid-bar": {
+        "role": "secondary",
+        "displayName": "灰绿 · MySQL+Redis",
+        "tonalRamp": [
+          "oklch(15% 0.01236 151.58)",
+          "oklch(26% 0.02143 151.58)",
+          "oklch(38% 0.03131 151.58)",
+          "oklch(50% 0.03131 151.58)",
+          "oklch(62% 0.03131 151.58)",
+          "oklch(74% 0.03131 151.58)",
+          "oklch(86% 0.01686 151.58)",
+          "oklch(95% 0.00602 151.58)"
+        ]
+      },
+      "sqlite-bar": {
+        "role": "secondary",
+        "displayName": "青灰 · SQLite",
+        "tonalRamp": [
+          "oklch(15% 0.01190 202.15)",
+          "oklch(26% 0.02062 202.15)",
+          "oklch(38% 0.03014 202.15)",
+          "oklch(50% 0.03014 202.15)",
+          "oklch(62% 0.03014 202.15)",
+          "oklch(74% 0.03014 202.15)",
+          "oklch(86% 0.01623 202.15)",
+          "oklch(95% 0.00580 202.15)"
+        ]
+      },
+      "focus": {
+        "role": "secondary",
+        "displayName": "焦点蓝",
+        "tonalRamp": [
+          "oklch(15% 0.04045 244.19)",
+          "oklch(26% 0.07012 244.19)",
+          "oklch(38% 0.10248 244.19)",
+          "oklch(50% 0.10248 244.19)",
+          "oklch(62% 0.10248 244.19)",
+          "oklch(74% 0.10248 244.19)",
+          "oklch(86% 0.05518 244.19)",
+          "oklch(95% 0.01971 244.19)"
+        ]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "浅色纸面",
+        "tonalRamp": [
+          "oklch(15% 0.00212 117.92)",
+          "oklch(26% 0.00368 117.92)",
+          "oklch(38% 0.00538 117.92)",
+          "oklch(50% 0.00538 117.92)",
+          "oklch(62% 0.00538 117.92)",
+          "oklch(74% 0.00538 117.92)",
+          "oklch(86% 0.00289 117.92)",
+          "oklch(95% 0.00103 117.92)"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "白色表面",
+        "tonalRamp": [
+          "oklch(15% 0.00000 0.00)",
+          "oklch(26% 0.00000 0.00)",
+          "oklch(38% 0.00000 0.00)",
+          "oklch(50% 0.00000 0.00)",
+          "oklch(62% 0.00000 0.00)",
+          "oklch(74% 0.00000 0.00)",
+          "oklch(86% 0.00000 0.00)",
+          "oklch(95% 0.00000 0.00)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "深色墨迹",
+        "tonalRamp": [
+          "oklch(15% 0.01085 207.35)",
+          "oklch(26% 0.01880 207.35)",
+          "oklch(38% 0.02748 207.35)",
+          "oklch(50% 0.02748 207.35)",
+          "oklch(62% 0.02748 207.35)",
+          "oklch(74% 0.02748 207.35)",
+          "oklch(86% 0.01480 207.35)",
+          "oklch(95% 0.00529 207.35)"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "次级墨迹",
+        "tonalRamp": [
+          "oklch(15% 0.00873 204.72)",
+          "oklch(26% 0.01513 204.72)",
+          "oklch(38% 0.02211 204.72)",
+          "oklch(50% 0.02211 204.72)",
+          "oklch(62% 0.02211 204.72)",
+          "oklch(74% 0.02211 204.72)",
+          "oklch(86% 0.01191 204.72)",
+          "oklch(95% 0.00425 204.72)"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "分隔灰",
+        "tonalRamp": [
+          "oklch(15% 0.00470 162.00)",
+          "oklch(26% 0.00814 162.00)",
+          "oklch(38% 0.01190 162.00)",
+          "oklch(50% 0.01190 162.00)",
+          "oklch(62% 0.01190 162.00)",
+          "oklch(74% 0.01190 162.00)",
+          "oklch(86% 0.00641 162.00)",
+          "oklch(95% 0.00229 162.00)"
+        ]
+      },
+      "soft": {
+        "role": "neutral",
+        "displayName": "浅绿底",
+        "tonalRamp": [
+          "oklch(15% 0.00459 153.67)",
+          "oklch(26% 0.00796 153.67)",
+          "oklch(38% 0.01163 153.67)",
+          "oklch(50% 0.01163 153.67)",
+          "oklch(62% 0.01163 153.67)",
+          "oklch(74% 0.01163 153.67)",
+          "oklch(86% 0.00626 153.67)",
+          "oklch(95% 0.00224 153.67)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "开场标题",
+        "purpose": "报告开场的流体标题；系统字体、紧凑行高与字距。"
+      },
+      "headline": {
+        "displayName": "区块标题",
+        "purpose": "结果区和方法区的二级标题。"
+      },
+      "title": {
+        "displayName": "业务标题",
+        "purpose": "业务场景三级标题；620px 以下使用 20px。"
+      },
+      "body": {
+        "displayName": "基础正文",
+        "purpose": "基础阅读文字；业务说明与方法文字使用较小的 14px。"
+      },
+      "label": {
+        "displayName": "筛选标签",
+        "purpose": "原生选择框的标签；620px 以下使用 12px。"
+      },
+      "chart-value": {
+        "displayName": "图表数值",
+        "purpose": "柱顶中位数，使用等宽数字；620px 以下使用 16px。"
+      },
+      "comparison": {
+        "displayName": "相对数值",
+        "purpose": "显示清楚标注分子与分母的比较；620px 以下使用 17px。"
+      }
+    },
+    "shadows": [],
+    "motion": [],
+    "breakpoints": [
+      {
+        "name": "compact",
+        "value": "900px"
+      },
+      {
+        "name": "mobile",
+        "value": "620px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "报告导航",
+      "kind": "nav",
+      "refersTo": "navigation-link",
+      "description": "原生锚点和下载链接；保留下划线、悬停加深与清楚的键盘焦点。",
+      "html": "<nav class=\"ds-report-nav\" aria-label=\"报告导航\"><a href=\"#results\">测试结果</a><a href=\"#method\">测试方法</a><a href=\"results.csv\" download>下载数据</a></nav>",
+      "css": ".ds-report-nav{display:flex;gap:24px;font:14px/1.7 system-ui,-apple-system,\"Segoe UI\",\"Microsoft YaHei\",sans-serif}.ds-report-nav a{display:inline-flex;align-items:center;min-height:44px;color:var(--green,#126247);text-underline-offset:4px}.ds-report-nav a:hover{color:#0a422e}.ds-report-nav a:focus-visible{outline:3px solid var(--focus,#175d8d);outline-offset:4px}@media(max-width:620px){.ds-report-nav{gap:18px;font-size:12px}}"
+    },
+    {
+      "name": "原生筛选",
+      "kind": "input",
+      "refersTo": "report-select",
+      "description": "调用线程控件的实际选项与样式；页面中与另外三个筛选组成网格。",
+      "html": "<label class=\"ds-filter\">调用线程<select aria-label=\"调用线程\"><option value=\"1\">1 线程</option><option value=\"8\" selected>8 线程</option></select></label>",
+      "css": ".ds-filter{display:grid;gap:8px;min-width:0;color:var(--ink,#152a2d);font:600 13px/1.7 system-ui,-apple-system,\"Segoe UI\",\"Microsoft YaHei\",sans-serif}.ds-filter select{min-width:0;width:100%;padding:10px 30px 10px 12px;border:1px solid #718478;border-radius:6px;background:var(--surface,#fff);color:var(--ink,#152a2d);font:inherit;font-size:14px;cursor:pointer;min-height:44px}.ds-filter select:focus-visible{outline:3px solid var(--focus,#175d8d);outline-offset:4px}@media(max-width:620px){.ds-filter{font-size:12px}.ds-filter select{font-size:13px;padding-left:10px}}"
+    },
+    {
+      "name": "持久化设置提示",
+      "kind": "custom",
+      "refersTo": "report-notice",
+      "description": "浅绿提示带，以真实文字解释性能模式的确认与刷盘设置。",
+      "html": "<div class=\"ds-notice\"><strong>性能模式 · 内存确认</strong><span>FengquDB 内存可见后返回，50 ms／1 MiB 刷盘。五库的持久化窗口不同，设置与可靠性差异见测试方法。</span></div>",
+      "css": ".ds-notice{background:var(--soft,#e9f1eb);color:var(--ink,#152a2d);padding:16px 22px;display:grid;grid-template-columns:190px 1fr;gap:24px;font:14px/1.7 system-ui,-apple-system,\"Segoe UI\",\"Microsoft YaHei\",sans-serif}.ds-notice strong{color:#164b38}.ds-notice span{max-width:90ch}@media(max-width:900px){.ds-notice{grid-template-columns:1fr;gap:8px}}@media(max-width:620px){.ds-notice{padding:18px}}"
+    },
+    {
+      "name": "业务说明与线性图",
+      "kind": "custom",
+      "refersTo": "linear-chart",
+      "description": "实际 128 B、8 线程按键读取样本的中位数和范围；固定五库顺序、零基线、线性刻度与局部横向滚动。",
+      "html": "<section class=\"ds-scenario\"><aside><h3>按键读取</h3><p>按 ID 读取一份完整档案，转换为业务对象。</p><p class=\"ds-comparison\"><strong>1.62×</strong>FengquDB ÷ 其他最高吞吐</p></aside><div class=\"ds-plot-area\"><div class=\"ds-plot-wrap\" tabindex=\"0\" aria-label=\"横向滚动查看五种数据库\"><svg class=\"ds-plot\" viewBox=\"0 0 800 324\" role=\"img\" aria-label=\"按键读取，确认吞吐 · 次/秒，128 B 简介，8 线程\"><title>按键读取，确认吞吐 · 次/秒，128 B 简介，8 线程</title><line x1=\"78\" y1=\"264\" x2=\"780\" y2=\"264\" class=\"ds-axis\"/><text x=\"66\" y=\"268\" text-anchor=\"end\">0</text><line x1=\"78\" y1=\"187.666667\" x2=\"780\" y2=\"187.666667\" class=\"ds-grid\"/><text x=\"66\" y=\"191.666667\" text-anchor=\"end\">2,000,000</text><line x1=\"78\" y1=\"111.333333\" x2=\"780\" y2=\"111.333333\" class=\"ds-grid\"/><text x=\"66\" y=\"115.333333\" text-anchor=\"end\">4,000,000</text><line x1=\"78\" y1=\"35\" x2=\"780\" y2=\"35\" class=\"ds-grid\"/><text x=\"66\" y=\"39\" text-anchor=\"end\">6,000,000</text><rect x=\"115.2\" y=\"260.564515\" width=\"66\" height=\"3.435485\" fill=\"#799198\"><title>MySQL: 90,013，范围 86,176–92,029</title></rect><line x1=\"148.2\" y1=\"260.710957\" x2=\"148.2\" y2=\"260.487548\" class=\"ds-range\"/><line x1=\"143.2\" y1=\"260.710957\" x2=\"153.2\" y2=\"260.710957\" class=\"ds-range\"/><line x1=\"143.2\" y1=\"260.487548\" x2=\"153.2\" y2=\"260.487548\" class=\"ds-range\"/><text x=\"148.2\" y=\"250.487548\" text-anchor=\"middle\" class=\"ds-value\">90,013</text><text x=\"148.2\" y=\"292\" text-anchor=\"middle\" class=\"ds-engine-label\">MySQL</text><rect x=\"255.6\" y=\"259.431794\" width=\"66\" height=\"4.568206\" fill=\"#6e8594\"><title>Redis: 119,691，范围 84,362–160,139</title></rect><line x1=\"288.6\" y1=\"260.780165\" x2=\"288.6\" y2=\"257.888028\" class=\"ds-range\"/><line x1=\"283.6\" y1=\"260.780165\" x2=\"293.6\" y2=\"260.780165\" class=\"ds-range\"/><line x1=\"283.6\" y1=\"257.888028\" x2=\"293.6\" y2=\"257.888028\" class=\"ds-range\"/><text x=\"288.6\" y=\"247.888028\" text-anchor=\"middle\" class=\"ds-value\">119,691</text><text x=\"288.6\" y=\"292\" text-anchor=\"middle\" class=\"ds-engine-label\">Redis</text><rect x=\"396\" y=\"257.589946\" width=\"66\" height=\"6.410054\" fill=\"#788b7c\"><title>MySQL+Redis: 167,949，范围 114,948–221,291</title></rect><line x1=\"429\" y1=\"259.612818\" x2=\"429\" y2=\"255.55406\" class=\"ds-range\"/><line x1=\"424\" y1=\"259.612818\" x2=\"434\" y2=\"259.612818\" class=\"ds-range\"/><line x1=\"424\" y1=\"255.55406\" x2=\"434\" y2=\"255.55406\" class=\"ds-range\"/><text x=\"429\" y=\"245.55406\" text-anchor=\"middle\" class=\"ds-value\">167,949</text><text x=\"429\" y=\"292\" text-anchor=\"middle\" class=\"ds-engine-label\">MySQL+Redis</text><rect x=\"536.4\" y=\"172.42061\" width=\"66\" height=\"91.57939\" fill=\"#647e80\"><title>SQLite: 2,399,460，范围 1,862,570–3,199,270</title></rect><line x1=\"569.4\" y1=\"192.911912\" x2=\"569.4\" y2=\"141.894528\" class=\"ds-range\"/><line x1=\"564.4\" y1=\"192.911912\" x2=\"574.4\" y2=\"192.911912\" class=\"ds-range\"/><line x1=\"564.4\" y1=\"141.894528\" x2=\"574.4\" y2=\"141.894528\" class=\"ds-range\"/><text x=\"569.4\" y=\"131.894528\" text-anchor=\"middle\" class=\"ds-value\">2,399,460</text><text x=\"569.4\" y=\"292\" text-anchor=\"middle\" class=\"ds-engine-label\">SQLite</text><rect x=\"676.8\" y=\"115.32862\" width=\"66\" height=\"148.67138\" fill=\"#126247\"><title>FengquDB: 3,895,320，范围 2,803,230–4,966,800</title></rect><line x1=\"709.8\" y1=\"157.010055\" x2=\"709.8\" y2=\"74.4338\" class=\"ds-range\"/><line x1=\"704.8\" y1=\"157.010055\" x2=\"714.8\" y2=\"157.010055\" class=\"ds-range\"/><line x1=\"704.8\" y1=\"74.4338\" x2=\"714.8\" y2=\"74.4338\" class=\"ds-range\"/><text x=\"709.8\" y=\"64.4338\" text-anchor=\"middle\" class=\"ds-value\">3,895,320</text><text x=\"709.8\" y=\"292\" text-anchor=\"middle\" class=\"ds-fq-label\">FengquDB</text></svg></div></div></section>",
+      "css": ".ds-scenario{display:grid;grid-template-columns:230px minmax(0,1fr);gap:40px;border-top:1px solid var(--line,#cbd4cf);padding:36px 0 32px;color:var(--ink,#152a2d);font:16px/1.7 system-ui,-apple-system,\"Segoe UI\",\"Microsoft YaHei\",sans-serif}.ds-scenario h3{font-size:21px;line-height:1.45;margin:4px 0 12px;letter-spacing:-.02em}.ds-scenario aside p{font-size:14px;color:var(--muted,#506264);max-width:72ch;margin:0 0 16px}.ds-scenario .ds-comparison{font-size:14px;color:var(--ink,#152a2d);margin-top:24px}.ds-comparison strong{display:block;color:var(--green,#126247);font-size:20px;line-height:1.5;overflow-wrap:anywhere}.ds-plot-area{min-width:0}.ds-plot-wrap{overflow-x:auto;scrollbar-color:#9baa9f var(--paper,#f7f8f4);scrollbar-width:thin}.ds-plot-wrap:focus-visible{outline:3px solid var(--focus,#175d8d);outline-offset:4px}.ds-plot{display:block;width:100%;min-width:610px;height:auto;overflow:visible}.ds-plot text{font-family:inherit;fill:var(--muted,#506264);font-size:12px;font-variant-numeric:tabular-nums}.ds-plot text.ds-value{fill:var(--ink,#152a2d);font-size:12px;font-weight:650}.ds-plot text.ds-fq-label{fill:var(--green,#126247);font-weight:750}.ds-plot .ds-grid{stroke:#e0e5e0;stroke-width:1}.ds-plot .ds-axis{stroke:#8d9c94;stroke-width:1}.ds-plot .ds-range{stroke:#243f38;stroke-width:1.4}@media(max-width:900px){.ds-scenario{grid-template-columns:185px minmax(0,1fr);gap:24px}.ds-plot-wrap{margin-right:-8px}}@media(max-width:620px){.ds-scenario{grid-template-columns:minmax(0,1fr);gap:8px;padding:26px 0}.ds-scenario h3{font-size:20px}.ds-scenario aside p{max-width:38ch}.ds-scenario .ds-comparison{margin-top:12px}.ds-comparison strong{display:inline;font-size:17px;margin-right:10px}.ds-plot-wrap{margin-right:-22px}.ds-plot text.ds-value,.ds-plot text.ds-engine-label,.ds-plot text.ds-fq-label{font-size:16px}}"
+    },
+    {
+      "name": "逐轮数据展开",
+      "kind": "custom",
+      "refersTo": "data-disclosure-summary",
+      "description": "同一按键读取场景的 15 个真实样本；原生展开入口与可聚焦的宽表滚动区域。",
+      "html": "<details class=\"ds-data\"><summary>查看逐轮数据 · 15 个样本</summary><div class=\"ds-table-wrap\" tabindex=\"0\" aria-label=\"逐轮测量表，可横向滚动\"><table><caption>按键读取 · 吞吐单位 次/秒，延迟单位 μs</caption><thead><tr><th>数据库 / 轮次</th><th>确认吞吐</th><th>含同步吞吐</th><th>P50</th><th>P95</th><th>P99</th><th>调用次数</th><th>同步尾部 ms</th><th>容器 MiB</th><th>CPU ms</th></tr></thead><tbody><tr><th>MySQL / 1</th><td>90,013</td><td>89,940</td><td>80.54</td><td>169</td><td>235</td><td>135,488</td><td>1.22</td><td>486</td><td>3,005</td></tr><tr><th>MySQL / 2</th><td>86,176</td><td>86,101</td><td>77.91</td><td>204</td><td>342</td><td>129,664</td><td>1.31</td><td>1,982</td><td>3,009</td></tr><tr><th>MySQL / 3</th><td>92,029</td><td>91,953</td><td>76.12</td><td>192</td><td>296</td><td>138,496</td><td>1.25</td><td>449</td><td>3,009</td></tr><tr><th>Redis / 1</th><td>160,139</td><td>159,877</td><td>32.68</td><td>127</td><td>211</td><td>240,704</td><td>2.46</td><td>26</td><td>2,595</td></tr><tr><th>Redis / 2</th><td>84,362</td><td>84,236</td><td>73.05</td><td>225</td><td>393</td><td>126,976</td><td>2.25</td><td>23.73</td><td>2,395</td></tr><tr><th>Redis / 3</th><td>119,691</td><td>119,512</td><td>47.18</td><td>174</td><td>325</td><td>180,032</td><td>2.25</td><td>24.28</td><td>2,606</td></tr><tr><th>MySQL+Redis / 1</th><td>221,291</td><td>221,111</td><td>25.57</td><td>93.17</td><td>153</td><td>332,928</td><td>1.22</td><td>354</td><td>2,778</td></tr><tr><th>MySQL+Redis / 2</th><td>167,949</td><td>167,806</td><td>30.45</td><td>138</td><td>262</td><td>252,800</td><td>1.28</td><td>1,588</td><td>2,747</td></tr><tr><th>MySQL+Redis / 3</th><td>114,948</td><td>114,849</td><td>41.29</td><td>217</td><td>498</td><td>172,800</td><td>1.3</td><td>354</td><td>2,653</td></tr><tr><th>SQLite / 1</th><td>3,199,270</td><td>3,198,720</td><td>0.61</td><td>0.74</td><td>0.92</td><td>4,801,280</td><td>0.26</td><td>19.97</td><td>2,981</td></tr><tr><th>SQLite / 2</th><td>2,399,460</td><td>2,398,910</td><td>0.68</td><td>1.19</td><td>4.18</td><td>3,601,984</td><td>0.34</td><td>18.08</td><td>2,961</td></tr><tr><th>SQLite / 3</th><td>1,862,570</td><td>1,862,120</td><td>0.92</td><td>1.59</td><td>9.2</td><td>2,796,544</td><td>0.36</td><td>18.99</td><td>2,990</td></tr><tr><th>FengquDB / 1</th><td>4,966,800</td><td>4,966,800</td><td>0.38</td><td>0.64</td><td>0.79</td><td>7,451,712</td><td>0</td><td>20.64</td><td>2,972</td></tr><tr><th>FengquDB / 2</th><td>3,895,320</td><td>3,895,310</td><td>0.41</td><td>0.89</td><td>4</td><td>5,844,544</td><td>0</td><td>20.81</td><td>2,975</td></tr><tr><th>FengquDB / 3</th><td>2,803,230</td><td>2,803,220</td><td>0.47</td><td>1.57</td><td>17.7</td><td>4,206,208</td><td>0.01</td><td>19.86</td><td>2,958</td></tr></tbody></table></div></details>",
+      "css": ".ds-data{font:13px/1.7 system-ui,-apple-system,\"Segoe UI\",\"Microsoft YaHei\",sans-serif;margin-top:10px;color:var(--ink,#152a2d)}.ds-data summary{cursor:pointer;padding:10px 0;color:var(--green,#126247);width:fit-content}.ds-data summary:hover{text-decoration:underline;text-underline-offset:4px}.ds-data summary:focus-visible,.ds-table-wrap:focus-visible{outline:3px solid var(--focus,#175d8d);outline-offset:4px}.ds-table-wrap{overflow:auto;max-width:100%}.ds-data table{border-collapse:collapse;width:100%;font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap;background:var(--surface,#fff)}.ds-data th,.ds-data td{border-bottom:1px solid #dee4df;padding:9px 12px;text-align:right}.ds-data th:first-child,.ds-data td:first-child{text-align:left}.ds-data thead{color:var(--muted,#506264)}.ds-data th{font-weight:600}.ds-data tbody tr:hover{background:#f0f5ef}"
+    }
+  ],
+  "narrative": {
+    "northStar": "可核对的技术报告",
+    "overview": "这套视觉系统服务于 `docs/benchmarks` 的静态报告，范围与 [PRODUCT.md](PRODUCT.md) 一致。它以浅色纸面、深色正文和细线组织证据，让业务说明、测量、局限与复现入口保持清楚的阅读关系。它不为数据库 SDK 定义界面。\n\n系统的表达来自准确的排版、稳定的图表结构和克制的色彩。页面使用系统字体、真实文本和 SVG 测量几何；现有实现没有位图、装饰插画或动效。页面任务、内容排序和 Read 模式由 [SURFACE.md](docs/benchmarks/SURFACE.md) 约束；本文件记录已经实现的视觉语言。",
+    "keyCharacteristics": [
+      "浅色纸面与细线分隔，内容沿同一阅读轴展开。",
+      "深色正文、清楚的数字与稳定的五库颜色对应。",
+      "原生筛选和展开控件，证据就在对应图表之后。",
+      "正文适应窄屏，宽图表和逐轮表格在各自区域内滚动。"
+    ],
+    "rules": [
+      {
+        "name": "The Stable Identity Rule",
+        "body": "同一数据库在所有图表中保持同一颜色；颜色说明身份，数值和坐标说明结果。",
+        "section": "colors"
+      },
+      {
+        "name": "The Visible Number Rule",
+        "body": "图中数值和单位必须保持为可读文本；表格使用等宽数字，正文保留自然的中文换行。",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat Evidence Rule",
+        "body": "用文字层级、留白和分隔线组织证据，保持既有的平面材质。",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** 保持前置令牌与报告源码一致，让业务说明、图表和逐轮证据相邻。",
+      "**Do** 在窄屏保留原生筛选、可聚焦的局部滚动区域和横向查看提示。",
+      "**Do** 为数值保留单位、指标方向、样本含义与持久化设置说明。",
+      "**Do** 沿用系统字体、平面背景、细线与真实文本。"
+    ],
+    "donts": [
+      "**Don't** 按当前胜负重排数据库、截断零基线或把线性刻度改为对数刻度。",
+      "**Don't** 将缺失值补为零，隐藏落后结果，或把不同持久化窗口包装成相同可靠性。",
+      "**Don't** 以装饰图片替代图表文字、实际测量几何或原始证据入口。",
+      "**Don't** 将本报告的视觉约定扩展为数据库 SDK 的产品界面规格。"
+    ]
+  }
+}

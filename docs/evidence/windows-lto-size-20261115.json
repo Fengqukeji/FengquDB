@@ -1,0 +1,1192 @@
+{
+  "old_bytes": 1206272,
+  "base_bytes": 1206272,
+  "lto_bytes": 1128960,
+  "exports_equal": true,
+  "exports": [
+    [
+      "fqdb_abi_version",
+      1
+    ],
+    [
+      "fqdb_buffer_copy",
+      2
+    ],
+    [
+      "fqdb_buffer_free",
+      3
+    ],
+    [
+      "fqdb_log_close",
+      4
+    ],
+    [
+      "fqdb_log_get_info",
+      5
+    ],
+    [
+      "fqdb_log_open",
+      6
+    ],
+    [
+      "fqdb_status_message",
+      7
+    ],
+    [
+      "fqdb_store_add_i64",
+      8
+    ],
+    [
+      "fqdb_store_add_i64_fields",
+      9
+    ],
+    [
+      "fqdb_store_backup",
+      10
+    ],
+    [
+      "fqdb_store_backup_incremental",
+      11
+    ],
+    [
+      "fqdb_store_batch_close",
+      12
+    ],
+    [
+      "fqdb_store_batch_create",
+      13
+    ],
+    [
+      "fqdb_store_bridge_abi_version",
+      14
+    ],
+    [
+      "fqdb_store_bridge_identity",
+      15
+    ],
+    [
+      "fqdb_store_cancel_maintenance",
+      16
+    ],
+    [
+      "fqdb_store_change_batch_close",
+      17
+    ],
+    [
+      "fqdb_store_change_batch_data",
+      18
+    ],
+    [
+      "fqdb_store_checkpoint",
+      19
+    ],
+    [
+      "fqdb_store_close",
+      20
+    ],
+    [
+      "fqdb_store_commit_cancel",
+      21
+    ],
+    [
+      "fqdb_store_commit_close",
+      22
+    ],
+    [
+      "fqdb_store_commit_poll",
+      23
+    ],
+    [
+      "fqdb_store_commit_wait",
+      24
+    ],
+    [
+      "fqdb_store_compact",
+      25
+    ],
+    [
+      "fqdb_store_compare_exchange",
+      26
+    ],
+    [
+      "fqdb_store_configure",
+      27
+    ],
+    [
+      "fqdb_store_cursor_close",
+      28
+    ],
+    [
+      "fqdb_store_cursor_next",
+      29
+    ],
+    [
+      "fqdb_store_cursor_open",
+      30
+    ],
+    [
+      "fqdb_store_delete",
+      31
+    ],
+    [
+      "fqdb_store_delete_if_version",
+      32
+    ],
+    [
+      "fqdb_store_get",
+      33
+    ],
+    [
+      "fqdb_store_get_info",
+      34
+    ],
+    [
+      "fqdb_store_get_many",
+      35
+    ],
+    [
+      "fqdb_store_get_shared",
+      36
+    ],
+    [
+      "fqdb_store_get_version",
+      37
+    ],
+    [
+      "fqdb_store_get_view",
+      38
+    ],
+    [
+      "fqdb_store_hash_get_view",
+      39
+    ],
+    [
+      "fqdb_store_history_hold",
+      40
+    ],
+    [
+      "fqdb_store_history_info_get",
+      41
+    ],
+    [
+      "fqdb_store_history_release",
+      42
+    ],
+    [
+      "fqdb_store_index_define",
+      43
+    ],
+    [
+      "fqdb_store_index_define_compound",
+      44
+    ],
+    [
+      "fqdb_store_index_drop",
+      45
+    ],
+    [
+      "fqdb_store_key_close",
+      46
+    ],
+    [
+      "fqdb_store_key_get_into",
+      47
+    ],
+    [
+      "fqdb_store_key_get_shared",
+      48
+    ],
+    [
+      "fqdb_store_key_get_view",
+      49
+    ],
+    [
+      "fqdb_store_key_prepare",
+      50
+    ],
+    [
+      "fqdb_store_open",
+      51
+    ],
+    [
+      "fqdb_store_open_at",
+      52
+    ],
+    [
+      "fqdb_store_patch",
+      53
+    ],
+    [
+      "fqdb_store_path_at",
+      54
+    ],
+    [
+      "fqdb_store_project",
+      55
+    ],
+    [
+      "fqdb_store_project_reader_create",
+      56
+    ],
+    [
+      "fqdb_store_purge_expired",
+      57
+    ],
+    [
+      "fqdb_store_put",
+      58
+    ],
+    [
+      "fqdb_store_put_if_changed",
+      59
+    ],
+    [
+      "fqdb_store_put_submit",
+      60
+    ],
+    [
+      "fqdb_store_reader_acquire",
+      61
+    ],
+    [
+      "fqdb_store_reader_close",
+      62
+    ],
+    [
+      "fqdb_store_reader_create",
+      63
+    ],
+    [
+      "fqdb_store_reader_read",
+      64
+    ],
+    [
+      "fqdb_store_reader_release",
+      65
+    ],
+    [
+      "fqdb_store_recover_chain",
+      66
+    ],
+    [
+      "fqdb_store_restore",
+      67
+    ],
+    [
+      "fqdb_store_results_close",
+      68
+    ],
+    [
+      "fqdb_store_results_count",
+      69
+    ],
+    [
+      "fqdb_store_results_data",
+      70
+    ],
+    [
+      "fqdb_store_results_get",
+      71
+    ],
+    [
+      "fqdb_store_runtime_info_get",
+      72
+    ],
+    [
+      "fqdb_store_select",
+      73
+    ],
+    [
+      "fqdb_store_snapshot_bridge_identity",
+      74
+    ],
+    [
+      "fqdb_store_snapshot_close",
+      75
+    ],
+    [
+      "fqdb_store_snapshot_create",
+      76
+    ],
+    [
+      "fqdb_store_snapshot_get",
+      77
+    ],
+    [
+      "fqdb_store_snapshot_get_many",
+      78
+    ],
+    [
+      "fqdb_store_snapshot_get_prepared_view",
+      79
+    ],
+    [
+      "fqdb_store_snapshot_get_shared",
+      80
+    ],
+    [
+      "fqdb_store_snapshot_get_view",
+      81
+    ],
+    [
+      "fqdb_store_sync",
+      82
+    ],
+    [
+      "fqdb_store_txn_begin",
+      83
+    ],
+    [
+      "fqdb_store_txn_bridge_identity",
+      84
+    ],
+    [
+      "fqdb_store_txn_cancel",
+      85
+    ],
+    [
+      "fqdb_store_txn_close",
+      86
+    ],
+    [
+      "fqdb_store_txn_commit",
+      87
+    ],
+    [
+      "fqdb_store_txn_cursor_open",
+      88
+    ],
+    [
+      "fqdb_store_txn_delete",
+      89
+    ],
+    [
+      "fqdb_store_txn_delete_many",
+      90
+    ],
+    [
+      "fqdb_store_txn_execute",
+      91
+    ],
+    [
+      "fqdb_store_txn_expire",
+      92
+    ],
+    [
+      "fqdb_store_txn_get",
+      93
+    ],
+    [
+      "fqdb_store_txn_get_many",
+      94
+    ],
+    [
+      "fqdb_store_txn_patch",
+      95
+    ],
+    [
+      "fqdb_store_txn_put",
+      96
+    ],
+    [
+      "fqdb_store_txn_put_batch",
+      97
+    ],
+    [
+      "fqdb_store_txn_put_many",
+      98
+    ],
+    [
+      "fqdb_store_txn_release",
+      99
+    ],
+    [
+      "fqdb_store_txn_rollback_to",
+      100
+    ],
+    [
+      "fqdb_store_txn_savepoint",
+      101
+    ],
+    [
+      "fqdb_store_txn_submit",
+      102
+    ],
+    [
+      "fqdb_store_value_close",
+      103
+    ],
+    [
+      "fqdb_store_value_data",
+      104
+    ],
+    [
+      "fqdb_store_value_expires_at_ms",
+      105
+    ],
+    [
+      "fqdb_store_value_version",
+      106
+    ],
+    [
+      "fqdb_store_verify",
+      107
+    ],
+    [
+      "fqdb_store_watch_ack",
+      108
+    ],
+    [
+      "fqdb_store_watch_cancel",
+      109
+    ],
+    [
+      "fqdb_store_watch_close",
+      110
+    ],
+    [
+      "fqdb_store_watch_next",
+      111
+    ],
+    [
+      "fqdb_store_watch_open",
+      112
+    ],
+    [
+      "fqdb_store_write_configure",
+      113
+    ],
+    [
+      "fqdb_store_write_options_get",
+      114
+    ],
+    [
+      "fqdb_store_write_state_get",
+      115
+    ]
+  ],
+  "files": {
+    "fengqudb.dll-0": {
+      "sha256": "b35269a424f653fbccda077f588f0ddb98afc2077a3ead39f3103461ab0d59b4",
+      "path": "D:\\study\\FengquDB\\artifacts\\unity-sdk-20261115-complete\\FengquDB-unity-win-x64\\FengquDB\\Native\\Windows\\x86_64\\fengqudb.dll"
+    },
+    "fengqudb.dll-1": {
+      "sha256": "7d5410278ca1a2a6395799fee58197117ab3f7414c6f01c755aa9ae01c603dcf",
+      "path": "D:\\study\\FengquDB\\build\\package-size-win-20261115\\base\\Release\\fengqudb.dll"
+    },
+    "fengqudb.dll-2": {
+      "sha256": "b79a6316df5e8929bed6b7491c52ae0af0f9c3cad7639f70012a0ff85e205670",
+      "path": "D:\\study\\FengquDB\\build\\package-size-win-20261115\\lto\\Release\\fengqudb.dll"
+    }
+  },
+  "tests": [
+    {
+      "variant": "base",
+      "test": "fqdb_abi_smoke.exe",
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "variant": "base",
+      "test": "fqdb_store_sdk_tests.exe",
+      "exit": 0,
+      "stdout": "PASS shared Store C ABI and C++ SDK, immutable views and restart\n",
+      "stderr": ""
+    },
+    {
+      "variant": "base",
+      "test": "fqdb_wire_tests.exe",
+      "exit": 0,
+      "stdout": "PASS wire: 135066 checks\n",
+      "stderr": ""
+    },
+    {
+      "variant": "lto",
+      "test": "fqdb_abi_smoke.exe",
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "variant": "lto",
+      "test": "fqdb_store_sdk_tests.exe",
+      "exit": 0,
+      "stdout": "PASS shared Store C ABI and C++ SDK, immutable views and restart\n",
+      "stderr": ""
+    },
+    {
+      "variant": "lto",
+      "test": "fqdb_wire_tests.exe",
+      "exit": 0,
+      "stdout": "PASS wire: 135066 checks\n",
+      "stderr": ""
+    }
+  ],
+  "saved_percent": 6.409168081494058,
+  "benchmark_samples": [
+    {
+      "run": 0,
+      "variant": "base",
+      "exit": 0,
+      "rows": [
+        {
+          "workload": "raw_get_hit",
+          "operations": 500000,
+          "ops_per_second": 8230113.987,
+          "p99_us": 0.2,
+          "peak_private_bytes": 7221248
+        },
+        {
+          "workload": "raw_get_miss",
+          "operations": 200000,
+          "ops_per_second": 9532206.944,
+          "p99_us": 0.2,
+          "peak_private_bytes": 7221248
+        },
+        {
+          "workload": "hash_get_hit",
+          "operations": 500000,
+          "ops_per_second": 3200491.596,
+          "p99_us": 0.5,
+          "peak_private_bytes": 7237632
+        },
+        {
+          "workload": "hash_get_miss",
+          "operations": 200000,
+          "ops_per_second": 4126536.103,
+          "p99_us": 0.4,
+          "peak_private_bytes": 7237632
+        },
+        {
+          "workload": "hash_get_missing_scope",
+          "operations": 100000,
+          "ops_per_second": 6567324.932,
+          "p99_us": 0.2,
+          "peak_private_bytes": 7237632
+        },
+        {
+          "workload": "hash_insert_buffered",
+          "operations": 1000,
+          "ops_per_second": 199624.706,
+          "p99_us": 12.3,
+          "peak_private_bytes": 7237632
+        },
+        {
+          "workload": "set_add_buffered",
+          "operations": 1000,
+          "ops_per_second": 204909.635,
+          "p99_us": 11.8,
+          "peak_private_bytes": 7237632
+        },
+        {
+          "workload": "hash_overwrite_256k_buffered",
+          "operations": 128,
+          "ops_per_second": 8971.061,
+          "p99_us": 206.4,
+          "peak_private_bytes": 39223296
+        },
+        {
+          "workload": "hash_get_command_256k",
+          "operations": 1024,
+          "ops_per_second": 79755.748,
+          "p99_us": 19.5,
+          "peak_private_bytes": 39489536
+        },
+        {
+          "workload": "hash_scan_256",
+          "operations": 1024,
+          "ops_per_second": 23010.409,
+          "p99_us": 121.9,
+          "peak_private_bytes": 39493632
+        },
+        {
+          "workload": "hash_scan_1m",
+          "operations": 256,
+          "ops_per_second": 4487.135,
+          "p99_us": 479.2,
+          "peak_private_bytes": 41877504
+        },
+        {
+          "workload": "kv_insert_buffered",
+          "operations": 1000,
+          "ops_per_second": 372606.006,
+          "p99_us": 6.1,
+          "peak_private_bytes": 41877504
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "run": 0,
+      "variant": "lto",
+      "exit": 0,
+      "rows": [
+        {
+          "workload": "raw_get_hit",
+          "operations": 500000,
+          "ops_per_second": 8357723.958,
+          "p99_us": 0.2,
+          "peak_private_bytes": 7065600
+        },
+        {
+          "workload": "raw_get_miss",
+          "operations": 200000,
+          "ops_per_second": 9677029.152,
+          "p99_us": 0.1,
+          "peak_private_bytes": 7065600
+        },
+        {
+          "workload": "hash_get_hit",
+          "operations": 500000,
+          "ops_per_second": 3294871.203,
+          "p99_us": 0.4,
+          "peak_private_bytes": 7065600
+        },
+        {
+          "workload": "hash_get_miss",
+          "operations": 200000,
+          "ops_per_second": 4076956.633,
+          "p99_us": 0.4,
+          "peak_private_bytes": 7065600
+        },
+        {
+          "workload": "hash_get_missing_scope",
+          "operations": 100000,
+          "ops_per_second": 6570604.43,
+          "p99_us": 0.2,
+          "peak_private_bytes": 7065600
+        },
+        {
+          "workload": "hash_insert_buffered",
+          "operations": 1000,
+          "ops_per_second": 206987.912,
+          "p99_us": 13.3,
+          "peak_private_bytes": 7065600
+        },
+        {
+          "workload": "set_add_buffered",
+          "operations": 1000,
+          "ops_per_second": 202704.072,
+          "p99_us": 13.6,
+          "peak_private_bytes": 7065600
+        },
+        {
+          "workload": "hash_overwrite_256k_buffered",
+          "operations": 128,
+          "ops_per_second": 9314.171,
+          "p99_us": 223.4,
+          "peak_private_bytes": 39223296
+        },
+        {
+          "workload": "hash_get_command_256k",
+          "operations": 1024,
+          "ops_per_second": 86590.336,
+          "p99_us": 24.4,
+          "peak_private_bytes": 39489536
+        },
+        {
+          "workload": "hash_scan_256",
+          "operations": 1024,
+          "ops_per_second": 23171.562,
+          "p99_us": 90.7,
+          "peak_private_bytes": 39493632
+        },
+        {
+          "workload": "hash_scan_1m",
+          "operations": 256,
+          "ops_per_second": 4914.675,
+          "p99_us": 411.2,
+          "peak_private_bytes": 41799680
+        },
+        {
+          "workload": "kv_insert_buffered",
+          "operations": 1000,
+          "ops_per_second": 359544.098,
+          "p99_us": 7.1,
+          "peak_private_bytes": 41799680
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "run": 1,
+      "variant": "lto",
+      "exit": 0,
+      "rows": [
+        {
+          "workload": "raw_get_hit",
+          "operations": 500000,
+          "ops_per_second": 8375630.266,
+          "p99_us": 0.2,
+          "peak_private_bytes": 7192576
+        },
+        {
+          "workload": "raw_get_miss",
+          "operations": 200000,
+          "ops_per_second": 9653627.833,
+          "p99_us": 0.1,
+          "peak_private_bytes": 7192576
+        },
+        {
+          "workload": "hash_get_hit",
+          "operations": 500000,
+          "ops_per_second": 3240300.0,
+          "p99_us": 0.4,
+          "peak_private_bytes": 7192576
+        },
+        {
+          "workload": "hash_get_miss",
+          "operations": 200000,
+          "ops_per_second": 4055618.756,
+          "p99_us": 0.4,
+          "peak_private_bytes": 7192576
+        },
+        {
+          "workload": "hash_get_missing_scope",
+          "operations": 100000,
+          "ops_per_second": 6813335.059,
+          "p99_us": 0.2,
+          "peak_private_bytes": 7192576
+        },
+        {
+          "workload": "hash_insert_buffered",
+          "operations": 1000,
+          "ops_per_second": 203981.723,
+          "p99_us": 12.0,
+          "peak_private_bytes": 7192576
+        },
+        {
+          "workload": "set_add_buffered",
+          "operations": 1000,
+          "ops_per_second": 219625.758,
+          "p99_us": 10.8,
+          "peak_private_bytes": 7192576
+        },
+        {
+          "workload": "hash_overwrite_256k_buffered",
+          "operations": 128,
+          "ops_per_second": 9663.732,
+          "p99_us": 205.4,
+          "peak_private_bytes": 39202816
+        },
+        {
+          "workload": "hash_get_command_256k",
+          "operations": 1024,
+          "ops_per_second": 88859.578,
+          "p99_us": 16.3,
+          "peak_private_bytes": 39469056
+        },
+        {
+          "workload": "hash_scan_256",
+          "operations": 1024,
+          "ops_per_second": 23514.067,
+          "p99_us": 78.2,
+          "peak_private_bytes": 39473152
+        },
+        {
+          "workload": "hash_scan_1m",
+          "operations": 256,
+          "ops_per_second": 4426.447,
+          "p99_us": 397.1,
+          "peak_private_bytes": 41787392
+        },
+        {
+          "workload": "kv_insert_buffered",
+          "operations": 1000,
+          "ops_per_second": 356442.702,
+          "p99_us": 5.7,
+          "peak_private_bytes": 41787392
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "run": 1,
+      "variant": "base",
+      "exit": 0,
+      "rows": [
+        {
+          "workload": "raw_get_hit",
+          "operations": 500000,
+          "ops_per_second": 8203862.707,
+          "p99_us": 0.2,
+          "peak_private_bytes": 7192576
+        },
+        {
+          "workload": "raw_get_miss",
+          "operations": 200000,
+          "ops_per_second": 9344440.759,
+          "p99_us": 0.1,
+          "peak_private_bytes": 7192576
+        },
+        {
+          "workload": "hash_get_hit",
+          "operations": 500000,
+          "ops_per_second": 3253706.46,
+          "p99_us": 0.4,
+          "peak_private_bytes": 7192576
+        },
+        {
+          "workload": "hash_get_miss",
+          "operations": 200000,
+          "ops_per_second": 4087513.668,
+          "p99_us": 0.4,
+          "peak_private_bytes": 7192576
+        },
+        {
+          "workload": "hash_get_missing_scope",
+          "operations": 100000,
+          "ops_per_second": 6919266.004,
+          "p99_us": 0.2,
+          "peak_private_bytes": 7192576
+        },
+        {
+          "workload": "hash_insert_buffered",
+          "operations": 1000,
+          "ops_per_second": 190930.788,
+          "p99_us": 12.4,
+          "peak_private_bytes": 7192576
+        },
+        {
+          "workload": "set_add_buffered",
+          "operations": 1000,
+          "ops_per_second": 212192.586,
+          "p99_us": 11.1,
+          "peak_private_bytes": 7192576
+        },
+        {
+          "workload": "hash_overwrite_256k_buffered",
+          "operations": 128,
+          "ops_per_second": 9264.487,
+          "p99_us": 241.0,
+          "peak_private_bytes": 39206912
+        },
+        {
+          "workload": "hash_get_command_256k",
+          "operations": 1024,
+          "ops_per_second": 88712.542,
+          "p99_us": 17.0,
+          "peak_private_bytes": 39477248
+        },
+        {
+          "workload": "hash_scan_256",
+          "operations": 1024,
+          "ops_per_second": 24867.467,
+          "p99_us": 99.2,
+          "peak_private_bytes": 39481344
+        },
+        {
+          "workload": "hash_scan_1m",
+          "operations": 256,
+          "ops_per_second": 4855.244,
+          "p99_us": 399.4,
+          "peak_private_bytes": 41787392
+        },
+        {
+          "workload": "kv_insert_buffered",
+          "operations": 1000,
+          "ops_per_second": 335795.836,
+          "p99_us": 9.2,
+          "peak_private_bytes": 41787392
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "run": 2,
+      "variant": "base",
+      "exit": 0,
+      "rows": [
+        {
+          "workload": "raw_get_hit",
+          "operations": 500000,
+          "ops_per_second": 8055966.41,
+          "p99_us": 0.2,
+          "peak_private_bytes": 7213056
+        },
+        {
+          "workload": "raw_get_miss",
+          "operations": 200000,
+          "ops_per_second": 9551143.988,
+          "p99_us": 0.1,
+          "peak_private_bytes": 7213056
+        },
+        {
+          "workload": "hash_get_hit",
+          "operations": 500000,
+          "ops_per_second": 3229398.376,
+          "p99_us": 0.4,
+          "peak_private_bytes": 7213056
+        },
+        {
+          "workload": "hash_get_miss",
+          "operations": 200000,
+          "ops_per_second": 4215309.583,
+          "p99_us": 0.3,
+          "peak_private_bytes": 7213056
+        },
+        {
+          "workload": "hash_get_missing_scope",
+          "operations": 100000,
+          "ops_per_second": 7082855.241,
+          "p99_us": 0.2,
+          "peak_private_bytes": 7213056
+        },
+        {
+          "workload": "hash_insert_buffered",
+          "operations": 1000,
+          "ops_per_second": 212969.865,
+          "p99_us": 12.7,
+          "peak_private_bytes": 7213056
+        },
+        {
+          "workload": "set_add_buffered",
+          "operations": 1000,
+          "ops_per_second": 214417.428,
+          "p99_us": 9.5,
+          "peak_private_bytes": 7213056
+        },
+        {
+          "workload": "hash_overwrite_256k_buffered",
+          "operations": 128,
+          "ops_per_second": 9250.694,
+          "p99_us": 231.6,
+          "peak_private_bytes": 39211008
+        },
+        {
+          "workload": "hash_get_command_256k",
+          "operations": 1024,
+          "ops_per_second": 86394.546,
+          "p99_us": 30.3,
+          "peak_private_bytes": 39477248
+        },
+        {
+          "workload": "hash_scan_256",
+          "operations": 1024,
+          "ops_per_second": 24942.576,
+          "p99_us": 104.8,
+          "peak_private_bytes": 39481344
+        },
+        {
+          "workload": "hash_scan_1m",
+          "operations": 256,
+          "ops_per_second": 4762.587,
+          "p99_us": 401.7,
+          "peak_private_bytes": 41787392
+        },
+        {
+          "workload": "kv_insert_buffered",
+          "operations": 1000,
+          "ops_per_second": 399584.432,
+          "p99_us": 3.8,
+          "peak_private_bytes": 41787392
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "run": 2,
+      "variant": "lto",
+      "exit": 0,
+      "rows": [
+        {
+          "workload": "raw_get_hit",
+          "operations": 500000,
+          "ops_per_second": 8321433.683,
+          "p99_us": 0.2,
+          "peak_private_bytes": 7012352
+        },
+        {
+          "workload": "raw_get_miss",
+          "operations": 200000,
+          "ops_per_second": 9582169.499,
+          "p99_us": 0.1,
+          "peak_private_bytes": 7012352
+        },
+        {
+          "workload": "hash_get_hit",
+          "operations": 500000,
+          "ops_per_second": 3208950.147,
+          "p99_us": 0.5,
+          "peak_private_bytes": 7057408
+        },
+        {
+          "workload": "hash_get_miss",
+          "operations": 200000,
+          "ops_per_second": 4148138.316,
+          "p99_us": 0.4,
+          "peak_private_bytes": 7057408
+        },
+        {
+          "workload": "hash_get_missing_scope",
+          "operations": 100000,
+          "ops_per_second": 6937506.938,
+          "p99_us": 0.2,
+          "peak_private_bytes": 7057408
+        },
+        {
+          "workload": "hash_insert_buffered",
+          "operations": 1000,
+          "ops_per_second": 198424.509,
+          "p99_us": 13.3,
+          "peak_private_bytes": 7057408
+        },
+        {
+          "workload": "set_add_buffered",
+          "operations": 1000,
+          "ops_per_second": 233628.484,
+          "p99_us": 7.9,
+          "peak_private_bytes": 7057408
+        },
+        {
+          "workload": "hash_overwrite_256k_buffered",
+          "operations": 128,
+          "ops_per_second": 9375.916,
+          "p99_us": 246.7,
+          "peak_private_bytes": 39219200
+        },
+        {
+          "workload": "hash_get_command_256k",
+          "operations": 1024,
+          "ops_per_second": 86734.824,
+          "p99_us": 20.3,
+          "peak_private_bytes": 39485440
+        },
+        {
+          "workload": "hash_scan_256",
+          "operations": 1024,
+          "ops_per_second": 23840.511,
+          "p99_us": 83.5,
+          "peak_private_bytes": 39489536
+        },
+        {
+          "workload": "hash_scan_1m",
+          "operations": 256,
+          "ops_per_second": 4698.739,
+          "p99_us": 457.3,
+          "peak_private_bytes": 41799680
+        },
+        {
+          "workload": "kv_insert_buffered",
+          "operations": 1000,
+          "ops_per_second": 370342.938,
+          "p99_us": 5.1,
+          "peak_private_bytes": 41799680
+        }
+      ],
+      "stderr": ""
+    }
+  ],
+  "benchmark_medians": [
+    {
+      "workload": "raw_get_hit",
+      "baseline_ops": 8203862.707,
+      "lto_ops": 8357723.958,
+      "lto_ratio": 1.0187547325564963
+    },
+    {
+      "workload": "raw_get_miss",
+      "baseline_ops": 9532206.944,
+      "lto_ops": 9653627.833,
+      "lto_ratio": 1.0127379619130519
+    },
+    {
+      "workload": "hash_get_hit",
+      "baseline_ops": 3229398.376,
+      "lto_ops": 3240300.0,
+      "lto_ratio": 1.0033757445600449
+    },
+    {
+      "workload": "hash_get_miss",
+      "baseline_ops": 4126536.103,
+      "lto_ops": 4076956.633,
+      "lto_ratio": 0.9879852087168326
+    },
+    {
+      "workload": "hash_get_missing_scope",
+      "baseline_ops": 6919266.004,
+      "lto_ops": 6813335.059,
+      "lto_ratio": 0.9846904361042398
+    },
+    {
+      "workload": "hash_insert_buffered",
+      "baseline_ops": 199624.706,
+      "lto_ops": 203981.723,
+      "lto_ratio": 1.0218260409109883
+    },
+    {
+      "workload": "set_add_buffered",
+      "baseline_ops": 212192.586,
+      "lto_ops": 219625.758,
+      "lto_ratio": 1.0350303096829216
+    },
+    {
+      "workload": "hash_overwrite_256k_buffered",
+      "baseline_ops": 9250.694,
+      "lto_ops": 9375.916,
+      "lto_ratio": 1.013536497910319
+    },
+    {
+      "workload": "hash_get_command_256k",
+      "baseline_ops": 86394.546,
+      "lto_ops": 86734.824,
+      "lto_ratio": 1.0039386514051476
+    },
+    {
+      "workload": "hash_scan_256",
+      "baseline_ops": 24867.467,
+      "lto_ops": 23514.067,
+      "lto_ratio": 0.9455754781940596
+    },
+    {
+      "workload": "hash_scan_1m",
+      "baseline_ops": 4762.587,
+      "lto_ops": 4698.739,
+      "lto_ratio": 0.9865938407004426
+    },
+    {
+      "workload": "kv_insert_buffered",
+      "baseline_ops": 372606.006,
+      "lto_ops": 359544.098,
+      "lto_ratio": 0.964944451271137
+    }
+  ],
+  "scope": "Windows Release LTO package-size pilot; same frozen engine source; no database feature or durability removal. Public benchmark not rerun.",
+  "compiler": "MSVC 19.51.36260.0",
+  "source_snapshot_sha256": "f3a110c07e1524ef61311f9bdc2fcbcf946c16e85844fb1b5d24498385115ec9",
+  "stability": {
+    "ok": true,
+    "cases": [
+      {
+        "mode": "performance",
+        "segmented": false,
+        "write_transactions": 256,
+        "reader_snapshots": 2875,
+        "seconds": 0.23400000005494803
+      },
+      {
+        "mode": "performance",
+        "segmented": true,
+        "write_transactions": 256,
+        "reader_snapshots": 80,
+        "seconds": 0.15600000007543713
+      },
+      {
+        "mode": "reliable",
+        "segmented": false,
+        "write_transactions": 256,
+        "reader_snapshots": 4307,
+        "seconds": 0.3119999999180436
+      },
+      {
+        "mode": "reliable",
+        "segmented": true,
+        "write_transactions": 256,
+        "reader_snapshots": 634,
+        "seconds": 0.0779999999795109
+      }
+    ]
+  },
+  "sdk_output": "D:\\study\\FengquDB\\artifacts\\unity-sdk-20261115-win-lto"
+}

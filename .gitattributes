@@ -9,3 +9,8 @@
 
 # Preserve vendored bytes and their upstream whitespace conventions.
 third_party/** -text -whitespace
+
+# Preserve generated SVG path spacing and verbatim redistribution notices.
+docs/assets/design/*.svg -whitespace
+docs/benchmarks/licenses.html -whitespace
+licenses/** -text -whitespace

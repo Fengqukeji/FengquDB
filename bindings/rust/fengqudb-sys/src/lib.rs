@@ -35,6 +35,8 @@ pub const FQDB_DURABILITY_SYNC: u32 = 0;
 pub const FQDB_DURABILITY_BUFFERED: u32 = 1;
 pub const FQDB_STORE_CREATE: u32 = 1;
 pub const FQDB_STORE_SEGMENTED: u32 = 2;
+pub const FQDB_WRITE_RELIABLE: u32 = 0;
+pub const FQDB_WRITE_PERFORMANCE: u32 = 1;
 
 pub const FQDB_SELECT: u64 = 53;
 pub const FQDB_SELECT_EXPLAIN: u64 = 54;
@@ -100,6 +102,16 @@ pub struct fqdb_store_options {
     pub all_transaction_bytes: u64,
     pub pinned_bytes: u64,
     pub max_snapshots: u64,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default)]
+pub struct fqdb_store_write_options {
+    pub struct_size: u32,
+    pub abi_version: u32,
+    pub mode: u32,
+    pub period_ms: u32,
+    pub threshold_bytes: u64,
 }
 
 #[repr(C)]
@@ -203,6 +215,8 @@ extern "C" {
     pub fn fqdb_store_close(store: *mut fqdb_store);
     pub fn fqdb_store_get_info(store: *mut fqdb_store, out: *mut fqdb_store_info) -> fqdb_status;
     pub fn fqdb_store_sync(store: *mut fqdb_store) -> fqdb_status;
+    pub fn fqdb_store_write_options_get(store: *mut fqdb_store, out: *mut fqdb_store_write_options) -> fqdb_status;
+    pub fn fqdb_store_write_configure(store: *mut fqdb_store, options: *const fqdb_store_write_options) -> fqdb_status;
 
     pub fn fqdb_store_get(store: *mut fqdb_store, key: fqdb_slice, out: *mut fqdb_buffer) -> fqdb_status;
     pub fn fqdb_store_put(

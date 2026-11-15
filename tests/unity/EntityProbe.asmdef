@@ -1,0 +1,6 @@
+{
+  "name": "FengquDB.EntityProbe",
+  "includePlatforms": ["Editor"],
+  "references": ["FengquDB.Managed"],
+  "autoReferenced": false
+}

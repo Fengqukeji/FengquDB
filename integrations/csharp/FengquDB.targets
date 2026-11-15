@@ -1,0 +1,15 @@
+<Project>
+  <ItemGroup>
+    <Reference Include="FengquDB.Managed">
+      <HintPath>$(MSBuildThisFileDirectory)FengquDB.Managed.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Analyzer Include="$(MSBuildThisFileDirectory)FengquDB.Generator.dll" />
+    <None Include="$(MSBuildThisFileDirectory)Native/fengqudb.dll" Condition="Exists('$(MSBuildThisFileDirectory)Native/fengqudb.dll')"
+          Link="fengqudb.dll" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="$(MSBuildThisFileDirectory)Native/libfengqudb.so*" Condition="Exists('$(MSBuildThisFileDirectory)Native/libfengqudb.so')"
+          Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="$(MSBuildThisFileDirectory)Native/libfengqudb*.dylib" Condition="Exists('$(MSBuildThisFileDirectory)Native/libfengqudb.dylib')"
+          Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

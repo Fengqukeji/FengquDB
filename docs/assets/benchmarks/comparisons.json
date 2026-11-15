@@ -1,0 +1,800 @@
+{
+  "source_sha256": "e452939988ec31087baabb99ad93279b048cc7d850da9c85bb0e53659b6d05f2",
+  "metric": "visible_ops_per_second",
+  "statistic": "median of three runs",
+  "ratio_definition": "FengquDB median / comparator median",
+  "comparisons": [
+    {
+      "workload": "C",
+      "body": 128,
+      "threads": 1,
+      "scores": {
+        "mysql": 7488.48,
+        "redis": 11116,
+        "hybrid": 9844.41,
+        "sqlite-rows": 720156,
+        "fqdb": 3315440.0
+      },
+      "ratios": {
+        "mysql": 442.7387133303421,
+        "redis": 298.2583663188197,
+        "hybrid": 336.784022607754,
+        "sqlite-rows": 4.603780292047834
+      }
+    },
+    {
+      "workload": "insert",
+      "body": 128,
+      "threads": 1,
+      "scores": {
+        "mysql": 5113.28,
+        "redis": 8963.31,
+        "hybrid": 29823,
+        "sqlite-rows": 101742,
+        "fqdb": 225153
+      },
+      "ratios": {
+        "mysql": 44.032988610050694,
+        "redis": 25.119403434668666,
+        "hybrid": 7.549642893069108,
+        "sqlite-rows": 2.2129798903107862
+      }
+    },
+    {
+      "workload": "delete",
+      "body": 128,
+      "threads": 1,
+      "scores": {
+        "mysql": 4326.77,
+        "redis": 9833.79,
+        "hybrid": 2909.46,
+        "sqlite-rows": 90635.7,
+        "fqdb": 238963
+      },
+      "ratios": {
+        "mysql": 55.22895832225886,
+        "redis": 24.300193516436693,
+        "hybrid": 82.13311061159115,
+        "sqlite-rows": 2.636521812045364
+      }
+    },
+    {
+      "workload": "patch",
+      "body": 128,
+      "threads": 1,
+      "scores": {
+        "mysql": 4251.96,
+        "redis": 10033.9,
+        "hybrid": 2921.72,
+        "sqlite-rows": 98790.2,
+        "fqdb": 249446
+      },
+      "ratios": {
+        "mysql": 58.66612103594578,
+        "redis": 24.860323503323734,
+        "hybrid": 85.37642210752571,
+        "sqlite-rows": 2.525007541233847
+      }
+    },
+    {
+      "workload": "save",
+      "body": 128,
+      "threads": 1,
+      "scores": {
+        "mysql": 4151.52,
+        "redis": 9081.38,
+        "hybrid": 3293.58,
+        "sqlite-rows": 96357.9,
+        "fqdb": 216637
+      },
+      "ratios": {
+        "mysql": 52.18257409334412,
+        "redis": 23.855074889499175,
+        "hybrid": 65.77553907905683,
+        "sqlite-rows": 2.2482536460425147
+      }
+    },
+    {
+      "workload": "B",
+      "body": 128,
+      "threads": 1,
+      "scores": {
+        "mysql": 6953.52,
+        "redis": 10045.5,
+        "hybrid": 8645.08,
+        "sqlite-rows": 554388,
+        "fqdb": 2293480.0
+      },
+      "ratios": {
+        "mysql": 329.83007167592814,
+        "redis": 228.30919317107163,
+        "hybrid": 265.2930915619057,
+        "sqlite-rows": 4.13695823141915
+      }
+    },
+    {
+      "workload": "A",
+      "body": 128,
+      "threads": 1,
+      "scores": {
+        "mysql": 13651,
+        "redis": 9765.51,
+        "hybrid": 3622.18,
+        "sqlite-rows": 159639,
+        "fqdb": 516623
+      },
+      "ratios": {
+        "mysql": 37.84506629550949,
+        "redis": 52.90281818358693,
+        "hybrid": 142.62764412591312,
+        "sqlite-rows": 3.2361954159071407
+      }
+    },
+    {
+      "workload": "batch32",
+      "body": 128,
+      "threads": 1,
+      "scores": {
+        "mysql": 5043.33,
+        "redis": 5811.78,
+        "hybrid": 8389.55,
+        "sqlite-rows": 109317,
+        "fqdb": 193195
+      },
+      "ratios": {
+        "mysql": 38.30703126703983,
+        "redis": 33.24196717700946,
+        "hybrid": 23.028052756107304,
+        "sqlite-rows": 1.7672914551259182
+      }
+    },
+    {
+      "workload": "projection",
+      "body": 128,
+      "threads": 1,
+      "scores": {
+        "mysql": 7575.32,
+        "redis": 10689.9,
+        "hybrid": 10805.9,
+        "sqlite-rows": 985100,
+        "fqdb": 4523600.0
+      },
+      "ratios": {
+        "mysql": 597.1496913661733,
+        "redis": 423.1657920092798,
+        "hybrid": 418.6231595702348,
+        "sqlite-rows": 4.592021114607654
+      }
+    },
+    {
+      "workload": "F",
+      "body": 128,
+      "threads": 1,
+      "scores": {
+        "mysql": 4943.33,
+        "redis": 10060.5,
+        "hybrid": 3878.53,
+        "sqlite-rows": 171626,
+        "fqdb": 588309
+      },
+      "ratios": {
+        "mysql": 119.01066689862907,
+        "redis": 58.47711346354555,
+        "hybrid": 151.68349864510523,
+        "sqlite-rows": 3.4278547539417104
+      }
+    },
+    {
+      "workload": "transfer",
+      "body": 128,
+      "threads": 1,
+      "scores": {
+        "mysql": 1659.7,
+        "redis": 8607.39,
+        "hybrid": 1452.73,
+        "sqlite-rows": 63329.9,
+        "fqdb": 240402
+      },
+      "ratios": {
+        "mysql": 144.8466590347653,
+        "redis": 27.929720856148034,
+        "hybrid": 165.48291836748743,
+        "sqlite-rows": 3.7960268372443347
+      }
+    },
+    {
+      "workload": "C",
+      "body": 4096,
+      "threads": 1,
+      "scores": {
+        "mysql": 6933.65,
+        "redis": 9710.27,
+        "hybrid": 9976.03,
+        "sqlite-rows": 583708,
+        "fqdb": 2143380.0
+      },
+      "ratios": {
+        "mysql": 309.12722736221184,
+        "redis": 220.73330607696798,
+        "hybrid": 214.85300264734568,
+        "sqlite-rows": 3.67200723649496
+      }
+    },
+    {
+      "workload": "insert",
+      "body": 4096,
+      "threads": 1,
+      "scores": {
+        "mysql": 3429.72,
+        "redis": 11109.8,
+        "hybrid": 3400.42,
+        "sqlite-rows": 32273.2,
+        "fqdb": 49732.9
+      },
+      "ratios": {
+        "mysql": 14.500571475222468,
+        "redis": 4.476489225728637,
+        "hybrid": 14.625516847918787,
+        "sqlite-rows": 1.540996864271284
+      }
+    },
+    {
+      "workload": "delete",
+      "body": 4096,
+      "threads": 1,
+      "scores": {
+        "mysql": 4369.45,
+        "redis": 9917.87,
+        "hybrid": 3089.38,
+        "sqlite-rows": 41866.1,
+        "fqdb": 179302
+      },
+      "ratios": {
+        "mysql": 41.03537058439849,
+        "redis": 18.078680200486595,
+        "hybrid": 58.03818241847878,
+        "sqlite-rows": 4.282749049947332
+      }
+    },
+    {
+      "workload": "patch",
+      "body": 4096,
+      "threads": 1,
+      "scores": {
+        "mysql": 4247,
+        "redis": 9808.34,
+        "hybrid": 2942.53,
+        "sqlite-rows": 67035.9,
+        "fqdb": 226667
+      },
+      "ratios": {
+        "mysql": 53.37108547209795,
+        "redis": 23.10961895692849,
+        "hybrid": 77.03133018185031,
+        "sqlite-rows": 3.381277792943781
+      }
+    },
+    {
+      "workload": "save",
+      "body": 4096,
+      "threads": 1,
+      "scores": {
+        "mysql": 3168.78,
+        "redis": 8524.53,
+        "hybrid": 2458.07,
+        "sqlite-rows": 42374.9,
+        "fqdb": 87657.2
+      },
+      "ratios": {
+        "mysql": 27.66275980030169,
+        "redis": 10.282936419955117,
+        "hybrid": 35.66098605816758,
+        "sqlite-rows": 2.0686113713542684
+      }
+    },
+    {
+      "workload": "B",
+      "body": 4096,
+      "threads": 1,
+      "scores": {
+        "mysql": 6867.84,
+        "redis": 9605.8,
+        "hybrid": 8345.21,
+        "sqlite-rows": 429869,
+        "fqdb": 1322020.0
+      },
+      "ratios": {
+        "mysql": 192.49429223744292,
+        "redis": 137.62726685960567,
+        "hybrid": 158.4166246265822,
+        "sqlite-rows": 3.0754020410869356
+      }
+    },
+    {
+      "workload": "A",
+      "body": 4096,
+      "threads": 1,
+      "scores": {
+        "mysql": 4897.22,
+        "redis": 9184.93,
+        "hybrid": 3638.96,
+        "sqlite-rows": 121452,
+        "fqdb": 292002
+      },
+      "ratios": {
+        "mysql": 59.62607356826934,
+        "redis": 31.79142356011423,
+        "hybrid": 80.2432563149911,
+        "sqlite-rows": 2.4042584724829563
+      }
+    },
+    {
+      "workload": "batch32",
+      "body": 4096,
+      "threads": 1,
+      "scores": {
+        "mysql": 3065.67,
+        "redis": 4361.67,
+        "hybrid": 4446.41,
+        "sqlite-rows": 45327.3,
+        "fqdb": 107934
+      },
+      "ratios": {
+        "mysql": 35.20731194159841,
+        "redis": 24.74602617804648,
+        "hybrid": 24.274414640125407,
+        "sqlite-rows": 2.381213970388706
+      }
+    },
+    {
+      "workload": "projection",
+      "body": 4096,
+      "threads": 1,
+      "scores": {
+        "mysql": 7548.08,
+        "redis": 10499.8,
+        "hybrid": 9971.95,
+        "sqlite-rows": 938002,
+        "fqdb": 4632510.0
+      },
+      "ratios": {
+        "mysql": 613.7335587328168,
+        "redis": 441.1998323777596,
+        "hybrid": 464.55407417806947,
+        "sqlite-rows": 4.9386994910458615
+      }
+    },
+    {
+      "workload": "F",
+      "body": 4096,
+      "threads": 1,
+      "scores": {
+        "mysql": 5224.63,
+        "redis": 10024.9,
+        "hybrid": 3736.63,
+        "sqlite-rows": 145659,
+        "fqdb": 414241
+      },
+      "ratios": {
+        "mysql": 79.28618868704578,
+        "redis": 41.32121018663528,
+        "hybrid": 110.85951780079911,
+        "sqlite-rows": 2.843909404842818
+      }
+    },
+    {
+      "workload": "transfer",
+      "body": 4096,
+      "threads": 1,
+      "scores": {
+        "mysql": 1659.09,
+        "redis": 9678.73,
+        "hybrid": 1409.66,
+        "sqlite-rows": 52757.3,
+        "fqdb": 140564
+      },
+      "ratios": {
+        "mysql": 84.72355327317987,
+        "redis": 14.522979771106334,
+        "hybrid": 99.7148248513826,
+        "sqlite-rows": 2.6643516631821567
+      }
+    },
+    {
+      "workload": "C",
+      "body": 128,
+      "threads": 8,
+      "scores": {
+        "mysql": 90012.7,
+        "redis": 119691,
+        "hybrid": 167949,
+        "sqlite-rows": 2399460.0,
+        "fqdb": 3895320.0
+      },
+      "ratios": {
+        "mysql": 43.27522671800757,
+        "redis": 32.54480286738351,
+        "hybrid": 23.193469446081846,
+        "sqlite-rows": 1.623415268435398
+      }
+    },
+    {
+      "workload": "insert",
+      "body": 128,
+      "threads": 8,
+      "scores": {
+        "mysql": 50210.2,
+        "redis": 43476.5,
+        "hybrid": 43511.3,
+        "sqlite-rows": 72516.8,
+        "fqdb": 208453
+      },
+      "ratios": {
+        "mysql": 4.151606645661639,
+        "redis": 4.794613181833864,
+        "hybrid": 4.790778487427404,
+        "sqlite-rows": 2.8745476910178054
+      }
+    },
+    {
+      "workload": "delete",
+      "body": 128,
+      "threads": 8,
+      "scores": {
+        "mysql": 37889.9,
+        "redis": 82746.5,
+        "hybrid": 14977,
+        "sqlite-rows": 122690,
+        "fqdb": 227836
+      },
+      "ratios": {
+        "mysql": 6.013106395107931,
+        "redis": 2.753421594871082,
+        "hybrid": 15.212392334913535,
+        "sqlite-rows": 1.8570054609177602
+      }
+    },
+    {
+      "workload": "patch",
+      "body": 128,
+      "threads": 8,
+      "scores": {
+        "mysql": 44846,
+        "redis": 75699,
+        "hybrid": 23355.7,
+        "sqlite-rows": 140103,
+        "fqdb": 231611
+      },
+      "ratios": {
+        "mysql": 5.164585470276056,
+        "redis": 3.0596309066169964,
+        "hybrid": 9.916679868297674,
+        "sqlite-rows": 1.6531480410840595
+      }
+    },
+    {
+      "workload": "save",
+      "body": 128,
+      "threads": 8,
+      "scores": {
+        "mysql": 36283.1,
+        "redis": 56349.4,
+        "hybrid": 16112.5,
+        "sqlite-rows": 110973,
+        "fqdb": 180750
+      },
+      "ratios": {
+        "mysql": 4.981658127337521,
+        "redis": 3.2076650328131264,
+        "hybrid": 11.21799844840962,
+        "sqlite-rows": 1.6287745667865157
+      }
+    },
+    {
+      "workload": "B",
+      "body": 128,
+      "threads": 8,
+      "scores": {
+        "mysql": 80200.1,
+        "redis": 77007.6,
+        "hybrid": 76521.5,
+        "sqlite-rows": 523405,
+        "fqdb": 1385020.0
+      },
+      "ratios": {
+        "mysql": 17.26955452673999,
+        "redis": 17.985497535308202,
+        "hybrid": 18.09974974353613,
+        "sqlite-rows": 2.64617265788443
+      }
+    },
+    {
+      "workload": "A",
+      "body": 128,
+      "threads": 8,
+      "scores": {
+        "mysql": 48255.8,
+        "redis": 61898.2,
+        "hybrid": 26168.5,
+        "sqlite-rows": 199239,
+        "fqdb": 517174
+      },
+      "ratios": {
+        "mysql": 10.717343821882551,
+        "redis": 8.355234885667112,
+        "hybrid": 19.76322678028928,
+        "sqlite-rows": 2.595746816637305
+      }
+    },
+    {
+      "workload": "batch32",
+      "body": 128,
+      "threads": 8,
+      "scores": {
+        "mysql": 27754.5,
+        "redis": 18849,
+        "hybrid": 42417.1,
+        "sqlite-rows": 228642,
+        "fqdb": 343644
+      },
+      "ratios": {
+        "mysql": 12.381559747068042,
+        "redis": 18.231418112366704,
+        "hybrid": 8.101543952792625,
+        "sqlite-rows": 1.5029784554018946
+      }
+    },
+    {
+      "workload": "projection",
+      "body": 128,
+      "threads": 8,
+      "scores": {
+        "mysql": 107615,
+        "redis": 112545,
+        "hybrid": 139925,
+        "sqlite-rows": 3636030.0,
+        "fqdb": 5195330.0
+      },
+      "ratios": {
+        "mysql": 48.277005993588254,
+        "redis": 46.16224621262606,
+        "hybrid": 37.12939074504199,
+        "sqlite-rows": 1.4288468466981845
+      }
+    },
+    {
+      "workload": "F",
+      "body": 128,
+      "threads": 8,
+      "scores": {
+        "mysql": 46056.6,
+        "redis": 84920,
+        "hybrid": 25466.7,
+        "sqlite-rows": 188144,
+        "fqdb": 551932
+      },
+      "ratios": {
+        "mysql": 11.983776483717861,
+        "redis": 6.499434762129063,
+        "hybrid": 21.67269414568829,
+        "sqlite-rows": 2.9335615273407605
+      }
+    },
+    {
+      "workload": "transfer",
+      "body": 128,
+      "threads": 8,
+      "scores": {
+        "mysql": 11473.4,
+        "redis": 52770.5,
+        "hybrid": 11011.8,
+        "sqlite-rows": 78263,
+        "fqdb": 205709
+      },
+      "ratios": {
+        "mysql": 17.92921017309603,
+        "redis": 3.8981817492727946,
+        "hybrid": 18.68077880092265,
+        "sqlite-rows": 2.628432337119712
+      }
+    },
+    {
+      "workload": "C",
+      "body": 4096,
+      "threads": 8,
+      "scores": {
+        "mysql": 84302.8,
+        "redis": 89080.9,
+        "hybrid": 128973,
+        "sqlite-rows": 1647610.0,
+        "fqdb": 3153540.0
+      },
+      "ratios": {
+        "mysql": 37.40729845272043,
+        "redis": 35.400854728679214,
+        "hybrid": 24.451164197157546,
+        "sqlite-rows": 1.9140087763487719
+      }
+    },
+    {
+      "workload": "insert",
+      "body": 4096,
+      "threads": 8,
+      "scores": {
+        "mysql": 11093.1,
+        "redis": 36924.8,
+        "hybrid": 10526.7,
+        "sqlite-rows": 25228.7,
+        "fqdb": 50601.9
+      },
+      "ratios": {
+        "mysql": 4.561565297346999,
+        "redis": 1.370404172805269,
+        "hybrid": 4.807005044315883,
+        "sqlite-rows": 2.0057276038797083
+      }
+    },
+    {
+      "workload": "delete",
+      "body": 4096,
+      "threads": 8,
+      "scores": {
+        "mysql": 22890.1,
+        "redis": 63217.8,
+        "hybrid": 15356.1,
+        "sqlite-rows": 51456.4,
+        "fqdb": 108490
+      },
+      "ratios": {
+        "mysql": 4.739603584082202,
+        "redis": 1.7161305834749072,
+        "hybrid": 7.064944875326417,
+        "sqlite-rows": 2.108386906196314
+      }
+    },
+    {
+      "workload": "patch",
+      "body": 4096,
+      "threads": 8,
+      "scores": {
+        "mysql": 28222.7,
+        "redis": 75599.2,
+        "hybrid": 22845.4,
+        "sqlite-rows": 97935.2,
+        "fqdb": 166334
+      },
+      "ratios": {
+        "mysql": 5.893624635488454,
+        "redis": 2.200208467814474,
+        "hybrid": 7.2808530382484,
+        "sqlite-rows": 1.6984087437407593
+      }
+    },
+    {
+      "workload": "save",
+      "body": 4096,
+      "threads": 8,
+      "scores": {
+        "mysql": 17107.6,
+        "redis": 35507.8,
+        "hybrid": 9729.58,
+        "sqlite-rows": 68995.4,
+        "fqdb": 94102.8
+      },
+      "ratios": {
+        "mysql": 5.500642989080877,
+        "redis": 2.6502008009507767,
+        "hybrid": 9.671825505314722,
+        "sqlite-rows": 1.3638996222936604
+      }
+    },
+    {
+      "workload": "B",
+      "body": 4096,
+      "threads": 8,
+      "scores": {
+        "mysql": 66495.3,
+        "redis": 65793.1,
+        "hybrid": 67333.2,
+        "sqlite-rows": 278397,
+        "fqdb": 1253770.0
+      },
+      "ratios": {
+        "mysql": 18.855016820737706,
+        "redis": 19.056253619300502,
+        "hybrid": 18.620383406699816,
+        "sqlite-rows": 4.503532724849765
+      }
+    },
+    {
+      "workload": "A",
+      "body": 4096,
+      "threads": 8,
+      "scores": {
+        "mysql": 48471.6,
+        "redis": 64974.3,
+        "hybrid": 26752.1,
+        "sqlite-rows": 131665,
+        "fqdb": 182748
+      },
+      "ratios": {
+        "mysql": 3.7702077092565545,
+        "redis": 2.8126197588892836,
+        "hybrid": 6.831164656232596,
+        "sqlite-rows": 1.3879770630007975
+      }
+    },
+    {
+      "workload": "batch32",
+      "body": 4096,
+      "threads": 8,
+      "scores": {
+        "mysql": 13937.2,
+        "redis": 10698.3,
+        "hybrid": 19086.8,
+        "sqlite-rows": 100833,
+        "fqdb": 220235
+      },
+      "ratios": {
+        "mysql": 15.80195448153144,
+        "redis": 20.585980950244434,
+        "hybrid": 11.538602594463189,
+        "sqlite-rows": 2.184155980680928
+      }
+    },
+    {
+      "workload": "projection",
+      "body": 4096,
+      "threads": 8,
+      "scores": {
+        "mysql": 100370,
+        "redis": 103819,
+        "hybrid": 131930,
+        "sqlite-rows": 3534120.0,
+        "fqdb": 5397530.0
+      },
+      "ratios": {
+        "mysql": 53.776327587924676,
+        "redis": 51.98980918714301,
+        "hybrid": 40.912074585007204,
+        "sqlite-rows": 1.5272627980940092
+      }
+    },
+    {
+      "workload": "F",
+      "body": 4096,
+      "threads": 8,
+      "scores": {
+        "mysql": 40133.3,
+        "redis": 76901.9,
+        "hybrid": 23595.9,
+        "sqlite-rows": 169016,
+        "fqdb": 390257
+      },
+      "ratios": {
+        "mysql": 9.724019704335301,
+        "redis": 5.074738075392156,
+        "hybrid": 16.539186892638128,
+        "sqlite-rows": 2.3089944147299666
+      }
+    },
+    {
+      "workload": "transfer",
+      "body": 4096,
+      "threads": 8,
+      "scores": {
+        "mysql": 14179.8,
+        "redis": 55697.3,
+        "hybrid": 9514.32,
+        "sqlite-rows": 55576.8,
+        "fqdb": 130081
+      },
+      "ratios": {
+        "mysql": 9.173683690884216,
+        "redis": 2.3354992073224374,
+        "hybrid": 13.672127908247779,
+        "sqlite-rows": 2.340562968720761
+      }
+    }
+  ]
+}

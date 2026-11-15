@@ -219,6 +219,53 @@ static napi_value store_sync(napi_env env, napi_callback_info info) {
     return nullptr;
 }
 
+static napi_value store_write_options(napi_env env, napi_callback_info info) {
+    FQN_ARGS(1);
+    fqdb_store *s = live_store(env, argv[0]);
+    if (!s) return nullptr;
+    fqdb_store_write_options options{};
+    fqdb_status st = fqdb_store_write_options_get(s, &options);
+    if (st != FQDB_OK) return throw_status(env, st, "writeOptions");
+    napi_value result, mode, period, threshold;
+    FQN_TRY(napi_create_array_with_length(env, 3, &result));
+    FQN_TRY(napi_create_uint32(env, options.mode, &mode));
+    FQN_TRY(napi_create_uint32(env, options.period_ms, &period));
+    FQN_TRY(napi_create_bigint_uint64(env, options.threshold_bytes, &threshold));
+    FQN_TRY(napi_set_element(env, result, 0, mode));
+    FQN_TRY(napi_set_element(env, result, 1, period));
+    FQN_TRY(napi_set_element(env, result, 2, threshold));
+    return result;
+}
+
+static napi_value store_write_configure(napi_env env, napi_callback_info info) {
+    FQN_ARGS(4);
+    fqdb_store *s = live_store(env, argv[0]);
+    if (!s) return nullptr;
+    fqdb_store_write_options options{};
+    fqdb_status st = fqdb_store_write_options_get(s, &options);
+    if (st != FQDB_OK) return throw_status(env, st, "writeOptions");
+    uint64_t mode, period, threshold;
+    if (!get_u64(env, argv[1], options.mode, &mode, "mode") ||
+        !get_u64(env, argv[2], options.period_ms, &period, "periodMs") ||
+        !get_u64(env, argv[3], options.threshold_bytes, &threshold, "thresholdBytes")) return nullptr;
+    if (mode > UINT32_MAX || period > UINT32_MAX) return throw_type(env, "mode/periodMs exceed uint32 range");
+    options.mode = static_cast<uint32_t>(mode);
+    options.period_ms = static_cast<uint32_t>(period);
+    options.threshold_bytes = threshold;
+    st = fqdb_store_write_configure(s, &options);
+    if (st != FQDB_OK) return throw_status(env, st, "configureWrite");
+    return nullptr;
+}
+
+static napi_value store_write_reset(napi_env env, napi_callback_info info) {
+    FQN_ARGS(1);
+    fqdb_store *s = live_store(env, argv[0]);
+    if (!s) return nullptr;
+    fqdb_status st = fqdb_store_write_configure(s, nullptr);
+    if (st != FQDB_OK) return throw_status(env, st, "resetWriteOptions");
+    return nullptr;
+}
+
 static napi_value store_info(napi_env env, napi_callback_info info) {
     FQN_ARGS(1);
     fqdb_store *s = live_store(env, argv[0]);
@@ -621,6 +668,9 @@ napi_status register_store(napi_env env, napi_value exports) {
         {"storeDelete", store_delete},
         {"storeGet", store_get},
         {"storeSync", store_sync},
+        {"storeWriteOptions", store_write_options},
+        {"storeWriteConfigure", store_write_configure},
+        {"storeWriteReset", store_write_reset},
         {"storeInfo", store_info},
         {"storeDefineIndex", store_define_index},
         {"storeDropIndex", store_drop_index},

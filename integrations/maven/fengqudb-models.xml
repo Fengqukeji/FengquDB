@@ -1,0 +1,19 @@
+<!-- Add these plugins to build/plugins; set fqdb.codegen to the HOST binary. -->
+<plugins>
+  <plugin>
+    <groupId>org.codehaus.mojo</groupId><artifactId>exec-maven-plugin</artifactId><version>3.5.0</version>
+    <executions><execution><id>fqdb-generate</id><phase>generate-sources</phase><goals><goal>exec</goal></goals>
+      <configuration><executable>${fqdb.codegen}</executable><arguments>
+        <argument>generate</argument><argument>--source</argument><argument>${project.basedir}</argument>
+        <argument>--source-language</argument><argument>java</argument><argument>--output</argument><argument>${project.build.directory}/generated/fengqudb</argument>
+        <argument>--schema-lock</argument><argument>${project.basedir}/FengquDB.schema.lock.json</argument>
+      </arguments></configuration>
+    </execution></executions>
+  </plugin>
+  <plugin>
+    <groupId>org.codehaus.mojo</groupId><artifactId>build-helper-maven-plugin</artifactId><version>3.6.0</version>
+    <executions><execution><id>fqdb-source</id><phase>generate-sources</phase><goals><goal>add-source</goal></goals>
+      <configuration><sources><source>${project.build.directory}/generated/fengqudb/java</source></sources></configuration>
+    </execution></executions>
+  </plugin>
+</plugins>

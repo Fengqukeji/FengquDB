@@ -149,9 +149,8 @@ fqdb_status FQDB_CALL fqdb_diagnostics_open(const char *directory,
     return boundary([&]() -> fqdb_status {
         auto state = std::make_unique<fqdb_diagnostics>();
         state->reader_only = options && options->flags == FQDB_DIAGNOSTICS_READER_ONLY;
-        std::u8string utf8(directory, directory + std::char_traits<char>::length(directory));
         std::error_code path_error;
-        auto root = std::filesystem::absolute(std::filesystem::path(utf8)).lexically_normal();
+        auto root = std::filesystem::absolute(std::filesystem::u8path(directory)).lexically_normal();
         if (!valid_directory_length(root))
             return FQDB_LIMIT;
         root = std::filesystem::weakly_canonical(root, path_error);

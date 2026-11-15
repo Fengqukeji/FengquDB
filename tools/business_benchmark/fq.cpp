@@ -56,6 +56,17 @@ class FqConnection final : public Connection {
             fq(fqdb_store_put(db_, slice(name), slice(bytes), 0, &out));
         }
     }
+    void erase(uint64_t id) override {
+        auto name = key(id);
+        fqdb_store_atomic_info out{};
+        fq(fqdb_store_delete(db_, slice(name), &out));
+    }
+    uint64_t count() override {
+        fqdb_store_info info{};
+        fq(fqdb_store_get_info(db_, &info));
+        // indexed_keys also counts tombstones; stored_keys counts live records.
+        return info.stored_keys;
+    }
     std::vector<Profile> many(uint64_t first) override {
         std::array<std::string, batch_size> names;
         std::array<fqdb_slice, batch_size> keys;

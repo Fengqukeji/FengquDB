@@ -4,7 +4,7 @@ export {
   INDEX_UNIQUE, INDEX_REQUIRED,
 } from "./store";
 export type {
-  OpenOptions, WriteOptions, StoreInfo, MaintenanceInfo, IndexField, StoreToken, BytesLike, Millis,
+  OpenOptions, WriteOptions, WritePolicy, WritePolicyOptions, StoreInfo, MaintenanceInfo, IndexField, StoreToken, BytesLike, Millis,
 } from "./store";
 export {
   Query, PreparedQuery, Field, Expr, Column, Order, Join, Double, Op, Aggregate, JoinKind, FieldType,

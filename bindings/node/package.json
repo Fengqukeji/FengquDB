@@ -12,9 +12,6 @@
     "CMakeLists.txt",
     "README.md"
   ],
-  "engines": {
-    "node": ">=18.17"
-  },
   "scripts": {
     "build:native": "cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build --config Release",
     "build:ts": "tsc -p tsconfig.json",

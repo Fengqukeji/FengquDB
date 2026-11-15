@@ -22,6 +22,9 @@ export interface Native {
   storeGetShared(s: Handle, key: Bytes): Uint8Array | null;
   storeWithShared<T>(s: Handle, key: Bytes, fn: (v: Uint8Array | null) => T): T;
   storeSync(s: Handle): void;
+  storeWriteOptions(s: Handle): [number, number, bigint];
+  storeWriteConfigure(s: Handle, mode?: number, periodMs?: number, thresholdBytes?: number | bigint): void;
+  storeWriteReset(s: Handle): void;
   storeInfo(s: Handle): Record<string, bigint>;
   storeDefineIndex(s: Handle, name: Bytes, prefix: Bytes, fields: number[], flags: number): Record<string, bigint>;
   storeDropIndex(s: Handle, name: Bytes): Record<string, bigint>;
@@ -68,6 +71,7 @@ function candidates(): string[] {
   // dist/src/native.js -> 包根目录是 ../..
   const root = path.resolve(__dirname, "..", "..");
   list.push(path.join(root, "build", FILE), path.join(root, "build", "Release", FILE));
+  list.push(path.join(root, "Native", FILE));
   return list;
 }
 
@@ -82,7 +86,7 @@ function load(): Native {
     return addon;
   }
   throw new Error(
-    `FengquDB native addon not found. Build it (npm run build:native) or set FQDB_NATIVE_PATH. Tried: ${tried.join(", ")}`,
+    `FengquDB native module not found. Use the matching platform SDK or set FQDB_NATIVE_PATH. Tried: ${tried.join(", ")}`,
   );
 }
 

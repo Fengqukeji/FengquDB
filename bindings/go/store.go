@@ -12,7 +12,10 @@
 package fengqudb
 
 /*
-#cgo LDFLAGS: -lfengqudb
+#cgo CFLAGS: -I${SRCDIR}/include -I${SRCDIR}/../../include
+#cgo LDFLAGS: -L${SRCDIR}/Native -lfengqudb
+#cgo linux LDFLAGS: -Wl,-rpath,$ORIGIN
+#cgo darwin LDFLAGS: -Wl,-rpath,@loader_path
 #include "fqdb_go.h"
 */
 import "C"
@@ -42,6 +45,26 @@ type Options struct {
 	AllTransactionBytes uint64
 	PinnedBytes         uint64
 	MaxSnapshots        uint64
+}
+
+// WriteMode 控制写入成功的确认时机，与打开选项的 Durability 分开。
+type WriteMode uint32
+
+const (
+	WriteReliable    WriteMode = 0 // 等待可靠落盘后返回。
+	WritePerformance WriteMode = 1 // 内存生效后返回，按周期或字节阈值刷盘。
+)
+
+// WriteOptions 是保存在数据库目录中的写入配置。
+type WriteOptions struct {
+	Mode           WriteMode
+	PeriodMs       uint32
+	ThresholdBytes uint64
+}
+
+// DefaultWriteOptions 返回新数据库的默认值：性能模式、50 ms、1 MiB。
+func DefaultWriteOptions() WriteOptions {
+	return WriteOptions{Mode: WritePerformance, PeriodMs: 50, ThresholdBytes: 1 << 20}
 }
 
 // Info 对应 fqdb_store_info。
@@ -186,6 +209,45 @@ func (s *Store) Sync() error {
 		return ErrClosed
 	}
 	return statusErr(C.fqdb_store_sync(s.h))
+}
+
+// WriteOptions 读取当前数据库的写入配置。
+func (s *Store) WriteOptions() (WriteOptions, error) {
+	if s.h == nil {
+		return WriteOptions{}, ErrClosed
+	}
+	var o C.fqdb_store_write_options
+	err := statusErr(C.fqdb_store_write_options_get(s.h, &o))
+	runtime.KeepAlive(s)
+	if err != nil {
+		return WriteOptions{}, err
+	}
+	return WriteOptions{Mode: WriteMode(o.mode), PeriodMs: uint32(o.period_ms), ThresholdBytes: uint64(o.threshold_bytes)}, nil
+}
+
+// ConfigureWrite 切换并保存写入模式；可能等待待写数据落盘。
+// 保留未修改参数时，先用 WriteOptions 读取，再修改所需字段。
+func (s *Store) ConfigureWrite(options WriteOptions) error {
+	if s.h == nil {
+		return ErrClosed
+	}
+	o := C.fqdb_store_write_options{
+		struct_size: C.uint32_t(unsafe.Sizeof(C.fqdb_store_write_options{})), abi_version: 1,
+		mode: C.uint32_t(options.Mode), period_ms: C.uint32_t(options.PeriodMs), threshold_bytes: C.uint64_t(options.ThresholdBytes),
+	}
+	err := statusErr(C.fqdb_store_write_configure(s.h, &o))
+	runtime.KeepAlive(s)
+	return err
+}
+
+// ResetWriteOptions 恢复并保存默认性能模式、50 ms、1 MiB。
+func (s *Store) ResetWriteOptions() error {
+	if s.h == nil {
+		return ErrClosed
+	}
+	err := statusErr(C.fqdb_store_write_configure(s.h, nil))
+	runtime.KeepAlive(s)
+	return err
 }
 
 // Info 返回 Store 统计信息。

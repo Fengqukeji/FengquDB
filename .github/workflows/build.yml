@@ -63,6 +63,14 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23.x'
+          cache: false
+      - uses: dtolnay/rust-toolchain@stable
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -76,7 +84,26 @@ jobs:
           $lib = if ($IsWindows) { "$native/fengqudb.dll" } else { "$native/libfengqudb.so" }
           $env:PATH = "$native$([IO.Path]::PathSeparator)$env:PATH"
           $env:LD_LIBRARY_PATH = $native
+          $codegen = if ($IsWindows) { "$PWD/build/tools/codegen/Release/fqdb-codegen.exe" } else { "$PWD/build/tools/codegen/fqdb-codegen" }
+          python tests/codegen/verify.py --cli $codegen --output "$PWD/build/ci-native-codegen" --languages python,node,c,cpp,csharp,java,go,rust --library $lib
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python tests/codegen/source_verify.py --cli $codegen --output "$PWD/build/ci-source-codegen" --languages python,node,c,cpp,csharp,java,go,rust --library $lib
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python tests/codegen/lock_verify.py --cli $codegen --output "$PWD/build/ci-codegen-lock"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python -m pip install setuptools
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python tests/codegen/python_build_verify.py --cli $codegen --output "$PWD/build/ci-python-package-build"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python scripts/verify-store-bindings.py --library $lib --output "$PWD/build/ci-bindings"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          dotnet run --project tests/csharp/GeneratorTests/GeneratorTests.csproj -c Release
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          dotnet build tools/FengquDB.CodeGen/FengquDB.CodeGen.csproj -c Release
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python tests/csharp/codegen_cli_tests.py --cli "$PWD/tools/FengquDB.CodeGen/bin/Release/net10.0/fqdb-csharp-codegen.dll" --output "$PWD/build/ci-codegen"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          dotnet run --project tests/csharp/TypedSmoke.csproj -c Release -- "$PWD/build/ci-typed-db" $lib
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           cmake --install build --config Release --prefix artifacts/sdk
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
@@ -90,6 +117,12 @@ jobs:
           $diagnosticsConsumer = if ($IsWindows) { "$PWD/build/consumer/Release/diagnostics_consumer.exe" } else { "$PWD/build/consumer/diagnostics_consumer" }
           & $diagnosticsConsumer "$PWD/artifacts/consumer-diagnostics.fdb"
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $platform = if ($IsWindows) { 'win-x64' } else { 'linux-x64' }
+          $jni = if ($IsWindows) { "$native/fengqudb_jni.dll" } else { "$native/libfengqudb_jni.so" }
+          ./scripts/build-client-sdk.ps1 -Platform $platform -NativeDir $native -Codegen $codegen
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python tests/codegen/package_verify.py --packages "$PWD/artifacts/client" --output "$PWD/build/ci-client-consumer" --java-bin "$env:JAVA_HOME/bin" --dotnet
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
           cmake -S . -B build/static -DCMAKE_BUILD_TYPE=Release -DFQDB_SHARED=OFF -DFQDB_BUILD_JNI=OFF
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           cmake --build build/static --config Release --parallel
@@ -98,39 +131,88 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - uses: actions/upload-artifact@v4
         with:
-          name: FengquDB-${{ matrix.os }}
-          path: artifacts/sdk
+          name: FengquDB-client-${{ matrix.os }}
+          path: artifacts/client/*.zip
   android-compile:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ndk: ['23.1.7779620', '27.2.12479018']
     steps:
       - uses: actions/checkout@v4
       - uses: android-actions/setup-android@v3
-      - run: sdkmanager "ndk;27.2.12479018"
+      - run: sdkmanager "ndk;${{ matrix.ndk }}"
       - name: Android ARM64 shared and static
         shell: bash
         run: |
           for shared in ON OFF; do
             cmake -S . -B "build/android-$shared" \
-              -DCMAKE_TOOLCHAIN_FILE="$ANDROID_SDK_ROOT/ndk/27.2.12479018/build/cmake/android.toolchain.cmake" \
-              -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-24 \
+              -DCMAKE_TOOLCHAIN_FILE="$ANDROID_SDK_ROOT/ndk/${{ matrix.ndk }}/build/cmake/android.toolchain.cmake" \
+              -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-24 -DANDROID_STL=c++_static \
               -DCMAKE_BUILD_TYPE=Release -DFQDB_SHARED="$shared" \
-              -DBUILD_TESTING=OFF -DFQDB_BUILD_TOOLS=OFF -DFQDB_BUILD_DIAGNOSTICS=OFF
-            cmake --build "build/android-$shared" --target fengqudb --parallel 2
+              -DBUILD_TESTING=OFF -DFQDB_BUILD_TOOLS=OFF -DFQDB_BUILD_DIAGNOSTICS=ON
+            cmake --build "build/android-$shared" --target fengqudb fengqudb_diagnostics --parallel 2
           done
-  ios-compile:
+          "$ANDROID_SDK_ROOT/ndk/${{ matrix.ndk }}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip" \
+            --strip-unneeded build/android-ON/libfengqudb.so
+      - uses: actions/upload-artifact@v4
+        if: matrix.ndk == '27.2.12479018'
+        with:
+          name: FengquDB-Unity-Android-arm64
+          path: build/android-ON/libfengqudb.so
+          if-no-files-found: error
+  apple-sdk:
     runs-on: macos-latest
-    strategy:
-      matrix:
-        target:
-          - {sdk: iphoneos, arch: arm64}
-          - {sdk: iphonesimulator, arch: arm64}
     steps:
       - uses: actions/checkout@v4
-      - name: iOS static core
-        run: |
-          cmake -S . -B build/ios -G Xcode \
-            -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_SYSROOT=${{ matrix.target.sdk }} \
-            -DCMAKE_OSX_ARCHITECTURES=${{ matrix.target.arch }} -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 \
-            -DCMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED=NO \
-            -DFQDB_SHARED=OFF -DBUILD_TESTING=OFF -DFQDB_BUILD_TOOLS=OFF -DFQDB_BUILD_DIAGNOSTICS=OFF
-          cmake --build build/ios --config Release --target fengqudb --parallel 2
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build Apple native libraries and verify device/simulator links
+        run: sh scripts/build-apple-sdk.sh artifacts/apple-sdk build/apple-sdk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FengquDB-Apple-SDK
+          path: artifacts/apple-sdk
+          if-no-files-found: error
+  unity-sdk:
+    needs: [build, android-compile, apple-sdk]
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: FengquDB-client-windows-latest
+          path: build/inputs/windows
+      - uses: actions/download-artifact@v4
+        with:
+          name: FengquDB-client-ubuntu-latest
+          path: build/inputs/linux
+      - uses: actions/download-artifact@v4
+        with:
+          name: FengquDB-Unity-Android-arm64
+          path: build/inputs/android
+      - uses: actions/download-artifact@v4
+        with:
+          name: FengquDB-Apple-SDK
+          path: build/inputs/apple
+      - name: Assemble one complete Unity folder
+        run: >-
+          python scripts/assemble-unity-sdk.py --inputs build/inputs
+          --output artifacts/unity-sdk
+      - name: Verify independent Unity ZIP
+        run: >-
+          python tests/codegen/package_verify.py --packages artifacts/unity-sdk
+          --output build/ci-unity-packages --manifest-only
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FengquDB-Unity-SDK
+          path: artifacts/unity-sdk/*.zip
+          if-no-files-found: error

@@ -116,7 +116,7 @@ def main():
         assert initial["max_bytes"] == 64 * 1024 * 1024 and initial["retention_days"] == 7
         report["initial_status"] = initial
         with Store.open_at(output / "db", "main", library=core, segmented=args.segmented) as db:
-            db.put_if_changed(b"PRIVATE-LOG-STRESS-KEY", b"PRIVATE-LOG-STRESS-VALUE")
+            db.put_if_changed(b"PRIVATE-LOG-STRESS-KEY", b"PRIVATE-LOG-STRESS-VALUE", force_reliable=True)
             primaries = list((output / "db/main").glob("g*.fdb"))
             assert len(primaries) == 1
             with primaries[0].open("rb") as primary:

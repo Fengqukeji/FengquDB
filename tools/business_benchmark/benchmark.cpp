@@ -41,8 +41,13 @@ static std::vector<Expected> load_expected(const Config &c) {
     require(bool(f) && f.peek() == EOF, "oracle read");
     return out;
 }
-static void verify(Engine &engine, const std::vector<Expected> &expected) {
+static void verify(Engine &engine, const std::vector<Expected> &expected, bool final = true) {
     auto conn = engine.connect();
+    if ((engine.config.workload == "insert" && !final) ||
+        (engine.config.workload == "delete" && final)) {
+        require(conn->count() == 0, "CRUD expected an empty database");
+        return;
+    }
     for (uint64_t first = 0; first < engine.config.records; first += batch_size) {
         auto rows = conn->many(first);
         require(rows.size() == batch_size, "verification row count");
@@ -112,7 +117,7 @@ static void run(Engine &engine) {
     auto expected = load_expected(c);
     // Common full warmup includes materialization. Cache hit/miss counts below
     // exclude setup and use only the requested business calls.
-    verify(engine, expected);
+    verify(engine, expected, false);
     std::mutex mutex;
     std::condition_variable changed;
     unsigned ready = 0;
@@ -135,7 +140,7 @@ static void run(Engine &engine) {
                 const uint64_t low = uint64_t(c.records) * tid / c.threads,
                                high = uint64_t(c.records) * (tid + 1) / c.threads;
                 std::vector<Profile> input;
-                if (c.workload == "save")
+                if (c.workload == "save" || c.workload == "insert")
                     for (uint64_t id = low; id < high; ++id)
                         input.push_back(fixture(id, c.body));
                 std::mt19937_64 random(0xC0FFEE + tid);
@@ -149,8 +154,9 @@ static void run(Engine &engine) {
                 std::array<unsigned char, 16384> choices{};
                 for (auto &choice : choices)
                     choice = static_cast<unsigned char>(random() % 100);
-                for (unsigned i = 0; i < 128; ++i)
-                    require(conn->get(trace[i]).id == trace[i], "worker warmup id");
+                if (c.workload != "insert")
+                    for (unsigned i = 0; i < 128; ++i)
+                        require(conn->get(trace[i]).id == trace[i], "worker warmup id");
                 conn->metrics = {};
                 {
                     std::unique_lock<std::mutex> lock(mutex);
@@ -162,14 +168,17 @@ static void run(Engine &engine) {
                 auto until = start + std::chrono::duration_cast<Clock::duration>(
                                          std::chrono::duration<double>(c.seconds));
                 uint64_t at = 0;
+                const bool finite = c.workload == "insert" || c.workload == "delete";
                 while (!stop.load(std::memory_order_relaxed)) {
-                    if ((at & 63) == 0 && Clock::now() >= until)
+                    if ((finite && at >= high - low) ||
+                        (!finite && (at & 63) == 0 && Clock::now() >= until))
                         break;
                     unsigned id = trace[(at * 2) % trace.size()],
                              next = trace[(at * 2 + 1) % trace.size()];
                     auto chance = choices[at % choices.size()];
                     bool write =
-                        (c.workload == "A" && chance < 50) || (c.workload == "B" && chance < 5);
+                        (c.workload == "A" && chance < 50) || (c.workload == "B" && chance < 5) ||
+                        c.workload == "patch";
                     if (write || c.workload == "save")
                         id = static_cast<unsigned>(low + (id % (high - low)));
                     if (c.workload == "F" && chance < 50)
@@ -185,7 +194,13 @@ static void run(Engine &engine) {
                     Clock::time_point before;
                     if (sample)
                         before = Clock::now();
-                    if (c.workload == "save") {
+                    if (c.workload == "insert") {
+                        conn->put(input[at]);
+                        ++w.writes;
+                    } else if (c.workload == "delete") {
+                        conn->erase(low + at);
+                        ++w.writes;
+                    } else if (c.workload == "save") {
                         auto &p = input[id - low];
                         p.revision = (uint64_t(tid + 1) << 48) | (at + 1);
                         p.bio.back() = static_cast<char>('0' + p.revision % 10);
@@ -256,7 +271,7 @@ static void run(Engine &engine) {
     for (auto &t : threads)
         t.join();
     auto visible_seconds = std::chrono::duration<double>(Clock::now() - start).count();
-    if (c.mode == "performance")
+    if (c.mode != "sync")
         engine.sync();
     auto seconds = std::chrono::duration<double>(Clock::now() - start).count();
     std::cerr << "BENCH_TIMED_END\n";
@@ -279,6 +294,8 @@ static void run(Engine &engine) {
         }
     }
     require(calls > 0, "no calls");
+    if (c.workload == "insert" || c.workload == "delete")
+        require(calls == c.records, "CRUD must visit every unique key exactly once");
     save_expected(c, expected);
     engine.sync();
     verify(engine, expected);
@@ -290,6 +307,9 @@ static void run(Engine &engine) {
               << ",\"seconds\":" << seconds << ",\"calls\":" << calls
               << ",\"visible_seconds\":" << visible_seconds
               << ",\"visible_ops_per_second\":" << calls / visible_seconds
+              << ",\"completion_kind\":\""
+              << ((c.workload == "insert" || c.workload == "delete") ? "fixed_unique_keyset" : "timed")
+              << "\""
               << ",\"flush_tail_ms\":" << (seconds - visible_seconds) * 1000
               << ",\"business_ops_per_second\":" << calls / seconds
               << ",\"rows_per_second\":" << calls * (c.workload == "batch32" ? 32.0 : 1.0) / seconds
@@ -343,7 +363,8 @@ static int main_impl(int argc, char **argv) {
             "unknown durability");
     require(c.workload == "A" || c.workload == "B" || c.workload == "C" || c.workload == "F" ||
                 c.workload == "projection" || c.workload == "batch32" || c.workload == "transfer" ||
-                c.workload == "save",
+                c.workload == "save" || c.workload == "patch" || c.workload == "insert" ||
+                c.workload == "delete",
             "unknown workload");
     if (c.action == "codec") {
         codec(c);
@@ -354,10 +375,12 @@ static int main_impl(int argc, char **argv) {
         engine->reset();
         auto conn = engine->connect();
         std::vector<Expected> expected(c.records);
+        for (uint64_t id = 0; id < c.records; ++id)
+            expected[id].credit = initial_credit + static_cast<int64_t>(id);
         // Bound fixture transactions independently of row size. A fixed 256
         // rows exceeds the native staging budget for 64 KiB profiles.
         const auto seed_rows = unsigned(std::min<uint64_t>(256, (4ull << 20) / (c.body + 512)));
-        for (unsigned first = 0; first < c.records; first += seed_rows) {
+        for (unsigned first = 0; c.workload != "insert" && first < c.records; first += seed_rows) {
             conn->seed_begin();
             for (unsigned i = first; i < std::min(first + seed_rows, c.records); ++i) {
                 auto p = fixture(i, c.body);
@@ -371,7 +394,7 @@ static int main_impl(int argc, char **argv) {
         conn.reset();
         engine->sync();
         save_expected(c, expected);
-        verify(*engine, expected);
+        verify(*engine, expected, false);
         std::cout << "{\"ok\":true,\"action\":\"prepare\"}\n";
     } else if (c.action == "verify") {
         verify(*engine, load_expected(c));

@@ -71,11 +71,16 @@ int main() {
         check(output.find("PRIVATE-KEY-1234") == std::string::npos &&
               output.find("PRIVATE-VALUE-4321") == std::string::npos &&
               output.find("PRIVATE-FILENAME") == std::string::npos);
+        // Compact to a materialized generation before appending a logical WAL
+        // tail. The default hybrid .fdb is a physical packet stream, so bytes
+        // appended there do not represent a three-byte logical database tail.
+        db.compact();
         }
         fs::path data_file;
+        size_t data_files = 0;
         for (const auto &entry : fs::directory_iterator(file))
-            if (entry.path().extension() == ".fdb") data_file = entry.path();
-        check(!data_file.empty());
+            if (entry.path().extension() == ".fdb") { data_file = entry.path(); ++data_files; }
+        check(data_files == 1);
         {
             std::ofstream append(data_file, std::ios::binary | std::ios::app);
             append.write("bad", 3);

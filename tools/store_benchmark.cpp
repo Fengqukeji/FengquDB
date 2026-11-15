@@ -51,7 +51,8 @@ static void cleanup(const std::filesystem::path &path) {
         check(!entry.is_symlink() && entry.is_regular_file() &&
               (name == "CURRENT" || name == "LOCK" ||
                (name.size() == 57 && name.substr(0, 4) == "gen-" && name.substr(53) == ".fdb") ||
-               (name.size() == 21 && name[0] == 'g' && name.substr(17) == ".fdb")));
+               (name.size() == 21 && name[0] == 'g' &&
+                (name.substr(17) == ".fdb" || name.substr(17) == ".blk"))));
         files.push_back(entry.path());
     }
     for (const auto &file : files)

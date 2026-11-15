@@ -67,6 +67,10 @@ public sealed partial class Store {
                                       bool forceReliable = false) {
         if (key == null || value == null)
             throw new ArgumentNullException();
+        return Put(key.AsSpan(), value.AsSpan(), expiresAtMs, forceReliable);
+    }
+    public unsafe StoreAtomicInfo Put(ReadOnlySpan<byte> key, ReadOnlySpan<byte> value,
+                                      ulong expiresAtMs = 0, bool forceReliable = false) {
         fixed(byte *k = key, v = value) {
             Native.Check(StoreNative.fqdb_store_put(handle, new Slice((IntPtr)k, (ulong)key.Length),
                                                     new Slice((IntPtr)v, (ulong)value.Length),

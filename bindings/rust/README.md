@@ -2,6 +2,8 @@
 
 `bindings/rust/` 是一个 cargo workspace，位于 C ABI（`include/fengqudb_store.h`）之上：
 
+新用户先看[当前接入指南](../../docs/languages/rust.md)。新库默认性能模式 50 ms / 1 MiB；普通写成功表示内存生效，sync 是显式可靠屏障。下方测试/基准命令针对开发仓库；精简 SDK 不附测试和 dev-dependency。
+
 | crate | 内容 |
 | --- | --- |
 | `fengqudb-sys` | 手写 `extern "C"` 声明与 `#[repr(C)]` 结构体，不依赖 bindgen/libclang。`build.rs` 负责链接。 |

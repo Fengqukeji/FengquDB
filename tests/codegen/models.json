@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "namespace": "game.models",
+  "entities": [
+    {"name":"Student","prefix":"student/","reserved":[11],"fields":[
+      {"name":"id","type":"sint32","number":1,"key":true},
+      {"name":"name","type":"string","number":2},
+      {"name":"score","type":"sint32","number":3},
+      {"name":"signed_value","type":"sint64","number":4},
+      {"name":"count","type":"uint32","number":5},
+      {"name":"serial","type":"uint64","number":6},
+      {"name":"active","type":"bool","number":7},
+      {"name":"ratio","type":"float","number":8},
+      {"name":"average","type":"double","number":9},
+      {"name":"payload","type":"bytes","number":10},
+      {"name":"edge","type":"uint32","number":536870911}
+    ]},
+    {"name":"TextStudent","prefix":"text/","fields":[
+      {"name":"id","type":"string","number":1,"key":true},
+      {"name":"value","type":"uint64","number":2}
+    ]},
+    {"name":"ShadowRecord","prefix":"shadow/","fields":[
+      {"name":"id","type":"sint32","number":1,"key":true},
+      {"name":"v","type":"sint32","number":2},
+      {"name":"uint32_t","type":"uint32","number":3},
+      {"name":"size_t","type":"uint64","number":4},
+      {"name":"game_models_ShadowRecord","type":"sint32","number":5},
+      {"name":"game_models_ShadowRecord_fq_encode","type":"sint32","number":6}
+    ]}
+  ]
+}

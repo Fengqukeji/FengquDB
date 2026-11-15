@@ -21,6 +21,10 @@
 
 不提供 `.proto` 编译器、反射/descriptor、JSON/TextFormat、自动对象映射、UTF-8 校验、消息合并与未知字段对象保留；应用可以使用官方语言库。应用字节在数据库中原样存取，不经过重新编码。
 
+C# 绑定另提供可选编译期实体生成器及单值接口，支持严格 UTF-8 和实体未知字段保留，其范围见 [C# 实体与单值](CSHARP_ENTITIES.md)。上述有限 C++ wire 层与 C# 对象接入层各有自己的接口契约。
+
+跨语言共享实体可使用[原生模型生成器](MODEL_CODEGEN.md)，从一份模型生成 C/C++、C#、Java、Python、Go、Rust、Node/TypeScript 的实体及编解码。该工具不是 `.proto` 编译器，不依赖语言 SDK；生成的有限标量 codec 提供 UTF-8 校验和未知字段保留。
+
 业务 DTO 的官方生成流程、C#/Java/Python 互通、Unity 接入、optional 默认值与索引规则见 [业务模型示例](../examples/protobuf/README.md)。两版 schema 的未知字段升级及实际调用成本见 [验证与测量记录](PROTOBUF_BUSINESS_REVIEW_20261107.md)；这些依赖仅属于业务应用。
 
 `tools/verify_protobuf.py` 使用官方 protoc 双向验证极值整数、ZigZag、定长整数、浮点、含零/高位字节、packed repeated、嵌套消息与未知字段。有限互操作测试不能代表通过官方完整 conformance 测试。

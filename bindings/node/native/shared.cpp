@@ -171,7 +171,7 @@ static napi_value key_prepare(napi_env env, napi_callback_info info) {
     if (st != FQDB_OK) return throw_status(env, st, "prepareKey");
     auto *k = new KeyBox();
     k->key = pk;
-    napi_value ext;
+    napi_value ext = nullptr;
     napi_status ns = napi_create_external(env, k, key_finalize, nullptr, &ext);
     if (ns != napi_ok) {
         key_finalize(env, k, nullptr);
@@ -358,7 +358,7 @@ static napi_value reader_create(napi_env env, napi_callback_info info) {
     box->capacity = n;
     box->info = static_cast<uint32_t *>(data);
     napi_status ns = napi_create_reference(env, argv[2], 1, &box->info_ref);  // 保持 info 数组存活
-    napi_value ext;
+    napi_value ext = nullptr;
     if (ns == napi_ok) ns = napi_create_external(env, box, reader_finalize, nullptr, &ext);
     if (ns != napi_ok) {
         reader_finalize(env, box, nullptr);

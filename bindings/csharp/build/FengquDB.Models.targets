@@ -1,0 +1,21 @@
+<Project>
+  <!-- Optional native schema workflow. Existing attributed C# classes still
+       use the Roslyn analyzer without this import. -->
+  <PropertyGroup>
+    <FqdbModelsOutput Condition="'$(FqdbModelsOutput)' == '' and '$(FqdbEntitySources)' != ''">$(MSBuildProjectDirectory)/Generated</FqdbModelsOutput>
+    <FqdbModelsOutput Condition="'$(FqdbModelsOutput)' == ''">$(MSBuildProjectDirectory)/$(IntermediateOutputPath)FengquDBModels</FqdbModelsOutput>
+  </PropertyGroup>
+  <Target Name="FqdbGenerateModels" BeforeTargets="CoreCompile"
+          Condition="('$(FqdbModelSchema)' != '' or '$(FqdbEntitySources)' != '') and '$(DesignTimeBuild)' != 'true'">
+    <Error Condition="'$(FqdbCodegenExecutable)' == ''"
+           Text="Set FqdbCodegenExecutable to the host fqdb-codegen executable." />
+    <Error Condition="'$(FqdbModelSchema)' != '' and '$(FqdbEntitySources)' != ''"
+           Text="Choose FqdbModelSchema or FqdbEntitySources, not both." />
+    <Exec Condition="'$(FqdbModelSchema)' != ''" Command="&quot;$(FqdbCodegenExecutable)&quot; generate --schema &quot;$(FqdbModelSchema)&quot; --output &quot;$(FqdbModelsOutput)&quot; --lang csharp" />
+    <Exec Condition="'$(FqdbEntitySources)' != ''" Command="&quot;$(FqdbCodegenExecutable)&quot; generate --source &quot;$(FqdbEntitySources)&quot; --source-language csharp --schema-lock &quot;$(MSBuildProjectDirectory)/FengquDB.schema.lock.json&quot; --output &quot;$(FqdbModelsOutput)&quot;" />
+    <ItemGroup>
+      <Compile Remove="$(FqdbModelsOutput)/csharp/**/*.cs" />
+      <Compile Include="$(FqdbModelsOutput)/csharp/**/*.cs" />
+    </ItemGroup>
+  </Target>
+</Project>

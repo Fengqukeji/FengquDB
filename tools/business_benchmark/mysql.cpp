@@ -12,7 +12,7 @@ class MySQLConnection final : public Connection {
         project_{nullptr, mysql_stmt_close}, put_{nullptr, mysql_stmt_close},
         rev_{nullptr, mysql_stmt_close}, inc_{nullptr, mysql_stmt_close},
         many_{nullptr, mysql_stmt_close}, lock_{nullptr, mysql_stmt_close},
-        move_{nullptr, mysql_stmt_close};
+        move_{nullptr, mysql_stmt_close}, erase_{nullptr, mysql_stmt_close};
     std::array<uint64_t, 10> nums_{};
     std::array<std::vector<char>, 3> strings_;
     std::array<unsigned long, 10> lengths_{};
@@ -104,6 +104,7 @@ class MySQLConnection final : public Connection {
         std::string fields = "id,revision,credit,level,status,name,email,bio,region,last_login";
         prepare(get_, "SELECT " + fields + " FROM profiles WHERE id=?");
         prepare(project_, "SELECT revision,credit FROM profiles WHERE id=?");
+        prepare(erase_, "DELETE FROM profiles WHERE id=?");
         prepare(replace_, "UPDATE profiles SET "
                           "revision=?,credit=?,level=?,status=?,name=?,email=?,bio=?,region=?,last_"
                           "login=? WHERE id=?");
@@ -122,6 +123,19 @@ class MySQLConnection final : public Connection {
     void query(const std::string &sql) {
         if (mysql_real_query(db_.get(), sql.data(), sql.size()))
             throw SqlFailure(mysql_errno(db_.get()), mysql_error(db_.get()));
+    }
+    void erase(uint64_t id) override {
+        auto b = number(&id);
+        execute(erase_, &b);
+        require(mysql_stmt_affected_rows(erase_.get()) == 1, "MySQL delete did not remove one profile");
+    }
+    uint64_t count() override {
+        query("SELECT COUNT(*) FROM profiles");
+        std::unique_ptr<MYSQL_RES, decltype(&mysql_free_result)> result(mysql_store_result(db_.get()), mysql_free_result);
+        require(bool(result), "MySQL count result");
+        auto row = mysql_fetch_row(result.get());
+        require(row && row[0], "MySQL count row");
+        return std::stoull(row[0]);
     }
     Profile get(uint64_t id) override {
         auto b = number(&id);

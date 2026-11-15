@@ -1,0 +1,16 @@
+FengquDB
+Copyright 2026 FengquDB contributors
+
+FengquDB is licensed under the Apache License, Version 2.0.
+
+The independently implemented finite Protobuf wire codec references Google's
+Protocol Buffers encoding specification and official source behavior. The
+Google Protobuf runtime and protoc are not linked into the database core.
+Protocol Buffers: Copyright 2008 Google Inc. All rights reserved.
+Its BSD-3-Clause notice is retained in licenses/Protobuf-BSD-3-Clause.txt.
+
+The native model generator and optional diagnostics use JSON for Modern C++,
+Copyright (c) 2013-2025 Niels Lohmann, under the MIT License.
+
+Binary SDKs may contain C++ toolchain runtime code. See the third-party notices
+and accompanying license texts for applicable runtime notices.

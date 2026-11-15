@@ -6,7 +6,7 @@ class SQLiteConnection final : public Connection {
     bool rows_, pb_, jsonb_;
     std::vector<sqlite3_stmt *> statements_;
     sqlite3_stmt *get_ = nullptr, *project_ = nullptr, *put_ = nullptr, *rev_ = nullptr,
-                 *shift_ = nullptr, *many_ = nullptr, *replace_ = nullptr;
+                 *shift_ = nullptr, *many_ = nullptr, *replace_ = nullptr, *erase_ = nullptr;
     void exec(const std::string &sql) {
         char *e = nullptr;
         auto rc = sqlite3_exec(db_, sql.c_str(), nullptr, nullptr, &e);
@@ -116,6 +116,7 @@ class SQLiteConnection final : public Connection {
                 : jsonb_ ? "json(doc)"
                          : "doc";
             get_ = prepare("SELECT " + select + " FROM profiles WHERE id=?");
+            erase_ = prepare("DELETE FROM profiles WHERE id=?");
             project_ = prepare(
                 rows_ ? "SELECT revision,credit FROM profiles WHERE id=?"
                 : pb_ ? "SELECT doc FROM profiles WHERE id=?"
@@ -157,6 +158,18 @@ class SQLiteConnection final : public Connection {
         for (auto s : statements_)
             sqlite3_finalize(s);
         sqlite3_close(db_);
+    }
+    void erase(uint64_t id) override {
+        integer(erase_, 1, id);
+        done(erase_);
+        require(sqlite3_changes(db_) == 1, "SQLite delete did not remove one profile");
+    }
+    uint64_t count() override {
+        auto s = prepare("SELECT COUNT(*) FROM profiles");
+        require(sqlite3_step(s) == SQLITE_ROW, "SQLite count");
+        auto result = static_cast<uint64_t>(sqlite3_column_int64(s, 0));
+        reset(s);
+        return result;
     }
     Profile get(uint64_t id) override {
         integer(get_, 1, id);

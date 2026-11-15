@@ -1,0 +1,92 @@
+{
+  "scope": "Offline candidates only; not signed, linked, device-tested or shipped. Original SDK unchanged. Symbol equality is not runtime acceptance.",
+  "tool_version": "llvm-strip, compatible with GNU strip\nLLVM (http://llvm.org/):\n  LLVM version 12.0.8git\n  Optimized build.\n  Default target: x86_64-w64-windows-gnu\n  Host CPU: (unknown)\n",
+  "files": [
+    {
+      "file": "Native/Android/arm64-v8a/libfengqudb.so",
+      "original_bytes": 1218176,
+      "flags": [
+        "--strip-unneeded"
+      ],
+      "strip_exit": 0,
+      "strip_message": "",
+      "candidate_bytes": 1218176,
+      "saved_bytes": 0,
+      "saved_percent": 0.0,
+      "nm_exit": [
+        0,
+        0
+      ],
+      "defined_external_symbols_equal": true,
+      "defined_external_symbol_lines": 115,
+      "original_sha256": "40f226a44dbdfdaae63758d43ee0fd45ce73d6ea2007595285c2f191efa73413"
+    },
+    {
+      "file": "Native/iOS/libfengqudb.a",
+      "original_bytes": 1722480,
+      "flags": [
+        "-x"
+      ],
+      "strip_exit": 1,
+      "strip_message": "C:\\Program Files\\Unity\\Hub\\Editor\\2022.3.62f3c1\\Editor\\Data\\PlaybackEngines\\AndroidPlayer\\NDK\\toolchains\\llvm\\prebuilt\\windows-x86_64\\bin\\llvm-strip.exe: error: unsupported load command (cmd=0x2e)",
+      "original_sha256": "947646ae0f4b8286d0e9baa7aa6e6e5a2cc7c67111a578c263db30b08533492d"
+    },
+    {
+      "file": "Native/Linux/x86_64/libfengqudb.so",
+      "original_bytes": 1252272,
+      "flags": [
+        "--strip-unneeded"
+      ],
+      "strip_exit": 0,
+      "strip_message": "",
+      "candidate_bytes": 1252272,
+      "saved_bytes": 0,
+      "saved_percent": 0.0,
+      "nm_exit": [
+        0,
+        0
+      ],
+      "defined_external_symbols_equal": true,
+      "defined_external_symbol_lines": 116,
+      "original_sha256": "b8f07ad194abbec18d02a5e73494455701410ed5f93544ab5bdea35041100d3b"
+    },
+    {
+      "file": "Native/macOS/arm64/libfengqudb.dylib",
+      "original_bytes": 1241024,
+      "flags": [
+        "-x"
+      ],
+      "strip_exit": 0,
+      "strip_message": "",
+      "candidate_bytes": 936544,
+      "saved_bytes": 304480,
+      "saved_percent": 24.53457789696251,
+      "nm_exit": [
+        0,
+        0
+      ],
+      "defined_external_symbols_equal": true,
+      "defined_external_symbol_lines": 115,
+      "original_sha256": "73becd37137c24b61ad568eab1d22944dd3a4ffae51f5dca3334b0e87c003450"
+    },
+    {
+      "file": "Native/macOS/x86_64/libfengqudb.dylib",
+      "original_bytes": 1319704,
+      "flags": [
+        "-x"
+      ],
+      "strip_exit": 0,
+      "strip_message": "",
+      "candidate_bytes": 1016948,
+      "saved_bytes": 302756,
+      "saved_percent": 22.941204997484284,
+      "nm_exit": [
+        0,
+        0
+      ],
+      "defined_external_symbols_equal": true,
+      "defined_external_symbol_lines": 131,
+      "original_sha256": "650882f8e9824fbd4f131a93cdc464a621248c50febac61fc9e508628e4c44bf"
+    }
+  ]
+}

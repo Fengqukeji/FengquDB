@@ -239,6 +239,8 @@ class Connection {
     virtual void increment(uint64_t id) = 0;
     virtual void transfer(uint64_t from, uint64_t to) = 0;
     virtual void put(const Profile &p) = 0;
+    virtual void erase(uint64_t id) = 0;
+    virtual uint64_t count() = 0;
     virtual void replace(const Profile &p) {
         put(p);
     }

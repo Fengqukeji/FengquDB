@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="description" content="FengquDB 与 MySQL、Redis、MySQL+Redis、SQLite 的相同业务实测，提供线性柱状图、逐轮数据与复现方法。">
+  <title>FengquDB · 业务性能实测</title>
+  <link rel="stylesheet" href="report.css">
+  <script src="data.js" defer></script>
+  <script src="report.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#results">跳到测试结果</a>
+<header class="masthead wrap"><a class="wordmark" href="index.html">FengquDB<span>业务性能实测</span></a><nav aria-label="报告导航"><a href="#results">测试结果</a><a href="#method">测试方法</a><a href="results.csv" download>下载数据</a></nav></header>
+<main class="wrap">
+  <section class="intro">
+    <h1>相同业务，<br>逐项对比。</h1>
+    <div class="intro-copy"><p>从读取一份档案，到修改字段、保存和转账。用同一业务对象，比较五种常见数据库方案的实际调用表现。</p><p class="muted" id="run-description">正在读取随页面附带的测量数据。</p><a class="text-link" href="#method">查看环境、持久化设置与复现方法 <span aria-hidden="true">→</span></a></div>
+  </section>
+  <div class="notice"><strong>性能模式 · 内存确认</strong><span>FengquDB 内存可见后返回，50 ms／1 MiB 刷盘。五库的持久化窗口不同，设置与可靠性差异见测试方法。</span></div>
+  <form class="filters" aria-label="选择测试场景" onsubmit="return false">
+    <label>档案简介长度<select id="body"><option value="128">128 B</option><option value="4096">4 KiB</option></select></label>
+    <label>调用线程<select id="threads"><option value="1" selected>1 线程</option><option value="8">8 线程</option></select></label>
+    <label>比较指标<select id="metric"><option value="visible_ops_per_second">确认吞吐 · 次/秒</option><option value="business_ops_per_second">含最终同步吞吐 · 次/秒</option><option value="p99_us">P99 调用延迟 · μs</option></select></label>
+    <label>业务场景<select id="workload"><option value="all">全部业务</option></select></label>
+  </form>
+  <div class="result-heading"><h2 id="results">测试结果</h2><p id="selection-note" role="status" aria-live="polite"></p></div>
+  <p class="chart-key">柱形为 3 轮中位数，细线为最小至最大值；每张图从零起算，独立线性刻度。吞吐越高越好，延迟越低越好。<span class="mobile-hint">横向滑动图表，查看全部五种数据库。</span></p>
+  <div id="charts"><p>数据尚未加载，请检查同目录的 data.js 文件。</p></div>
+  <noscript><p>启用 JavaScript 可筛选柱状图，也可直接下载 <a href="results.csv">全部数据 CSV</a>。</p></noscript>
+  <section class="method" id="method">
+    <h2>怎样测，怎样理解</h2>
+    <div class="method-grid"><div><h3>相同业务，各用常规方式</h3><p>业务对象有 ID、修订号、余额、等级、状态、姓名、邮箱、简介、地区、登录时间共 10 个字段。128 B／4 KiB 指简介长度，实际记录还包含其他字段。</p><p>FengquDB 使用 Protobuf wire 编码；SQLite 与 MySQL 使用普通类型列和预编译 SQL；Redis 使用 Hash、原生增量操作和 Lua 原子转账；MySQL+Redis 使用 SQL 持久化与 JSON cache-aside。计时包含业务编解码和数据库调用。</p><p>这比较的是整套业务访问方案。内嵌调用与本机 TCP、数据结构、事务和缓存都影响结果，不能把全部差距归因于 Protobuf。</p></div>
+    <div><h3>确认成功，不等于已经可靠落盘</h3><p>FengquDB：性能模式 50 ms／1 MiB；MySQL：InnoDB flush=2、关闭 binlog；Redis：AOF everysec；SQLite：WAL + NORMAL；混合方案：同 MySQL，Redis 仅作缓存。</p><p>周期是触发设置，不是任何负载下最大丢失时间的承诺。“确认吞吐”计至业务调用结束；“含最终同步吞吐”还计入末尾显式持久化屏障。它也不会把之前每次确认变成可靠提交。</p><p>纯读取不需要新的持久化屏障；含同步指标保留驱动统一调用的固定开销。</p></div>
+    <div><h3>范围与校验</h3><p>同一隔离容器同时容纳客户端与对应服务，限制 2 个逻辑 CPU、4 GiB 内存、禁用 swap，网络为本机 TCP。每轮交替数据库顺序。预热后计时 1.5 秒；新增与删除各访问 65,536 个独立键一次。</p><p>热场景为 4,096 份档案、Zipf 0.99 分布。每个样本执行完整字段核对、预期值核对和独立客户端进程重开验证。此处不是断电测试，也不是超内存、远程部署或长期运行测试。</p><p id="environment"></p></div>
+    <div><h3>查看证据，自己复测</h3><p>表格可查看每个数据库的逐轮测量、P50／P95／P99、调用数量、同步尾部时间与资源采样。资源统计是整个容器的 CPU 用量和采样内存峰值，内存包含服务与文件缓存。</p><ul class="downloads"><li><a href="results.csv" download>全部样本 CSV</a></li><li><a href="results.json" download>汇总与原始值 JSON</a></li><li><a href="raw-evidence.zip" download>完整测量与校验证据</a></li><li><a href="reproduction-inputs.zip" download>冻结驱动与 Core 源码</a></li><li><a href="README.md">复现步骤与版本哈希</a></li></ul></div></div>
+  </section>
+  <section class="method" id="codec-section" hidden><h2>单独看序列化</h2><p>相同业务对象、同一 C++ 驱动，比较有限 Protobuf wire 编码与 yyjson。此项只有编解码，不调用数据库；它帮助分辨编码成本，不能代替上面的完整业务测试。每项 50,000 次调用，为补充单次测量。</p><div class="table-wrap" id="codecs"></div></section>
+</main>
+<footer class="wrap"><span>FengquDB · Apache-2.0</span><a href="licenses.html">来源与第三方声明</a><span>测量结论仅适用于所列环境与场景。</span></footer>
+</body>
+</html>

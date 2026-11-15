@@ -237,7 +237,9 @@ struct LocalLog::Impl {
     unsigned consecutive_errors = 0;
     NativeHandle output;
     std::uintmax_t active_bytes = 0;
-    std::jthread worker;
+    // Shutdown is already governed by stopping/cv and an explicit join below.
+    // std::thread also works with Android standard libraries lacking jthread.
+    std::thread worker;
     std::size_t queued() const { return normal.size() + critical.size(); }
     void root_guard(bool create = false) const {
         std::error_code error;
@@ -459,7 +461,7 @@ LocalLog::LocalLog(std::filesystem::path directory, std::string component, bool 
             impl_->root_guard(true); DirectoryLease lease(impl_->root / (impl_->component + "-control.lock"), std::chrono::milliseconds(500));
             impl_->generation = lease.epoch();
         } catch (...) { ++impl_->io_errors; }
-        try { impl_->worker = std::jthread([state = impl_.get()] { state->run(); }); write("info", "process.logger_started"); }
+        try { impl_->worker = std::thread([state = impl_.get()] { state->run(); }); write("info", "process.logger_started"); }
         catch (...) { ++impl_->io_errors; impl_->exited = true; }
     }
 }

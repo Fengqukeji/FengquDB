@@ -1,11 +1,13 @@
 # FengquDB Go 绑定
 
 `package fengqudb`（module `fengqudb`）是 `include/fengqudb_store.h` C ABI 之上的 cgo 薄封装。
-运行时除 libfengqudb 外没有第三方依赖（Go ≥ 1.21；在 `fqdb-lang-dev:1` 里用 Go 1.23.12 验证）。
+运行时除 libfengqudb 外没有第三方依赖，使用标准 cgo 工具链。
+
+新用户先看[当前接入指南](../../docs/languages/go.md)。新库默认性能模式 50 ms / 1 MiB，普通成功表示内存生效；需要可靠水位时显式 Sync。下面测试、基准和 Docker 命令针对开发仓库，精简 SDK 不附测试数据或基准程序。
 
 ## 构建与测试
 
-cgo 需要头文件和库的位置。包内只写了 `#cgo LDFLAGS: -lfengqudb`，路径由环境变量提供：
+客户端 SDK 自动搜索相邻 include/lib。开发仓库或自定义布局可用环境变量提供头文件与库位置：
 
 ```sh
 export CGO_CFLAGS=-I/lang/linux/include
@@ -88,7 +90,7 @@ cgo 指针规则：传给 C 的只有 Go 的 `[]byte` 数据指针（不含 Go �
 
 ## 验证记录
 
-在 `fqdb-lang-dev:1`（Go 1.23.12，AMD Ryzen 9 9950X3D，容器内 32 线程）里实际运行：
+在 `fqdb-lang-dev:1`（AMD Ryzen 9 9950X3D，容器内 32 线程）里实际运行：
 
 - `go vet ./...` 无输出。
 - `go test ./...`：23 个测试全部通过；其中 5 个依赖 `conformance.json`：17 个用例的 `encoded`/`request` 字节与 `Query.Encode`/`EncodeRequest` 完全一致，

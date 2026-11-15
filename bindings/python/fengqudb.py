@@ -36,8 +36,14 @@ def _submit_slice(value):
 
 class _Native:
     def __init__(self, library):
+        filename = ("fengqudb.dll" if os.name == "nt" else
+                    "libfengqudb.dylib" if sys.platform == "darwin" else "libfengqudb.so")
+        # Works both in the standalone module and in SDK/fengqudb.zip.
+        module = Path(__file__).resolve()
+        sdk = module.parent.parent if module.parent.suffix == ".zip" else module.parent
+        bundled = sdk / "Native" / filename
         self.lib = C.CDLL(str(library or os.environ.get("FENGQUDB_LIBRARY") or
-                              ("fengqudb.dll" if os.name == "nt" else "libfengqudb.so")))
+                              (bundled if bundled.is_file() else filename)))
         signatures = {"abi_version": (C.c_uint32, []),
                       "status_message": (C.c_char_p, [C.c_int32]),
                       "buffer_free": (None, [C.POINTER(Slice)])}

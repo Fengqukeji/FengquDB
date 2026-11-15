@@ -51,10 +51,12 @@ static fengqudb::StoreOptions settings(bool create = true) {
     options.all_transaction_bytes = 32 * mib;
     options.pinned_bytes = 8 * mib;
     options.max_snapshots = 64;
-    return options; // Default SYNC, no background worker or request-byte quotas.
+    return options;
 }
 static Store open(const std::string &root, bool create = true) {
-    return Store::open_at(root + "/db", "main", settings(create));
+    auto db = Store::open_at(root + "/db", "main", settings(create));
+    db.configure_write({fengqudb::StoreWriteMode::Reliable, 50, mib});
+    return db;
 }
 static std::string row_key(uint64_t n, char part) {
     auto digits = std::to_string(n);
@@ -78,7 +80,7 @@ static uint64_t append(Store &db, uint64_t n, size_t bytes, bool announce = fals
     tx.put("head", std::to_string(n));
     if (announce)
         event("begin", ",\"sequence\":" + std::to_string(n));
-    auto result = tx.commit();
+    auto result = tx.commit(true);
     if (!result)
         throw fengqudb::Error(static_cast<fqdb_status>(result.status));
     check(db.info().durable_version == result.version, "acknowledged transaction was not SYNC");
@@ -213,6 +215,13 @@ static void disk_compact(const std::string &root) {
     auto snapshot = db.snapshot();
     auto current = current_bytes(root);
     auto version = db.info().version;
+    const auto files_before = [&] {
+        std::vector<fs::path> files;
+        for (const auto &entry : fs::directory_iterator(root + "/db/main"))
+            files.push_back(entry.path().filename());
+        std::sort(files.begin(), files.end());
+        return files;
+    }();
     ReserveFile reserve(root);
     auto free = available(root);
     check(free > 131072, "insufficient room for compaction failure setup");
@@ -228,12 +237,13 @@ static void disk_compact(const std::string &root) {
           "failed compaction published a candidate");
     check(snapshot.get(row_key(1, 'a'))->view() == payload(1, 131072),
           "failed compaction invalidated a snapshot");
-    size_t files = 0;
+    std::vector<fs::path> files;
     for (const auto &entry : fs::directory_iterator(root + "/db/main")) {
         check(entry.is_regular_file(), "compaction created nested output");
-        ++files;
+        files.push_back(entry.path().filename());
     }
-    check(files == 3, "failed compaction leaked a candidate");
+    std::sort(files.begin(), files.end());
+    check(files == files_before, "failed compaction leaked a candidate");
     reserve.release();
     db.put_if_changed("after-failure", "writer remains usable");
     db.compact();

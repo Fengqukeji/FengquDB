@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "namespace": "game.models",
+  "entities": [
+    {
+      "name": "Student",
+      "prefix": "student/",
+      "fields": [
+        {"name": "id", "type": "sint32", "number": 1, "key": true},
+        {"name": "name", "type": "string", "number": 2},
+        {"name": "score", "type": "sint32", "number": 3}
+      ]
+    }
+  ]
+}

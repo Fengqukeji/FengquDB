@@ -1,0 +1,15 @@
+// apply from: 'path/to/fengqudb-models.gradle'
+// Set -PfqdbCodegen=/path/to/fqdb-codegen, or FQDB_CODEGEN.
+def fqdbOutput = layout.buildDirectory.dir('generated/fengqudb').get().asFile
+def fqdbLocal = new File(projectDir, System.getProperty('os.name').toLowerCase().contains('windows') ? 'fqdb-codegen.exe' : 'fqdb-codegen')
+def fqdbExecutable = providers.gradleProperty('fqdbCodegen')
+        .orElse(providers.environmentVariable('FQDB_CODEGEN')).orElse(fqdbLocal.isFile() ? fqdbLocal.absolutePath : 'fqdb-codegen')
+tasks.register('generateFengquDBModels', Exec) {
+    commandLine fqdbExecutable.get(), 'generate', '--source', projectDir,
+            '--source-language', 'java', '--output', fqdbOutput,
+            '--schema-lock', new File(projectDir, 'FengquDB.schema.lock.json')
+}
+plugins.withId('java') {
+    sourceSets.main.java.srcDir(new File(fqdbOutput, 'java'))
+    tasks.named('compileJava').configure { dependsOn('generateFengquDBModels') }
+}

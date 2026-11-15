@@ -22,5 +22,6 @@ pub use error::{status, status_message, Error, Result};
 pub use result::{Access, AccessIter, QueryResult, ResultRow, ResultRows, ResultValues, Stats, Value};
 pub use shared::{PreparedKey, Reader, Row, Rows, SharedValue};
 pub use store::{
-    Durability, FieldType, IndexField, Options, Snapshot, Store, StoreInfo, Transaction, INDEX_REQUIRED, INDEX_UNIQUE,
+    Durability, FieldType, IndexField, Options, Snapshot, Store, StoreInfo, Transaction, WriteMode, WriteOptions,
+    INDEX_REQUIRED, INDEX_UNIQUE,
 };

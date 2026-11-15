@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable><EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <OutputPath>../../build/typed-csharp-bin/</OutputPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="TypedSmoke.cs" />
+    <Compile Include="../../examples/csharp/Student.cs" Link="Student.cs" />
+    <ProjectReference Include="../../bindings/csharp/FengquDB.csproj" />
+    <ProjectReference Include="../../bindings/csharp/Generator/FengquDB.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+</Project>

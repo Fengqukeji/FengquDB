@@ -15,6 +15,12 @@ fn main() {
         dirs.push(PathBuf::from(dir));
     } else {
         let manifest = PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").unwrap_or_default());
+        // A distributed client lives at SDK/rust/fengqudb-sys.
+        if let Some(sdk) = manifest.ancestors().nth(2) {
+            if sdk.join("Native").is_dir() {
+                dirs.push(sdk.join("Native"));
+            }
+        }
         // bindings/rust/fengqudb-sys -> 仓库根目录
         if let Some(root) = manifest.ancestors().nth(3) {
             for rel in ["build/lang/linux/lib", "build/lib"] {

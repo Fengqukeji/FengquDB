@@ -1,0 +1,262 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+  "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns:xlink="http://www.w3.org/1999/xlink" width="720pt" height="720pt" viewBox="0 0 720 720" xmlns="http://www.w3.org/2000/svg" version="1.1">
+ <metadata>
+  <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+   <cc:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+    <dc:date>2026-11-15T14:12:30.744871</dc:date>
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <cc:Agent>
+      <dc:title>Matplotlib v3.10.3, https://matplotlib.org/</dc:title>
+     </cc:Agent>
+    </dc:creator>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="figure_1">
+  <g id="patch_1">
+   <path d="M 0 720 
+L 720 720 
+L 720 0 
+L 0 0 
+z
+" style="fill: #ffffff"/>
+  </g>
+  <g id="axes_1">
+   <g id="patch_2">
+    <path d="M 360 168.932942 
+Q 360 187.973863 360 205.337732 
+" clip-path="url(#p0f21e5530d)" style="fill: none; stroke: #126247; stroke-width: 1.5; stroke-linecap: round"/>
+    <path d="M 363.2 198.937732 
+L 360 205.337732 
+L 356.8 198.937732 
+z
+" clip-path="url(#p0f21e5530d)" style="fill: #126247; stroke: #126247; stroke-width: 1.5; stroke-linecap: round"/>
+   </g>
+   <g id="patch_3">
+    <path d="M 262.408931 269.940707 
+Q 223.199168 287.172366 185.524733 303.729288 
+" clip-path="url(#p0f21e5530d)" style="fill: none; stroke: #126247; stroke-width: 1.5; stroke-linecap: round"/>
+    <path d="M 192.671357 304.083921 
+L 185.524733 303.729288 
+L 190.096414 298.224769 
+z
+" clip-path="url(#p0f21e5530d)" style="fill: #126247; stroke: #126247; stroke-width: 1.5; stroke-linecap: round"/>
+   </g>
+   <g id="patch_4">
+    <path d="M 457.591069 269.940707 
+Q 496.800832 287.172366 534.475267 303.729288 
+" clip-path="url(#p0f21e5530d)" style="fill: none; stroke: #126247; stroke-width: 1.5; stroke-linecap: round"/>
+    <path d="M 529.903586 298.224769 
+L 534.475267 303.729288 
+L 527.328643 304.083921 
+z
+" clip-path="url(#p0f21e5530d)" style="fill: #126247; stroke: #126247; stroke-width: 1.5; stroke-linecap: round"/>
+   </g>
+   <g id="patch_5">
+    <path d="M 182.16 385.367511 
+Q 182.16 401.401576 182.16 415.75859 
+" clip-path="url(#p0f21e5530d)" style="fill: none; stroke: #126247; stroke-width: 1.5; stroke-linecap: round"/>
+    <path d="M 185.36 409.35859 
+L 182.16 415.75859 
+L 178.96 409.35859 
+z
+" clip-path="url(#p0f21e5530d)" style="fill: #126247; stroke: #126247; stroke-width: 1.5; stroke-linecap: round"/>
+   </g>
+   <g id="patch_6">
+    <path d="M 182.16 499.592942 
+Q 182.16 518.633863 182.16 535.997732 
+" clip-path="url(#p0f21e5530d)" style="fill: none; stroke-dasharray: 5.55,2.4; stroke-dashoffset: 0; stroke: #126247; stroke-width: 1.5; stroke-linecap: round"/>
+    <path d="M 185.36 529.597732 
+L 182.16 535.997732 
+L 178.96 529.597732 
+z
+" clip-path="url(#p0f21e5530d)" style="fill: #126247; stroke-dasharray: 5.55,2.4; stroke-dashoffset: 0; stroke: #126247; stroke-width: 1.5; stroke-linecap: round"/>
+   </g>
+   <g id="patch_7">
+    <path d="M 537.84 385.36274 
+Q 537.84 422.439668 537.84 457.839545 
+" clip-path="url(#p0f21e5530d)" style="fill: none; stroke: #126247; stroke-width: 1.5; stroke-linecap: round"/>
+    <path d="M 541.04 451.439545 
+L 537.84 457.839545 
+L 534.64 451.439545 
+z
+" clip-path="url(#p0f21e5530d)" style="fill: #126247; stroke: #126247; stroke-width: 1.5; stroke-linecap: round"/>
+   </g>
+   <g id="patch_8">
+    <path d="M 320.618024 580.638988 
+Q 363.41948 551.700352 404.831632 523.701042 
+" clip-path="url(#p0f21e5530d)" style="fill: none; stroke: #126247; stroke-width: 1.5; stroke-linecap: round"/>
+    <path d="M 397.737399 524.634776 
+L 404.831632 523.701042 
+L 401.32208 529.936669 
+z
+" clip-path="url(#p0f21e5530d)" style="fill: #126247; stroke: #126247; stroke-width: 1.5; stroke-linecap: round"/>
+   </g>
+   <g id="patch_9">
+    <path d="M 537.84 541.679511 
+Q 537.84 575.750134 537.84 608.143705 
+" clip-path="url(#p0f21e5530d)" style="fill: none; stroke: #126247; stroke-width: 1.5; stroke-linecap: round"/>
+    <path d="M 541.04 601.743705 
+L 537.84 608.143705 
+L 534.64 601.743705 
+z
+" clip-path="url(#p0f21e5530d)" style="fill: #126247; stroke: #126247; stroke-width: 1.5; stroke-linecap: round"/>
+   </g>
+   <g id="patch_10">
+    <path d="M 75.456 170.2386 
+L 644.544 170.2386 
+Q 652.752 170.2386 652.752 163.0242 
+L 652.752 110.7198 
+Q 652.752 103.5054 644.544 103.5054 
+L 75.456 103.5054 
+Q 67.248 103.5054 67.248 110.7198 
+L 67.248 163.0242 
+Q 67.248 170.2386 75.456 170.2386 
+z
+" clip-path="url(#p0f21e5530d)" style="fill: #e9f1eb; stroke: #8d9c94; stroke-width: 1.2; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_11">
+    <path d="M 191.736 272.4426 
+L 528.264 272.4426 
+Q 536.472 272.4426 536.472 265.2282 
+L 536.472 212.9238 
+Q 536.472 205.7094 528.264 205.7094 
+L 191.736 205.7094 
+Q 183.528 205.7094 183.528 212.9238 
+L 183.528 265.2282 
+Q 183.528 272.4426 191.736 272.4426 
+z
+" clip-path="url(#p0f21e5530d)" style="fill: #e9f1eb; stroke: #8d9c94; stroke-width: 1.2; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_12">
+    <path d="M 51.516 388.1736 
+L 312.804 388.1736 
+Q 321.012 388.1736 321.012 380.9592 
+L 321.012 313.6248 
+Q 321.012 306.4104 312.804 306.4104 
+L 51.516 306.4104 
+Q 43.308 306.4104 43.308 313.6248 
+L 43.308 380.9592 
+Q 43.308 388.1736 51.516 388.1736 
+z
+" clip-path="url(#p0f21e5530d)" style="fill: #e9f1eb; stroke: #8d9c94; stroke-width: 1.2; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_13">
+    <path d="M 407.196 388.1736 
+L 668.484 388.1736 
+Q 676.692 388.1736 676.692 380.9592 
+L 676.692 313.6248 
+Q 676.692 306.4104 668.484 306.4104 
+L 407.196 306.4104 
+Q 398.988 306.4104 398.988 313.6248 
+L 398.988 380.9592 
+Q 398.988 388.1736 407.196 388.1736 
+z
+" clip-path="url(#p0f21e5530d)" style="fill: #e9f1eb; stroke: #8d9c94; stroke-width: 1.2; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_14">
+    <path d="M 51.516 502.4016 
+L 312.804 502.4016 
+Q 321.012 502.4016 321.012 495.1872 
+L 321.012 427.8528 
+Q 321.012 420.6384 312.804 420.6384 
+L 51.516 420.6384 
+Q 43.308 420.6384 43.308 427.8528 
+L 43.308 495.1872 
+Q 43.308 502.4016 51.516 502.4016 
+z
+" clip-path="url(#p0f21e5530d)" style="fill: #e9f1eb; stroke: #8d9c94; stroke-width: 1.2; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_15">
+    <path d="M 51.516 622.6416 
+L 312.804 622.6416 
+Q 321.012 622.6416 321.012 615.4272 
+L 321.012 548.0928 
+Q 321.012 540.8784 312.804 540.8784 
+L 51.516 540.8784 
+Q 43.308 540.8784 43.308 548.0928 
+L 43.308 615.4272 
+Q 43.308 622.6416 51.516 622.6416 
+z
+" clip-path="url(#p0f21e5530d)" style="fill: #e9f1eb; stroke: #8d9c94; stroke-width: 1.2; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_16">
+    <path d="M 407.196 544.4856 
+L 668.484 544.4856 
+Q 676.692 544.4856 676.692 537.2712 
+L 676.692 469.9368 
+Q 676.692 462.7224 668.484 462.7224 
+L 407.196 462.7224 
+Q 398.988 462.7224 398.988 469.9368 
+L 398.988 537.2712 
+Q 398.988 544.4856 407.196 544.4856 
+z
+" clip-path="url(#p0f21e5530d)" style="fill: #e9f1eb; stroke: #8d9c94; stroke-width: 1.2; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_17">
+    <path d="M 393.516 694.7856 
+L 682.164 694.7856 
+Q 690.372 694.7856 690.372 687.5712 
+L 690.372 620.2368 
+Q 690.372 613.0224 682.164 613.0224 
+L 393.516 613.0224 
+Q 385.308 613.0224 385.308 620.2368 
+L 385.308 687.5712 
+Q 385.308 694.7856 393.516 694.7856 
+z
+" clip-path="url(#p0f21e5530d)" style="fill: #e9f1eb; stroke: #8d9c94; stroke-width: 1.2; stroke-linejoin: miter"/>
+   </g>
+   <g id="text_1">
+    <text style="font-size: 14px; font-family: 'Microsoft YaHei'; text-anchor: middle; fill: #152a2d" x="360" y="140.687" transform="rotate(-0 360 140.687)">Concurrent requests → writer execution and grouping</text>
+   </g>
+   <g id="text_2">
+    <text style="font-size: 15px; font-family: 'Microsoft YaHei'; text-anchor: middle; fill: #152a2d" x="360" y="243.206859" transform="rotate(-0 360 243.206859)">Confirmation for this write</text>
+   </g>
+   <g id="text_3">
+    <text style="font-size: 14px; font-family: 'Microsoft YaHei'; fill: #152a2d" transform="translate(111.325469 342.734125)">Performance: publish</text>
+    <text style="font-size: 14px; font-family: 'Microsoft YaHei'; fill: #152a2d" transform="translate(127.623437 359.643937)">in-memory view</text>
+   </g>
+   <g id="text_4">
+    <text style="font-size: 14px; font-family: 'Microsoft YaHei'; text-anchor: middle; fill: #152a2d" x="537.84" y="351.147469" transform="rotate(-0 537.84 351.147469)">Reliable / force reliable</text>
+   </g>
+   <g id="text_5">
+    <text style="font-size: 14px; font-family: 'Microsoft YaHei'; fill: #152a2d" transform="translate(131.154063 456.920562)">Return success;</text>
+    <text style="font-size: 14px; font-family: 'Microsoft YaHei'; fill: #152a2d" transform="translate(102.300937 473.830375)">new reads see the value</text>
+   </g>
+   <g id="text_6">
+    <text style="font-size: 13px; font-family: 'Microsoft YaHei'; fill: #152a2d" transform="translate(121.392109 577.451516)">Period / threshold /</text>
+    <text style="font-size: 13px; font-family: 'Microsoft YaHei'; fill: #152a2d" transform="translate(144.517891 593.153484)">explicit sync</text>
+   </g>
+   <g id="text_7">
+    <text style="font-size: 14px; font-family: 'Microsoft YaHei'; fill: #152a2d" transform="translate(482.039062 498.964094)">Physical writes +</text>
+    <text style="font-size: 14px; font-family: 'Microsoft YaHei'; fill: #152a2d" transform="translate(475.845156 515.954844)">persistence barrier</text>
+   </g>
+   <g id="text_8">
+    <text style="font-size: 13px; font-family: 'Microsoft YaHei'; fill: #152a2d" transform="translate(471.209922 649.633094)">Reliable path: publish</text>
+    <text style="font-size: 13px; font-family: 'Microsoft YaHei'; fill: #152a2d" transform="translate(454.989375 665.335062)">durable view, then confirm</text>
+   </g>
+   <g id="text_9">
+    <text style="font-size: 10px; font-family: 'Microsoft YaHei'; fill: #506264" transform="translate(45.36 677.702375)">Pending performance-mode bytes</text>
+    <text style="font-size: 10px; font-family: 'Microsoft YaHei'; fill: #506264" transform="translate(45.36 689.838625)">can still be lost on a crash.</text>
+   </g>
+  </g>
+  <g id="text_10">
+   <text style="font-weight: 700; font-size: 22px; font-family: 'Microsoft YaHei'; text-anchor: start; fill: #152a2d" x="36" y="46.664688" transform="rotate(-0 36 46.664688)">03  Writes: performance and reliable confirmation</text>
+  </g>
+  <g id="text_11">
+   <text style="font-size: 12px; font-family: 'Microsoft YaHei'; text-anchor: start; fill: #506264" x="36" y="74.533125" transform="rotate(-0 36 74.533125)">Default 50 ms / 1 MiB; idle databases with no pending bytes sleep without flushing.</text>
+  </g>
+ </g>
+ <defs>
+  <clipPath id="p0f21e5530d">
+   <rect x="18" y="100.8" width="684" height="601.2"/>
+  </clipPath>
+ </defs>
+</svg>

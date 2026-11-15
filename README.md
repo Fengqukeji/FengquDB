@@ -1,88 +1,201 @@
 # FengquDB
 
-原生 C++17 进程内数据库，以共享库或静态库接入 C/C++、C#、Java、Python。使用分页 Store 引擎，页和值按需加载，缓存受预算限制；核心不依赖第三方数据库、Google Protobuf 或 Abseil。
+**[English](README.md) | [简体中文](README.zh-CN.md)**
 
-当前为 **0.3.2 / ABI 2 开发源码，尚未正式发布**。库、头文件与绑定须配套构建，旧开发 SDK 和历史测量仅供追溯。
+- **Read throughput is ~400× that of MySQL**: single-thread complete-profile reads measured at **442.74×**.
+- **Single-record insert throughput is ~40× that of MySQL**: single-thread inserts measured at **44.03×**.
+- **Just 1.08 MiB for the native core**: approximately **1/46** of the MySQL Windows server executable.
 
-**默认性能模式为 50 ms／1 MiB**：普通写入在完整事务内存原子生效、可读取后确认，后台按周期或 WAL 字节阈值可靠同步。崩溃可能丢失已确认但未同步的后缀；50 ms 是调度目标，不是严格损失时间上限。关键写入传 `force_reliable=true`，或切换可靠模式，等待可靠同步才返回成功。详见 [写入策略](docs/STORE_WRITE_POLICY.md)。
+Throughput figures use the 128 B profile-body business benchmark in performance mode. Size uses the Windows x64 LTO validation DLL versus MySQL `mysqld.exe` (49.25 MiB), excluding other tools and dependencies on both sides. Charts retain the earlier benchmark results. [Test settings](#benchmarks) · [Size evidence](docs/SIZE_COMPARISON.md)
 
-常用能力：主键/批读、事务与快照、保存点、TTL、字段/复合索引及约束、组合条件过滤、排序/Top N、聚合分组、等值关联、原生集合、在线整理、完整/增量备份与恢复。完整二进制缓冲和减法裁剪保留。查询语法、预算和性能边界见 [复杂查询](docs/STORE_SELECT.md)。
+### Goal: the world's fastest database
 
-| 目的 | 入口 |
-| --- | --- |
-| 查看当前能力、契约和接入方式 | [当前文档](docs/README.md)、[产品规格](docs/PRODUCT_SPEC.md) |
-| 库接口、所有权、错误与线程规则 | [Store API](docs/STORE_API.md) |
-| Unity/移动端数据目录 | [目录布局](docs/STORE_LAYOUT.md) |
-| 构建规范、版本控制和消毒器 | [开发说明](docs/DEVELOPMENT.md) |
-| 查证性能、审查和历史实验 | [历史证据索引](docs/history/README.md) |
+**A native C++ database in a 1.08 MiB core, built to be the storage foundation for the AI era.** Embed it in your application for fast local persistence, from game saves and application state to the data behind agents, retrieval, RAG and knowledge systems.
 
-## 构建
+[Quick start](#quick-start) · [Benchmarks](#benchmarks) · [API guides](#language-sdks) · [Apache-2.0](LICENSE)
 
-Windows（安装 Visual Studio C++ 工具及 CMake）：
+## Why FengquDB
 
-```powershell
-cmake -S . -B build/local -A x64
-cmake --build build/local --config Release --parallel
-ctest --test-dir build/local -C Release --output-on-failure
-cmake --install build/local --config Release --prefix artifacts/sdk
+- **Fast where applications spend their time.** In our published performance-mode benchmark, FengquDB led confirmed throughput in all **44 tested configurations**, reaching **3.32 million complete-profile reads/second with one calling thread**.
+- **A tiny native core.** The Windows x64 LTO validation DLL is **1.08 MiB** (1,128,960 bytes). SDK tools and language bindings are additional; platform binaries differ in size.
+- **Embed a library and keep control.** No separate database service. Set your storage directory, share a handle across your application, and create separate databases when needed.
+- **Binary data with less work.** A purpose-built C++ storage engine, Protobuf-compatible wire encoding, shared reads, incremental updates and cached-binary subtraction avoid unnecessary copies and reconstruction.
+- **Choose the confirmation your data needs.** Performance mode makes writes visible in memory before periodic persistence. Reliable mode, or `force_reliable` on an individual write, waits for persistence before success.
+- **Ready for real application state.** Atomic operations and batches, transactions, TTL, indexes, conditional queries, sorting, aggregation, backup and recovery. [Explore the APIs](#language-sdks).
+
+“World's fastest” describes our ambition. The results below measure the listed workloads and settings; they do not establish a universal database ranking.
+
+## Quick start
+
+SDKs come as separate ZIPs for each language and development platform, distributed as repository release assets when published. Once you have the **Python SDK for your platform**, unzip it and copy its `FengquDB` folder beside `main.py`:
+
+```text
+my-app/
+  main.py
+  FengquDB/
 ```
-
-Linux（GCC/Clang、CMake 3.24+）：
-
-```sh
-cmake -S . -B build/local -DCMAKE_BUILD_TYPE=Release
-cmake --build build/local -j
-ctest --test-dir build/local --output-on-failure
-cmake --install build/local --prefix artifacts/sdk
-```
-
-`-DFQDB_SHARED=OFF` 构建静态库。`-DFQDB_BUILD_DIAGNOSTICS=OFF` 排除可选 PTpma 日志后端；后端构建需要 C++20，核心和公共 C++ 接口仍为 C++17。`-DBUILD_TESTING=OFF -DFQDB_BUILD_TOOLS=OFF` 仅构建运行库。`-DFQDB_BUILD_JNI=ON` 另构建 Java JNI 适配库，配置时设置 `JAVA_HOME`。Windows 使用静态 MSVC CRT；工具链/系统库仍有平台依赖，不能把 DLL 字节数解释为整个应用的大小。
-
-按以上命令构建时，Windows 库为 `build/local/Release/fengqudb.dll`，Linux 库为 `build/local/libfengqudb.so`。这些路径只在对应构建完成后代表该次源码；历史报告中的其他 build 路径不自动更新。消毒器配置见 [开发说明](docs/DEVELOPMENT.md)。
-
-## 接入
-
-新项目使用 `Store`。C++ 包含 `fengqudb_store.hpp`，C 包含 `fengqudb_store.h`；C#、Java、Python 绑定均提供 `Store`。通过 `find_package(FengquDB CONFIG REQUIRED)` 和 `FengquDB::Cpp` 链接 C++，并将 SDK 解压目录设为 `CMAKE_PREFIX_PATH`。数据库根目录由宿主传入，Unity 可使用 `Application.persistentDataPath`，详见 [Store API](docs/STORE_API.md) 和 [目录规范](docs/STORE_LAYOUT.md)。
-
-```cpp
-#include <fengqudb_store.hpp>
-
-auto db = fengqudb::Store::open_at(persistent_root + "/db", "main");
-auto pending = db.submit_put("player/42", serialized_protobuf_bytes);
-// 控制台或工作线程可等待；UI 主线程应保存凭据并在后续帧 poll()。
-auto result = pending.wait();
-if (!result) throw fengqudb::Error(static_cast<fqdb_status>(result.status));
-auto value = db.get("player/42");
-```
-
-- C++17：包含 `fengqudb_store.hpp`，链接 `FengquDB::Cpp`，示例见 `examples/basic.cpp`。
-- C：包含 `fengqudb_store.h`，链接核心，示例见 `examples/basic.c`。
-- C#：引用 `bindings/csharp/FengquDB.csproj`，用 `Store` 及 `IDisposable` 管理句柄。
-- Java：编译 `bindings/java/io/fengqudb/Store.java`，运行时提供核心库与可选 JNI 库。
-- Python：将 `bindings/python` 放入 `PYTHONPATH`，使用 `Store`，绑定仅依赖标准库。
-
-应用值是 `bytes`，可以使用各语言官方 Protobuf 生成代码；不要求应用学习内部事务日志格式。内置 wire 编码器是按公开规范独立编写的有限实现；参考来源与验证方式见 [Protobuf 说明](docs/PROTOBUF.md)。
-
-完整业务 `.proto`、三语言官方 DTO、Unity 类型化存档及结构升级示例见 [业务模型接入](examples/protobuf/README.md)，同载荷序列化与跨语言读取成本见 [实测记录](docs/PROTOBUF_BUSINESS_REVIEW_20261107.md)。
-
-开发版 Store 的 Python 固定目标读取器与 Java direct ByteBuffer 可按需减少读取封送和分配，接口与生命周期见 [复用读取](docs/STORE_BINDING_BUFFERS.md)。
 
 ```python
-from fengqudb import Store
-with Store.open_at(persistent_root + "/db", "main", library=native_library) as db:
-    # 关键业务可选可靠模式；默认性能模式也支持同步事务。
-    db.configure_write(mode="reliable")
-    with db.transaction() as tx:
-        tx.put(b"player/42", b"serialized protobuf bytes")
-        tx.put(b"team/red/42", b"")
-    with db.snapshot() as snapshot:
-        value = snapshot.get(b"player/42")
+from pathlib import Path
+from FengquDB import Store
+
+Path("save").mkdir(exist_ok=True)
+with Store("save/main") as db:
+    db.put(b"name", b"Alice")
+    db.put(b"score", (95).to_bytes(8, "little", signed=True))
+    print(db.get(b"name").decode(),
+          int.from_bytes(db.get(b"score"), "little", signed=True))
+    db.sync()
 ```
 
-Python 事务上下文正常退出自动提交；C++、C#、Java、C 须显式提交并检查结果。事务关闭会丢弃未提交修改。冲突应从头重读、重做；`COMMIT_UNKNOWN` 须重新打开并核对业务操作标识，不能盲目重试非幂等操作。完整及增量备份使用新目录，变更订阅过早返回 `HISTORY_LOST` 时须重建基线，见对应 Store 文档。
+```sh
+python main.py
+# Alice 95
+```
 
-## 语义与验证
+Strings and integers can be encoded to bytes and stored without defining an entity. For application entities, define your class and use the SDK's automatic codec generation; the manual generation tool is included as a fallback. [Entity example](docs/languages/python.md).
 
-一次仅允许一个进程打开同一数据库目录；该进程可多线程使用数据库句柄。写入串行发布，并发独立事务可共享一次可靠刷盘；读者获得完整快照，刷盘期间仍可读取上一个已发布版本。性能模式成功表示内存原子生效，崩溃或掉电可能丢失未同步后缀；可靠模式／单次强制可靠成功表示刷盘API已返回。后台故障封锁新写，已有内存状态不会自动撤销宿主副作用。显式 BUFFERED 保留手动sync语义。
+A [complete runnable example](examples/quickstart/main.py) also updates a score with reliable persistence, closes and reopens the database, then deletes the example records. Expected output:
 
-详见 [Store API](docs/STORE_API.md)、[写入策略](docs/STORE_WRITE_POLICY.md)、[开发验证](docs/DEVELOPMENT.md)。测试中的进程退出和模拟 I/O 故障不能等同于真实断电测试。公平性能比较必须匹配每次提交的持久化保证；当前不宣称优于 Redis、SQLite、LMDB 或 LevelDB。
+```text
+Alice 95
+Reopened score: 96
+Deleted: None
+```
+
+Open a database once at application startup, reuse its handle, and close it on shutdown. Unity uses a shared application entry point and `Application.persistentDataPath`; see its dedicated guide.
+
+## Benchmarks
+
+**Single-thread results first.** These charts compare the same ten-field profile business using each database's usual development model: Protobuf wire for FengquDB, typed SQL columns for MySQL/SQLite, Hash and native atomic operations for Redis, and SQL plus JSON cache-aside for MySQL+Redis.
+
+The charts show **confirmed business operations/second**, using the median of three runs. Every axis starts at zero and uses a real linear scale. Under **each operation**, the four multipliers mean **FengquDB throughput ÷ comparator throughput**; for example, **4.60×** means 4.60 times the throughput. A batch read counts as one call that returns 32 profiles.
+
+**Durability matters:** FengquDB uses performance mode (**50 ms / 1 MiB**, memory acknowledgement); MySQL uses `flush=2`; Redis uses AOF `everysec`; SQLite uses WAL `NORMAL`. These are different durability windows, not per-operation reliable-commit comparisons. Embedded calls and local TCP service calls also have different overhead. The entire gap cannot be attributed to serialization.
+
+### Single thread · 128 B profile body
+
+Read → insert → delete → small-field update → complete save, followed by mixed access, batch reads, projection, counters and transactions.
+
+![Single-thread benchmark: eleven operations, five databases, linear zero-based axes and four throughput ratios per operation](docs/assets/benchmarks/single-thread-128b.png)
+
+<details>
+<summary><strong>Single thread · 4 KiB profile body — all 11 operations</strong></summary>
+
+![Single-thread 4 KiB benchmark with four throughput ratios under every operation](docs/assets/benchmarks/single-thread-4kib.png)
+
+</details>
+
+<details>
+<summary><strong>8 calling threads · 128 B profile body — all 11 operations</strong></summary>
+
+![Eight-thread 128 B benchmark with four throughput ratios under every operation](docs/assets/benchmarks/eight-threads-128b.png)
+
+</details>
+
+<details>
+<summary><strong>8 calling threads · 4 KiB profile body — all 11 operations</strong></summary>
+
+![Eight-thread 4 KiB benchmark with four throughput ratios under every operation](docs/assets/benchmarks/eight-threads-4kib.png)
+
+</details>
+
+Across these 44 configurations, confirmed throughput was **1.36–4.94× the strongest comparator in each configuration**. This does not mean every latency percentile or durability setting wins.
+
+**Environment:** AMD Ryzen 9 9950X3D host; Docker/WSL2 Linux; client and service together limited to 2 logical CPUs and 4 GiB RAM, no swap. 660 samples, 11 workloads, 2 profile-body sizes, 1/8 calling threads, 5 databases, 3 rounds. Each sample passed complete-field checks and a reopen check from a separate client process. This is a warm, short-duration application benchmark, not a power-loss or out-of-memory endurance test.
+
+[Full report and methodology](docs/benchmarks/README.md) · [CSV](docs/benchmarks/results.csv) · [All ratios](docs/assets/benchmarks/comparisons.json) · [Raw evidence](docs/benchmarks/raw-evidence.zip) · [Reproduction inputs](docs/benchmarks/reproduction-inputs.zip)
+
+## Why it is fast: the designs in the code
+
+The core idea is to **remove a layer, avoid a copy, reuse a buffer and do work only for what changed**. These mechanisms work together. The measured end-to-end gap is not an independently measured speedup for every individual technique.
+
+### 1. Keep hot reads inside the process and the binary
+
+![In-process hot reads and cache reuse](docs/assets/design/hot-read-en.png)
+
+A balance read can use a supported shared API to borrow lifetime-protected bytes and parse the required fields; ordinary copying APIs still copy. Version, expiry and reference checks control reuse. Embedding also removes the local TCP round trip used by the MySQL/Redis clients in this benchmark.
+
+### 2. Subtract and patch instead of repeatedly rebuilding
+
+![Subtraction in a private contiguous buffer](docs/assets/design/binary-subtraction-en.png)
+
+This is **cached-binary subtraction**: repeated edits reuse a private buffer instead of repeatedly concatenating many reusable fragments. Existing snapshots and shared readers retain their immutable old bytes. A cold reconstruction of a deletion can also skip the removed raw extent.
+
+For a complete 4 KiB profile save that changes a few fields, **automatic multi-range deltas** can use an already-cached equal-length base, compare blocks and record a few changed spans. Current automatic candidates are 1–64 KiB with at most 8 ranges. Dense changes, a cold base or the depth bound cause a full-write fallback; the engine does not perform an extra cold read just to search for a delta. This reduces copying and log bytes for suitable updates, not every possible save.
+
+### 3. Centralize write execution and share persistence work
+
+![Performance and reliable confirmation paths](docs/assets/design/write-confirmation-en.png)
+
+Performance mode defaults to **50 ms / 1 MiB**, so multiple writes can share persistence costs. An idle database with no pending writes sleeps and does not flush. A bounded adaptive wait reduces repeated sleep/wake transitions during continuous traffic. Reliable writes retain a persistence barrier. A crash can still lose acknowledged performance-mode data that has not reached durable storage.
+
+### 4. More source-verified optimizations
+
+| Design | Work it avoids | Implementation |
+| --- | --- | --- |
+| Bounded Protobuf wire and generated codecs | Generated entity code reduces textual field-name and reflection work; Protobuf is an encoding, not a general-purpose compressor | [Wire](include/fengqudb_wire.hpp), [code generator](tools/codegen/) |
+| Read stamps and weak read memos | Valid metadata and existing values can be reused without reacquiring a full view; the memo does not pin a complete value indefinitely | [Read fast paths](src/store.cpp) |
+| Reused and incremental CRCs | Reuses known checksums; suitable small patches derive the new CRC from the old CRC and changed bytes, with a fallback when that costs more | [CRC delta](src/crc_delta.hpp), [WAL reads](src/paged/wal.hpp) |
+| Conditional buffer ownership transfer | A uniquely owned, suitably sized private buffer can enter the read cache without another payload copy; shared aliases stay isolated | [Private buffers](src/paged/budget.hpp) |
+| Different physical paths for small and large writes | Small groups reuse reserved cells; large groups append and let large payloads bypass the small staging buffer | [Hybrid file](src/paged/hybrid_file.hpp), [cell reservation](src/paged/cell_file.hpp) |
+| Budgeted, demand-driven headroom | Uses recent activity and pending bytes to reduce repeated growth; no separate 1 MiB reservation per record | [Reserve pool](src/paged/reserve_pool.hpp) |
+| Writer-executed atomic operations | Suitable read/compute/update work executes on the write side, reducing producer competition and recomputation; general transactions still validate conflicts | [Atomic operations](src/paged/operations.hpp), [commit grouping](src/paged/group.hpp) |
+| Reused index rules and query plans | Valid version conditions avoid re-reading and parsing the catalog; indexes narrow candidates before C++ filtering | [Query execution](src/paged/select_execute.hpp), [planning](src/paged/select_plan.hpp) |
+| A bounded heap for Top N | Retains a bounded set of candidates for the requested page rather than fully sorting and transferring all matches; poor predicates may still scan many candidates | [Sort execution](src/paged/select_execute.hpp) |
+| Batched maintenance with budgets | Copies live data in maintenance work bounded by I/O quotas, deadlines and cancellation | [Copying](src/paged/copy.hpp), [maintenance budgets](src/paged/maintenance.hpp) |
+| A small runtime and release build | No full Google Protobuf runtime in the core; generation tools, diagnostics adapters and bindings are separate, with unused-code elimination at link time | [Build configuration](CMakeLists.txt) |
+
+Reserved cells use additional disk space; separate small/large paths also avoid imposing the same cell write amplification on large payloads.
+
+Locks, allocations, cold reads and disk costs still exist. Gains depend on changed bytes, cache hits and access patterns. Performance-mode acknowledgement is also part of the measured advantage.
+
+## Language SDKs
+
+One independent SDK folder per language, with binaries, generation tools and two guides. Native release targets include Windows, Linux, Android and iOS; Unity SDKs include both macOS architectures. Select the SDK for your development host.
+
+| Language | Get started | API, use cases and examples |
+| --- | --- | --- |
+| C++ | [Guide](docs/languages/cpp.md) | [API](docs/api/cpp.md) |
+| C# | [Guide](docs/languages/csharp.md) | [API](docs/api/csharp.md) |
+| Unity | [Guide](docs/languages/unity.md) | [API](docs/api/unity.md) |
+| Python | [Guide](docs/languages/python.md) | [API](docs/api/python.md) |
+| Java | [Guide](docs/languages/java.md) | [API](docs/api/java.md) |
+| Node.js / TypeScript | [Guide](docs/languages/node.md) | [API](docs/api/node.md) |
+| Go | [Guide](docs/languages/go.md) | [API](docs/api/go.md) |
+| Rust | [Guide](docs/languages/rust.md) | [API](docs/api/rust.md) |
+| C | [Guide](docs/languages/c.md) | [API](docs/api/c.md) |
+
+Unity: copy the SDK's `FengquDB` folder into `Assets/Plugins`, preserving `.meta` files. The package includes the target-specific native libraries and generation tools. [Apple build verification](docs/APPLE_SDK.md).
+
+## Where it fits
+
+Use FengquDB for **in-process server state, desktop applications, Unity game saves, local-first software and the persistent data behind AI agents, retrieval, RAG and Wiki layers**. The database stores data; an embedding model is not required for ordinary storage.
+
+The core offers structured query APIs rather than a complete SQL language. Network serving, database users/permissions and replication are outside its current scope. Index, RAG and LLM Wiki foundations are separate layers; a core SDK does not include an embedding model or a ready-made RAG application. Apple libraries have passed build/link checks; Unity iOS device acceptance is still pending.
+
+Performance-mode acknowledgement can precede persistence. Use reliable writes for payments, entitlements and other critical state. [Persistence and API examples](docs/api/python.md).
+
+## Contact and support
+
+**Business and personal enquiries:** [txjmybsdy@163.com](mailto:txjmybsdy@163.com)
+
+I specialize in using AI to build novel products and applications. If you have a promising business idea or are looking for a senior technical consultant, please get in touch by email.
+
+I value every opportunity offered by the community and society, and approach each with respect. Collaboration, practical use cases and thoughtful feedback are welcome.
+
+For bug reports, include your platform, binding language, steps to reproduce and redacted logs to help diagnose the issue.
+
+If FengquDB helps your work, you can support its continued development:
+
+| Alipay | WeChat Pay |
+| :---: | :---: |
+| <img src="docs/assets/sponsors/alipay.jpg" width="240" alt="Alipay voluntary project support QR code"> | <img src="docs/assets/sponsors/wechat.jpg" width="240" alt="WeChat Pay voluntary project support QR code"> |
+
+Voluntary contributions support continued project maintenance. Verify the recipient in your payment app before paying.
+
+## License and source attribution
+
+[Apache License 2.0](LICENSE) allows commercial use, modification and redistribution under its terms. Protobuf reference material and any third-party components keep their own notices; see [NOTICE](NOTICE) and [third-party attribution](THIRD_PARTY_NOTICES.md).
+
+For building the database itself, see [Development](docs/DEVELOPMENT.md).

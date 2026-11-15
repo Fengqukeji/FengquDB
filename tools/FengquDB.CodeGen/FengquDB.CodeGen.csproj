@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>fqdb-csharp-codegen</ToolCommandName>
+    <AssemblyName>fqdb-csharp-codegen</AssemblyName>
+    <PackageId>FengquDB.CodeGen</PackageId>
+    <Version>0.3.2</Version>
+    <Description>Force-generate FengquDB C# entity serializers from projects or source files.</Description>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="/" />
+    <ProjectReference Include="../../bindings/csharp/FengquDB.csproj" />
+    <ProjectReference Include="../../bindings/csharp/Generator/FengquDB.Generator.csproj" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="5.0.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Workspaces.MSBuild" Version="5.0.0" />
+    <PackageReference Include="Microsoft.Build.Locator" Version="1.10.12" />
+  </ItemGroup>
+</Project>

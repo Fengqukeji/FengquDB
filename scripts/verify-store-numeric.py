@@ -101,7 +101,12 @@ def main():
         # sequence in an owned fixture's selected superblock is changed.
         with Store.open_at(data, "exhausted", library=library) as db:
             db.put_if_changed(b"old", b"confirmed"); db.checkpoint()
-        file = next((data / "exhausted").glob("g*.fdb"))
+            # Superblock offsets below describe the materialized format, not
+            # the default retained/hybrid physical packet stream.
+            db.compact()
+        primaries = list((data / "exhausted").glob("g*.fdb"))
+        assert len(primaries) == 1, "numeric fixture must have one unpinned materialized generation"
+        file = primaries[0]
         contents = bytearray(file.read_bytes())
         blocks = [(struct.unpack_from("<Q", contents, at + 8)[0], at) for at in (4096, 8192)
                   if contents[at:at + 8] == b"FQROOT04"]

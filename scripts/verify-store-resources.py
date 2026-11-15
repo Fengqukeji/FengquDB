@@ -37,7 +37,7 @@ class Run:
         self.bundle = output / "bundle"
         self.bundle.mkdir()
         shutil.copy2(args.probe, self.bundle / "probe")
-        shutil.copy2(args.library, self.bundle / "libfengqudb.so.1")
+        shutil.copy2(args.library, self.bundle / "libfengqudb.so.2")
         self.report = {
             "ok": False, "identity": self.identity, "cases": [], "commands": [],
             "resources": [], "source_manifest": source_manifest(root),
