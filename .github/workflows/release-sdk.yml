@@ -1,6 +1,12 @@
 name: release-sdk
 on:
   workflow_dispatch:
+    inputs:
+      platform:
+        type: choice
+        default: all
+        options: [all, windows, linux]
+        description: SDK host to build and verify
 permissions:
   contents: read
 jobs:
@@ -8,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-22.04]
+        os: ${{ fromJSON(inputs.platform == 'windows' && '["windows-latest"]' || inputs.platform == 'linux' && '["ubuntu-22.04"]' || '["windows-latest","ubuntu-22.04"]') }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 25
     env:
@@ -36,6 +42,10 @@ jobs:
           python-version: '3.12'
       - uses: ilammy/msvc-dev-cmd@v1
         if: runner.os == 'Windows'
+      - name: Keep managed assemblies portable
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: '"Platform=" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append'
       - name: Build release libraries and native generator
         shell: pwsh
         run: |
