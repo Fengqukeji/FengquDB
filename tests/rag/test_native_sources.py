@@ -174,6 +174,24 @@ class NativeSourcesTests(unittest.TestCase):
         self.assertEqual(self.query(as_of=5)["items"][0]["similarity"], 1.0)
         self.assertEqual(self.query(as_of=5, query_vector=[0, 1, 0], min_similarity=0.5)["items"], [])
 
+    def test_chinese_natural_query_is_forwarded_without_space_splitting(self):
+        content = "背景音乐。切换曲目时取消旧请求，避免覆盖新曲目。"
+        self.put(source="music", chunks=[Chunk(content, known_at=1)])
+        self.put(source="future", chunks=[Chunk(content, known_at=20)])
+        private = self.rag.namespace("game:world-1", "npc:private", clock_id="game-hours-v1")
+        self.put(source="private", text=content, namespace=private)
+        self.put(source="resource", text="通用资源加载与缓存。处理旧请求和曲目资源。")
+        results = []
+        for query in ("音乐连续切换时如何防止旧请求覆盖新曲目",
+                      "音乐 连续切换时如何防止旧请求覆盖新曲目", "音乐 " * 250):
+            found = self.rag.search(self.ns, as_of=10, mode="lexical", text=query,
+                                    strict_statistics=False)
+            self.assertEqual("music", found["items"][0]["source_id"])
+            self.assertTrue(all(item["source_id"] not in ("future", "private") for item in found["items"]))
+            self.assertEqual(query, self.client.calls[-1]["text"])
+            results.append([(item["source_id"], item["score"]) for item in found["items"]])
+        self.assertEqual(results[0], results[1])
+
     def test_query_modes_send_only_supported_fields(self):
         self.put()
         self.query()

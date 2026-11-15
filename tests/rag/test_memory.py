@@ -531,6 +531,27 @@ class MemoryTests(unittest.TestCase):
                 include_public=False, as_of=10), budget=QueryBudget(posting_budget=1))
         self.assertEqual(observed[-1], queries[0])
 
+    def test_chinese_queries_preserve_owner_time_and_raw_text(self):
+        content = "背景音乐。切换曲目时取消旧请求，避免覆盖新曲目。"
+        visible = self.put(content, owner_id="one", known_at=1)
+        self.put(content, owner_id="two", known_at=1)
+        self.put(content, owner_id="one", known_at=20)
+        queries = ("音乐连续切换时如何防止旧请求覆盖新曲目",
+                   "音乐 连续切换时如何防止旧请求覆盖新曲目", " ".join(["音乐"] * 250))
+        observed = []
+        original = self.client.execute
+        def execute(view, **query):
+            if query.get("mode") == 0:
+                observed.append(query["text"])
+            return original(view, **query)
+        self.client.execute = execute
+        for query in queries:
+            for mode in ("lexical", "hybrid"):
+                with self.subTest(query=query[:30], mode=mode):
+                    rows = self.search(query=query, mode=mode, owner_id="one", include_public=False, as_of=10)
+                    self.assertEqual([visible["id"]], [row["id"] for row in rows])
+                    self.assertEqual(query, observed[-1])
+
     def test_context_budget_citations_exclusions_and_final_validation(self):
         self.put("first evidence", source_id="recent")
         row = self.put("second evidence", source_id="keep")

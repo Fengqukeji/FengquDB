@@ -442,6 +442,16 @@ class StoreSnapshot {
     friend class index::Client;
 
   public:
+    // Version of this published view; does not take the writer/flush lock.
+    uint64_t version() const {
+        detail::require(handle_.get());
+        fqdb_store_bridge_info info{};
+        info.struct_size = sizeof(info);
+        info.abi_version = FQDB_STORE_BRIDGE_ABI_VERSION;
+        detail::check(fqdb_store_snapshot_bridge_identity(handle_.get(), &info));
+        return info.snapshot_version;
+    }
+
     StoreValues get_many(const std::vector<std::string_view> &keys) const {
         detail::require(handle_.get());
         auto input = detail::store_keys(keys);
@@ -528,6 +538,16 @@ class StoreTransaction {
     friend class index::Client;
 
   public:
+    // Version of this published view; does not take the writer/flush lock.
+    uint64_t version() const {
+        detail::require(handle_.get());
+        fqdb_store_bridge_info info{};
+        info.struct_size = sizeof(info);
+        info.abi_version = FQDB_STORE_BRIDGE_ABI_VERSION;
+        detail::check(fqdb_store_txn_bridge_identity(handle_.get(), &info));
+        return info.snapshot_version;
+    }
+
     StoreValues get_many(const std::vector<std::string_view> &keys) {
         detail::require(handle_.get());
         auto input = detail::store_keys(keys);
@@ -657,6 +677,16 @@ class Store {
     explicit Store(fqdb_store *handle) : handle_(handle) {}
 
   public:
+    // Version of this published view; does not take the writer/flush lock.
+    uint64_t version() const {
+        detail::require(handle_.get());
+        fqdb_store_bridge_info info{};
+        info.struct_size = sizeof(info);
+        info.abi_version = FQDB_STORE_BRIDGE_ABI_VERSION;
+        detail::check(fqdb_store_bridge_identity(handle_.get(), &info));
+        return info.snapshot_version;
+    }
+
     StoreWriteOptions write_options() const {
         fqdb_store_write_options out{};
         detail::check(fqdb_store_write_options_get(handle_.get(), &out));

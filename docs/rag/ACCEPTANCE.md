@@ -4,7 +4,7 @@
 
 结论：通用 MemoryStore、WordGame 兼容门面、原生检索与治理已实现；隔离的真实路由和现有 KaLM 接入可运行。正式游戏切换、全游戏 G01–G12 和生产规模对照没有执行，因此不宣称线上替换已经完成。
 
-当前发行同步与验收见末尾“2026-11-15 长查询预算修复同步”；前面的首轮与冻结版测试和性能保留为历史证据。主清单 build/rag-memory-verification.json 指向当前结果，早期记录保留在 build/rag-initial-memory-verification.json 及 build/rag-frozen-verification.json。
+当前发行依赖以 docs/FOUNDATION_DEPENDENCIES.json 为准，本轮提交前验证见末尾“2026-11-15 中文检索与共享 SDK 同步”。此前的完整测试清单和性能均保留为对应版本的历史证据，不作为当前版本重新全量执行的声明。
 
 ## 验证结果
 
@@ -133,3 +133,11 @@ tests/rag/test_sdk_imports.py 在全新子进程组装 FengquDB/bindings/python 
 Windows 与 Linux Docker 均使用这份完整包的 Core/Index 和公共 wrapper，执行 MemoryStore39项、source26项、SDK/门面导入2项，各67项全部通过、无跳过，合计134次执行。首次新增断言曾错误要求129/257词在默认128词预算下成功，已按原生契约修正预期；最终通过不依赖增加预算或改变生产代码。无根数据库性能矩阵、性能重测、真实模型/HTTP重跑、旧数据迁移或WordGame重复通知。
 
 日志为 build/test-{memory,sources,sdk-imports}-{win,linux}-query-budget.log。当前机器清单为 build/rag-query-budget-verification.json，并同步为 build/rag-memory-verification.json；包含当前SDK、源文件、依赖和日志摘要，旧性能仍只属于相应历史版。
+
+## 2026-11-15 中文检索与共享 SDK 同步
+
+依赖清单更新至原生发行 eda2af4ae00743dffdea88a42559ade77d36610fdb69490b6496cc09dfabdecc，组合 Python 包为7788f116fe36649bf6373b8ec68ba9af1c6523f3a5276e2fc6fe4edb8769dca6；完整包路径记录在清单的 bundle 字段。提交前按包内 manifest 逐项验证50个文件及依赖摘要，全部匹配。
+
+本次提交包含两项中文自然查询回归：不插空格、不截断原文，词法/混合检索仍遵守归属与知情时间；重复中文词不绕过原生预算。Windows/Linux 分别执行这两项及 SDK 两项布局测试，共8次测试执行全部通过。另在Linux编译运行C++消费者，验证Store当前版本、旧快照版本稳定、事务基准版本与可靠提交后的新版本，共1项smoke通过。新增version()入口仅调用既有公开桥接，不改变提交策略。
+
+本轮仅做相关定向验证，没有重跑整个RAG套件、模型/HTTP或根数据库性能矩阵。日志为 build/test-cleanup-chinese-{memory,sources}-win.log、build/test-cleanup-sdk-win.log、build/test-cleanup-targeted-linux.log、build/test-cleanup-cpp-version-linux.log。历史验收日志、清单、示例数据和运行库保留；清理29个一次性维护/编译中间/Python缓存文件，合计16920310字节。

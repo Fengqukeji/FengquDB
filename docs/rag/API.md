@@ -1,8 +1,8 @@
 # 使用与接口
 
-需要 Python 3.10+、同 ABI 的 Core/Index、公共 fengqudb.py、fengqudb_index.py、fengqudb_index_wire.py。RAG 无模型运行库依赖。当前测试的二进制和 wrapper 摘要见 build/rag-memory-verification.json。
+需要 Python 3.10+、同 ABI 的 Core/Index、公共 fengqudb.py、fengqudb_index.py、fengqudb_index_wire.py。RAG 无模型运行库依赖。各轮验证的二进制、包装及日志证据见 [验收记录](ACCEPTANCE.md)，历史清单不代表当前发行已重复全量验证。
 
-2026-11-15 当前依赖发行号为 `8368499292891011dfc4c53269c9dc0b8a533019b8fd4f68c595536d4f675c67`，完整包为 `D:/study/FengquDB-index/artifacts/foundation-20261115-query-budget/python/FengquDB`。原生 Index 包含提交 `132f9b2` 的长查询计划器/原始 token 硬限修复；Core 字节与先前 r2 相同。跨平台摘要以 [FOUNDATION_DEPENDENCIES.json](../FOUNDATION_DEPENDENCIES.json) 为准，不将早期 frozen/SDK 路径当作最新发行引用。
+当前完整包路径与跨平台摘要以 [FOUNDATION_DEPENDENCIES.json](../FOUNDATION_DEPENDENCIES.json) 为准：`release_id` 标识原生底座，`python_bundle_release_id` 标识组合 Python 包，`bundle` 给出完整包路径。当前包包含长查询预算与中文自然查询修复；早期 frozen/query-budget 包和验收数据保留为历史记录，不作为最新发行引用。
 
 组合 SDK 可直接使用 `from FengquDB.bindings.python.fengqudb_rag import MemoryStore`。RAG 优先使用同一组合包的 Core/Index/wire wrapper，不创建全局模块别名，也不修改进程搜索路径；动态库参数仍默认 None，由公共 wrapper 解析组合包 native 目录。组合发行物由主会话统一组装，不能把本工作树临时依赖路径当发布布局。
 
