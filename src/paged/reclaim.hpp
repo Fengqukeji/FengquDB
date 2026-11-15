@@ -127,7 +127,10 @@ class ReclaimSession {
         if (auto hub = core_.watches.lock())
             hub->retain(retention.minimum, retention.active);
         require(!retention.active || retention.minimum == old->version, FQDB_LOCKED);
-        require(old->checkpoint.sequence <= UINT64_MAX - 2, FQDB_LIMIT);
+        const bool reuse_floor = !old->delta && !old->history &&
+                                old->checkpoint.version == old->version &&
+                                generation->has_reclaim_floor(old->checkpoint);
+        require(reuse_floor || old->checkpoint.sequence <= UINT64_MAX - 2, FQDB_LIMIT);
         auto next = std::make_shared<View>(*old);
         auto epoch = std::make_shared<ReadEpoch>();
         auto retired = std::make_shared<RetiredReadEpochs>(core_.pin_budget);
@@ -156,7 +159,8 @@ class ReclaimSession {
             checkpoint.entries = old->entries;
             checkpoint.user_keys = old->keys;
             checkpoint.live_bytes = old->live_bytes;
-            checkpoint.time = std::max(checkpoint.time, unix_ms());
+            if (!reuse_floor)
+                checkpoint.time = std::max(checkpoint.time, unix_ms());
             checkpoint.parent = checkpoint.parent_version = checkpoint.parent_limit =
                 checkpoint.parent_legacy = checkpoint.retained_floor = 0;
             next->delta.reset();
@@ -165,7 +169,7 @@ class ReclaimSession {
             require(payload.size() + 56 <=
                         (static_cast<uint64_t>(INT64_MAX) - generation->tail) / 2,
                     FQDB_LIMIT);
-            const auto limit = generation->tail + 2 * (payload.size() + 56);
+            const auto limit = generation->tail + (reuse_floor ? 0 : 2 * (payload.size() + 56));
             while ((limit / quantum_ / 64 + 1) > scratch_limit_ / 8 / sizeof(uint64_t)) {
                 require(quantum_ <= UINT64_MAX / 2, FQDB_LIMIT);
                 quantum_ *= 2;
@@ -176,14 +180,16 @@ class ReclaimSession {
             account();
             // The two roots are one prepaid atomic unit. No allocation or
             // cancellation point may separate them once root writes begin.
-            IOWritePermit permit(
-                generation->file->reservation_bytes(generation->tail, 2 * (payload.size() + 56)) +
-                128);
-            root_started = true;
-            generation->seal_payload(checkpoint, payload, true);
-            maintenance_at(74);
-            generation->seal_payload(checkpoint, payload);
-            maintenance_at(75);
+            if (!reuse_floor) {
+                IOWritePermit permit(
+                    generation->file->reservation_bytes(generation->tail, 2 * (payload.size() + 56)) +
+                    128);
+                root_started = true;
+                generation->seal_payload(checkpoint, payload, true);
+                maintenance_at(74);
+                generation->seal_payload(checkpoint, payload);
+                maintenance_at(75);
+            }
             next->limit = generation->tail;
             next->durable = next->version;
             generation->retired_readers = std::move(retired);

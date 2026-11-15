@@ -2119,10 +2119,12 @@ void Core::stop_worker_unlocked() {
         background_thread.join();
 }
 void Core::stop_worker() {
+    automatic_maintenance.store(false, std::memory_order_release);
     std::lock_guard<std::mutex> lock(configuration_mutex);
     stop_worker_unlocked();
 }
 void Core::configure_runtime(const fqdb_store_runtime_options &settings) {
+    automatic_maintenance.store(false, std::memory_order_release);
     std::lock_guard<std::mutex> lock(configuration_mutex);
     stop_worker_unlocked();
     runtime = settings;
@@ -2132,7 +2134,43 @@ void Core::configure_runtime(const fqdb_store_runtime_options &settings) {
     if (settings.background)
         background_thread = std::thread([this] { background_loop(); });
 }
-void Core::background_loop() {
+void Core::maybe_auto_maintenance(uint64_t limit, uint64_t live) noexcept {
+    constexpr uint64_t growth = 33554432;
+    if (limit < auto_next_limit.load(std::memory_order_relaxed) ||
+        !automatic_maintenance.load(std::memory_order_acquire) ||
+        background_running.load(std::memory_order_acquire)) return;
+    if (live > limit - (limit / 100) * 30) {
+        auto_next_limit.store(limit > UINT64_MAX - growth ? UINT64_MAX : limit + growth,
+                              std::memory_order_relaxed);
+        return;
+    }
+    try {
+        // Publication owns the writer gate. Never block on configuration or
+        // join a live worker here: stop/configure may themselves await writers.
+        std::unique_lock<std::mutex> lock(configuration_mutex, std::try_to_lock);
+        if (!lock.owns_lock() || !automatic_maintenance.load(std::memory_order_acquire) ||
+            background_running.load(std::memory_order_acquire)) return;
+        if (background_thread.joinable()) background_thread.join();
+        runtime = {sizeof(fqdb_store_runtime_options), 1, 1, 1000, 256, 128, 0, 30,
+                   growth, growth, 1000, 0, 0};
+        background_stop.store(false, std::memory_order_release);
+        background_running.store(true, std::memory_order_release);
+        try {
+#ifdef FQDB_TESTING
+            if (fail_automatic_start.exchange(false)) throw std::bad_alloc();
+#endif
+            background_thread = std::thread([this] { background_loop(true); });
+        } catch (...) {
+            background_running.store(false, std::memory_order_release);
+            throw;
+        }
+    } catch (...) {
+        auto_next_limit.store(limit > UINT64_MAX - growth ? UINT64_MAX : limit + growth,
+                              std::memory_order_relaxed);
+        background_status.store(current_error(), std::memory_order_relaxed);
+    }
+}
+void Core::background_loop(bool automatic) {
     background_maintenance = true;
     background_running.store(true, std::memory_order_release);
     uint64_t compacted_version = 0, compacted_size = 0;
@@ -2294,8 +2332,16 @@ void Core::background_loop() {
         } catch (...) {
             background_status.store(current_error());
         }
+        // Default housekeeping stops once its incremental reclaim is complete.
+        // Explicitly configured background maintenance retains its timer.
+        if (automatic && !reclaim) break;
     }
     reclaim.reset();
+    if (automatic) {
+        const auto size = current()->limit;
+        auto_next_limit.store(size > UINT64_MAX - 33554432 ? UINT64_MAX : size + 33554432,
+                              std::memory_order_relaxed);
+    }
     background_running.store(false, std::memory_order_release);
     background_maintenance = false;
 }

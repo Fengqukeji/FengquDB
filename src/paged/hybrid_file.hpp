@@ -503,7 +503,6 @@ class HybridFile {
         writable();
         if (materialized_)
             return true;
-        static std::atomic<uint64_t> nonce{0};
         bool published = false;
         try {
             // Keep bounded jobs' established 4 KiB progress quantum. Unmetered
@@ -516,11 +515,12 @@ class HybridFile {
                     static_cast<size_t>(std::min<uint64_t>(buffer.size(), end_ - image_at_));
                 IOWritePermit permit(count); // Refuse before allocating or touching the source.
                 if (!image_) {
-                    for (unsigned attempt = 0; attempt < 32; ++attempt) {
-                        const auto number =
-                            static_cast<uint64_t>(
-                                std::chrono::steady_clock::now().time_since_epoch().count()) ^
-                            ++nonce;
+                    {
+                        // Recoverable identity, with the same short filename.
+                        // The source generation is verified before an orphan
+                        // bearing this token is reclaimed on the next open.
+                        const auto number = storage::get64(header_.data() + 16) ^
+                                            storage::get64(header_.data() + 32);
                         std::string name = "x0000000000000000.tmp";
                         for (unsigned i = 0; i < 16; ++i)
                             name[16 - i] = "0123456789abcdef"[(number >> (i * 4)) & 15];
@@ -531,12 +531,10 @@ class HybridFile {
                             candidate->open(image_path_, true);
                             candidate->lock();
                             image_ = std::move(candidate);
-                            break;
-                        } catch (const Error &e) {
+                        } catch (const Error &) {
                             if (candidate->exclusively_created())
                                 remove_owned(image_path_);
-                            if (e.status != FQDB_ALREADY_EXISTS)
-                                throw;
+                            throw;
                         }
                     }
                     require(bool(image_), FQDB_ALREADY_EXISTS);
