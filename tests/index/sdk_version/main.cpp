@@ -17,7 +17,9 @@ int main() {
     try {
         check(fs::create_directory(root), "fixture collision");
         {
-            fengqudb::Store db((root / "main").string());
+            const auto encoded = (root / "main").u8string();
+            const std::string path(reinterpret_cast<const char *>(encoded.data()), encoded.size());
+            fengqudb::Store db(path);
             const auto initial = db.version();
             auto original = db.snapshot();
             auto transaction = db.transaction();
