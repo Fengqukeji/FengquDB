@@ -5,6 +5,7 @@
 #include "copy.hpp"
 #include "write_index.hpp"
 #include "write_policy.hpp"
+#include "output_jobs.hpp"
 #include <condition_variable>
 #include "../commit_signal.hpp"
 #include "../adaptive_wait.hpp"
@@ -244,6 +245,11 @@ struct Core : std::enable_shared_from_this<Core> {
     std::condition_variable background_changed;
     std::thread background_thread;
     std::atomic<bool> background_stop{false}, background_running{false};
+    std::atomic<bool> automatic_maintenance{true};
+    std::atomic<uint64_t> auto_next_limit{33554432};
+#ifdef FQDB_TESTING
+    std::atomic<bool> fail_automatic_start{false};
+#endif
     std::atomic<uint64_t> background_status{0}, background_expiry{0}, background_compactions{0};
     fqdb_store_runtime_options runtime{};
     ~Core();
@@ -264,7 +270,8 @@ struct Core : std::enable_shared_from_this<Core> {
     void stop_worker();
     void stop_worker_unlocked();
     void configure_runtime(const fqdb_store_runtime_options &settings);
-    void background_loop();
+    void background_loop(bool automatic = false);
+    void maybe_auto_maintenance(uint64_t limit, uint64_t live) noexcept;
     void cancel_maintenance() noexcept {
         if (maintenance_active.load(std::memory_order_acquire))
             maintenance_cancelled.store(true, std::memory_order_relaxed);
@@ -281,6 +288,7 @@ struct Core : std::enable_shared_from_this<Core> {
         return std::atomic_load_explicit(&state, std::memory_order_acquire);
     }
     void publish(std::shared_ptr<const View> next) {
+        const auto published_limit = next->limit, published_live = next->live_bytes;
         if (next->durable == next->version)
             dirty_bytes.store(0, std::memory_order_relaxed);
         if (next->reader_epoch != next->generation->reader_epoch)
@@ -296,6 +304,7 @@ struct Core : std::enable_shared_from_this<Core> {
             std::lock_guard<std::mutex> lock(hub->mutex);
             hub->changed.notify_all();
         }
+        maybe_auto_maintenance(published_limit, published_live);
     }
     void open() {
         std::error_code error;
@@ -315,6 +324,7 @@ struct Core : std::enable_shared_from_this<Core> {
         }
         auto status = lease.open(join(directory, "LOCK").c_str());
         require(status == FQDB_OK, status);
+        reclaim_fixed_temporaries(directory);
         write_policy = load_write_policy(directory, &write_policy_saved);
         auto generation = std::make_shared<Generation>(options.cache_bytes);
         auto manifest = std::filesystem::u8path(join(directory, "CURRENT"));
@@ -353,8 +363,11 @@ struct Core : std::enable_shared_from_this<Core> {
         attach_history(*this);
         auto active = current();
         active->reader_epoch = active->generation->reader_epoch;
+        reclaim_store_temporaries(directory, active->generation->uuid, active->generation->number,
+                                  history_keep(*active));
         (void)reclaim_generations(directory, active->generation->uuid, active->generation->number,
                                   history_keep(*active));
+        (void)recover_output(directory, active->generation->uuid);
     }
     void sync_business_locked() {
         if (!storage::io_quota || !dirty_bytes.load(std::memory_order_relaxed))

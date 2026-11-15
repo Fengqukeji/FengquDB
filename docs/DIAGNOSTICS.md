@@ -1,5 +1,7 @@
 # 数据库日志与定位
 
+诊断日志默认关闭。只有宿主显式创建 Diagnostics 或注册日志接收器才开启；数据库自身的恢复记录仍属于存储引擎，不能用诊断日志代替。
+
 核心为打开/恢复、提交、同步、检查点、变更游标错误产生数值事件：数据库进程内 ID、版本、阶段、文件偏移、状态、系统错误码、操作数、载荷字节、耗时。事件不含键、值或数据库路径。默认记录警告、错误及达到 5 ms 的成功提交，普通点读不记录。未注册接收器时不启动线程，跳过取时和回调。
 
 ## 接入
@@ -50,11 +52,13 @@ CMake 链接 `FengquDB::Cpp`、`FengquDB::Diagnostics`。公共头文件要求 C
 
 拥塞或 I/O 错误允许丢弃，优先保留错误；status 包含 submitted、written、dropped、cleared、io_errors、callback_errors 和高水位。flush 成功只表示调用时的队列水位已处理，可能是写入、丢弃或清理；不提供数据库级断电持久化保证，不能作为审计/恢复依据。日志写入失败不回滚数据库提交。
 
-configure 接受 enabled、retention_days、max_bytes；enabled=false 停止接收，既有线程仍等待，close 才注销并结束线程。clear 仅清理本组件识别的日志，保留其他文件，建议使用独立目录。管理调用不可与同一句柄的 close/销毁并发。
+configure 接受 enabled、retention_days、max_bytes、rate_limit_per_second；enabled=false 停止接收，既有线程仍等待，close 才注销并结束线程。clear 仅清理本组件识别的日志，保留其他文件，建议使用独立目录。管理调用不可与同一句柄的 close/销毁并发。
 
 默认保留 7 天、合计 64 MiB，单文件约 8 MiB 轮转。首次写入、轮转和后续写入触发的周期维护会回收过期或超量的非活跃自有文件，并为当前文件预留增长空间；受保护的活跃文件不能强制删除，相关状态可查看 protected_files、directory_truncated 和 retention_errors。Windows/Linux 跨越默认上限的实际压力结果见 [资源与日志验证](RESOURCE_REVIEW_20261107.md)。
 
 自定义接收器见 `fengqudb_log.h`：回调在数据库锁释放后执行，可能并发，事件仅在调用期间有效。递归日志抑制、回调异常隔离；禁止在自身回调中关闭自身接收器。close 等待已进入的回调结束，回调应尽快入队返回。
+
+开启日志后，C++ 核心的数值事件直接复制入队；字段转字符串与 JSON 编码由写线程处理。默认对同一数据库、操作、状态和阶段的警告/错误每秒最多接收16条，限频计入 dropped 与 rate_limited；原始计数仍可查 status。rate_limit_per_second=0 关闭限频，slow_commit_us=0 的显式全量追踪也不受限频。自定义核心接收器保持原有回调语义。
 
 ## 来源与适配
 

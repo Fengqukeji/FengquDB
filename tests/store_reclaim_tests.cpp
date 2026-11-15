@@ -352,6 +352,73 @@ static void abandoned_reader_epochs() {
     }
     verify_model(core, {{"value", "latest"}});
 }
+static void unchanged_floor_does_not_grow() {
+    Fixture fixture;
+    const auto path = fixture.name("stable-floor");
+    uint64_t tail = 0, sequence = 0;
+    {
+        auto core = open_core(path);
+        garbage(core);
+        p::ReclaimSession session(*core);
+        while (!session.step(p::maintenance_defaults())) {}
+        tail = core->current()->generation->tail;
+        sequence = core->current()->checkpoint.sequence;
+    }
+    // Separate opens model short-lived hosts. Separate sessions within each
+    // open model worker cancellation/reconfiguration without any user write.
+    for (unsigned reopen = 0; reopen < 6; ++reopen) {
+        auto core = open_core(path);
+        for (unsigned restart = 0; restart < 2; ++restart) {
+            auto snapshot = core->current();
+            p::ReclaimSession session(*core);
+            check(!session.step(p::maintenance_defaults()), "stable floor start");
+            check(!session.step(p::maintenance_defaults()) && session.waiting_for_readers(),
+                  "reused floor forgot preexisting readers");
+            snapshot.reset();
+            while (!session.step(p::maintenance_defaults())) {}
+            check(core->current()->generation->tail == tail &&
+                      core->current()->generation->file->size() == tail &&
+                      core->current()->checkpoint.sequence == sequence,
+                  "unchanged reclaim/reopen appended redundant seals");
+        }
+        verify_model(core, {{"value", "latest"}});
+    }
+    // One valid root is insufficient: repair the pair before sweeping, then
+    // stop growing again. Reopen must still recover the accepted contents.
+    {
+        const auto selected = p::read_current(path);
+        p::SharedFile file;
+        file.open(p::join(path, selected.filename()), false, true);
+        const char corrupt = 'x';
+        file.write(4096 + ((sequence + 1) % 2) * 4096, &corrupt, 1);
+        file.sync();
+    }
+    {
+        auto core = open_core(path);
+        p::ReclaimSession session(*core);
+        while (!session.step(p::maintenance_defaults())) {}
+        check(core->current()->generation->tail > tail,
+              "single surviving root was incorrectly reused as a double-root barrier");
+        tail = core->current()->generation->tail;
+    }
+    {
+        auto core = open_core(path);
+        {
+            p::ReclaimSession session(*core);
+            while (!session.step(p::maintenance_defaults())) {}
+            check(core->current()->generation->tail == tail, "repaired floor grew again");
+        }
+        commit_value(core, "later", "accepted");
+        {
+            p::ReclaimSession session(*core);
+            while (!session.step(p::maintenance_defaults())) {}
+            check(core->current()->checkpoint.floor == core->current()->version,
+                  "floor reuse prevented sealing later writes");
+        }
+        verify_model(core, {{"value", "latest"}, {"later", "accepted"}});
+    }
+    verify_model(open_core(path), {{"value", "latest"}, {"later", "accepted"}});
+}
 static void root_fallback() {
     for (unsigned damaged = 0; damaged < 2; ++damaged) {
         Fixture fixture;
@@ -628,6 +695,8 @@ int main(int argc, char **argv) {
         retained_reader_fallback();
         store_test_trace("reclaim/abandoned_reader_epochs");
         abandoned_reader_epochs();
+        store_test_trace("reclaim/unchanged_floor_does_not_grow");
+        unchanged_floor_does_not_grow();
         store_test_trace("reclaim/root_fallback");
         root_fallback();
         store_test_trace("reclaim/root_write_failures");

@@ -70,7 +70,7 @@ inline RecoveryResult recover(std::shared_ptr<Generation> generation, const std:
         if (!scratch) {
             scratch = std::make_shared<Generation>(0);
             auto id = new_uuid();
-            scratch->create(join(directory, temporary_name('r', id)), id, 1);
+            scratch->create(join(directory, "RECOVER.tmp"), id, 1);
             scratch->remove_on_close.store(true, std::memory_order_relaxed);
         }
         scratch_root = fold_delta(scratch, scratch_root, result->delta, version, writer_budget);

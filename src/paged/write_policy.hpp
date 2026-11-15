@@ -40,7 +40,7 @@ inline fqdb_store_write_options load_write_policy(const std::string &directory,
 inline fqdb_status save_write_policy(const std::string &directory,
                                      const fqdb_store_write_options &p) {
     const auto target = join(directory, "WRITE");
-    const auto temporary = join(directory, temporary_name('w', new_uuid()));
+    const auto temporary = join(directory, "WRITE.tmp");
     bool created = false;
     try {
         std::array<unsigned char, 40> bytes{};

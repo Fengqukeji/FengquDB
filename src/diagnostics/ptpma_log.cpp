@@ -174,11 +174,92 @@ NativeHandle reserve_deletion(const std::filesystem::path &path) {
 #endif
     return result;
 }
+const char *stage_name(uint32_t stage) noexcept {
+    constexpr const char *names[] = {
+        "arguments", "open",  "file_header", "record_header", "payload",  "trailer", "checksum",
+        "index",     "write", "flush",       "publish",       "complete", "repair"};
+    return stage < sizeof(names) / sizeof(*names) ? names[stage] : "unknown";
+}
+const char *native_name(const fqdb_log_event &event) noexcept {
+    const char *name = "database.unknown";
+    switch (event.operation) {
+    case FQDB_LOG_OPEN:
+        name = event.repaired_bytes ? "database.recovery.truncated_tail"
+               : event.status       ? "database.open.failed"
+                                     : "database.open";
+        break;
+    case FQDB_LOG_COMMIT:
+        name = event.status == FQDB_CONFLICT ? "database.transaction.conflict"
+               : event.status                ? "database.commit.failed"
+                                              : "database.commit.slow";
+        break;
+    case FQDB_LOG_SYNC:
+        name = event.status ? "database.sync.failed" : "database.sync";
+        break;
+    case FQDB_LOG_CHECKPOINT:
+        name = event.status ? "database.checkpoint.failed" : "database.checkpoint";
+        break;
+    case FQDB_LOG_CHANGES:
+        name = "database.changes.failed";
+        break;
+    case FQDB_LOG_COMPACT:
+        name = event.status ? "database.compact.failed" : "database.compact";
+        break;
+    case FQDB_LOG_BACKUP:
+        name = event.status ? "database.backup.failed" : "database.backup";
+        break;
+    case FQDB_LOG_VERIFY:
+        name = event.status ? "database.verify.failed" : "database.verify";
+        break;
+    case FQDB_LOG_RESTORE:
+        name = event.status ? "database.restore.failed" : "database.restore";
+        break;
+    case FQDB_LOG_PURGE_EXPIRED:
+        name = event.status ? "database.purge_expired.failed" : "database.purge_expired";
+        break;
+    case FQDB_LOG_INDEX_DEFINE:
+        name = event.status ? "database.index.define.failed" : "database.index.define";
+        break;
+    case FQDB_LOG_INDEX_DROP:
+        name = event.status ? "database.index.drop.failed" : "database.index.drop";
+        break;
+    case FQDB_LOG_BACKUP_INCREMENTAL:
+        name = event.status ? "database.backup.incremental.failed" : "database.backup.incremental";
+        break;
+    case FQDB_LOG_RECOVER_CHAIN:
+        name = event.status ? "database.recover.chain.failed" : "database.recover.chain";
+        break;
+    case FQDB_LOG_CONFIGURE:
+        name = event.status ? "database.configure.failed" : "database.configure";
+        break;
+    }
+    return name;
+}
+const char *native_level(const fqdb_log_event &event) noexcept {
+    return event.level == FQDB_LOG_ERROR ? "error" : event.level == FQDB_LOG_WARNING ? "warning" : "info";
+}
+Json native_metadata(const fqdb_log_event &event) {
+    return {{"database_id", std::to_string(event.database_id)},
+         {"run_id", std::to_string(event.database_id)},
+         {"version", std::to_string(event.version)},
+         {"base_version", std::to_string(event.base_version)},
+         {"file_offset", std::to_string(event.file_offset)},
+         {"bytes", std::to_string(event.payload_bytes)},
+         {"count", std::to_string(event.operation_count)},
+         {"error_code", std::to_string(event.status)},
+         {"os_error", std::to_string(event.os_error)},
+         {"stage", stage_name(event.stage)},
+         {"duration_us", std::to_string(event.duration_us)},
+         {"repaired_bytes", std::to_string(event.repaired_bytes)},
+         {"durability", event.durability == FQDB_DURABILITY_SYNC ? "sync" : "buffered"}};
+}
+
 struct Settings {
     bool enabled = true;
     int days = 7;
     std::uintmax_t bytes = 64 * 1024 * 1024;
-    Json json() const { return {{"enabled", enabled}, {"retention_days", days}, {"max_bytes", bytes}}; }
+    uint32_t rate_limit_per_second = 16;
+    Json json() const { return {{"enabled", enabled}, {"retention_days", days}, {"max_bytes", bytes}, {"rate_limit_per_second", rate_limit_per_second}}; }
     static std::int64_t bounded(const Json &value, std::int64_t low, std::int64_t high) {
         if (!value.is_number_integer()) throw std::invalid_argument("Diagnostic setting must be an integer");
         if (value.is_number_unsigned()) return static_cast<std::int64_t>(std::clamp(value.get<std::uint64_t>(), static_cast<std::uint64_t>(low), static_cast<std::uint64_t>(high)));
@@ -193,6 +274,8 @@ struct Settings {
         if (args.contains("max_bytes")) {
             bytes = static_cast<std::uintmax_t>(bounded(args.at("max_bytes"), 16 * 1024 * 1024, 256 * 1024 * 1024));
         }
+        if (args.contains("rate_limit_per_second"))
+            rate_limit_per_second = static_cast<uint32_t>(bounded(args.at("rate_limit_per_second"), 0, 65536));
     }
 };
 Settings read_settings(const std::filesystem::path &path) {
@@ -211,6 +294,7 @@ Settings read_settings(const std::filesystem::path &path) {
 struct LocalLog::Impl {
     struct Field { std::uint8_t key; std::string value; };
     struct Entry {
+        fqdb_log_event native{};
         std::int64_t time = 0;
         std::uint64_t sequence = 0, thread = 0, generation = 0;
         bool priority = false;
@@ -233,6 +317,14 @@ struct LocalLog::Impl {
     std::uintmax_t observed_bytes = 0;
     bool directory_truncated = false, stopping = false, exited = false, reader_only = false, flush_requested = false;
     Settings settings;
+    struct RateSlot {
+        std::uint64_t database = 0;
+        uint32_t operation = 0, stage = 0, count = 0;
+        fqdb_status status = FQDB_OK;
+        Clock::time_point began{};
+    };
+    std::array<RateSlot, 128> rates{};
+    std::uint64_t rate_limited = 0;
     Clock::time_point retry_after{}, maintenance_after{};
     unsigned consecutive_errors = 0;
     NativeHandle output;
@@ -319,6 +411,18 @@ struct LocalLog::Impl {
         { std::lock_guard lock(mutex); observed_bytes = total; observed_files = count; protected_files = blocked; retention_errors += errors; directory_truncated = limited; }
         maintenance_after = Clock::now() + std::chrono::seconds(30);
     }
+    bool clean_settings_temporary() {
+        const auto temporary = root / (component + "-settings.tmp");
+        std::error_code error;
+        const auto status = std::filesystem::symlink_status(temporary, error);
+        if (status.type() == std::filesystem::file_type::not_found) return true;
+        if (error || !std::filesystem::is_regular_file(status) || std::filesystem::is_symlink(status)) return false;
+#ifdef _WIN32
+        const auto attributes = GetFileAttributesW(temporary.c_str());
+        if (attributes == INVALID_FILE_ATTRIBUTES || (attributes & FILE_ATTRIBUTE_REPARSE_POINT)) return false;
+#endif
+        return std::filesystem::remove(temporary, error) && !error;
+    }
     void open_output() {
         active = root / (component + "--" + writer + "-" + std::to_string(++file_sequence) + ".jsonl");
 #ifdef _WIN32
@@ -400,6 +504,54 @@ struct LocalLog::Impl {
             const bool wake = queued() == 1 || queued() >= 64 || !critical.empty(); lock.unlock(); if (wake) cv.notify_one();
         } catch (...) { try { std::lock_guard lock(mutex); if (!registered) ++submitted; ++dropped; } catch (...) {} }
     }
+    void send(const fqdb_log_event &event, bool throttle) noexcept {
+        // Copy fixed-size numeric metadata. Strings, field vectors and JSON
+        // are constructed only by the writer, after filtering and admission.
+        bool registered = false;
+        try {
+            std::unique_lock lock(mutex);
+            if (reader_only || stopping || exited || !settings.enabled) return;
+            ++submitted;
+            registered = true;
+            if (Clock::now() < retry_after) { ++dropped; return; }
+            if (throttle && settings.rate_limit_per_second && event.level >= FQDB_LOG_WARNING) {
+                auto key = event.database_id ^ (uint64_t(event.operation) << 32) ^
+                           (uint64_t(event.stage) << 16) ^ uint64_t(event.status);
+                key ^= key >> 33; key *= UINT64_C(0xff51afd7ed558ccd); key ^= key >> 33;
+                auto &slot = rates[key % rates.size()];
+                const auto now = Clock::now();
+                if (slot.database != event.database_id || slot.operation != event.operation ||
+                    slot.stage != event.stage || slot.status != event.status ||
+                    now - slot.began >= std::chrono::seconds(1))
+                    slot = {event.database_id, event.operation, event.stage, 0, event.status, now};
+                if (slot.count >= settings.rate_limit_per_second) {
+                    ++dropped; ++rate_limited; return;
+                }
+                ++slot.count;
+            }
+            Entry entry;
+            entry.native = event;
+            entry.priority = event.level == FQDB_LOG_ERROR;
+            entry.bytes = sizeof(Entry) + 2 * sizeof(void *);
+            if (!entry.priority && (queued() >= queue_limit || queued_bytes + entry.bytes > byte_limit)) {
+                ++dropped; return;
+            }
+            while (queued() && (queued() >= queue_limit || queued_bytes + entry.bytes > byte_limit)) {
+                auto &queue = normal.empty() ? critical : normal;
+                queued_bytes -= queue.front().bytes; queue.pop_front(); ++dropped;
+            }
+            entry.time = micros();
+            entry.thread = static_cast<uint64_t>(std::hash<std::thread::id>{}(std::this_thread::get_id()));
+            entry.sequence = sequence + 1; entry.generation = generation;
+            auto &queue = entry.priority ? critical : normal;
+            queue.push_back(std::move(entry)); ++sequence;
+            queued_bytes += queue.back().bytes;
+            high_water_bytes = std::max(high_water_bytes, queued_bytes);
+            high_water_count = std::max(high_water_count, queued());
+            const bool wake = queued() == 1 || queued() >= 64 || !critical.empty();
+            lock.unlock(); if (wake) cv.notify_one();
+        } catch (...) { try { std::lock_guard lock(mutex); if (!registered) ++submitted; ++dropped; } catch (...) {} }
+    }
     void run() noexcept {
         try {
             std::vector<Entry> batch; batch.reserve(batch_limit);
@@ -426,8 +578,12 @@ struct LocalLog::Impl {
                     bool persisted = false;
                     if (!obsolete) {
                         for (const auto &entry : batch) {
-                            Json metadata = Json::object(); for (const auto &field : entry.fields) metadata[std::string(field_names[field.key])] = field.value;
-                            data += Json{{"version", 1}, {"time_unix_us", entry.time}, {"process_id", process_id()}, {"thread_id", entry.thread}, {"writer_id", writer}, {"generation", entry.generation}, {"component", component}, {"sequence", entry.sequence}, {"level", entry.level}, {"event", entry.event}, {"fields", std::move(metadata)}}.dump(-1, ' ', false, Json::error_handler_t::replace) + "\n";
+                            Json metadata = Json::object();
+                            if (entry.native.operation) metadata = native_metadata(entry.native);
+                            else for (const auto &field : entry.fields) metadata[std::string(field_names[field.key])] = field.value;
+                            const std::string_view level = entry.native.operation ? native_level(entry.native) : std::string_view(entry.level);
+                            const std::string_view event = entry.native.operation ? native_name(entry.native) : std::string_view(entry.event);
+                            data += Json{{"version", 1}, {"time_unix_us", entry.time}, {"process_id", process_id()}, {"thread_id", entry.thread}, {"writer_id", writer}, {"generation", entry.generation}, {"component", component}, {"sequence", entry.sequence}, {"level", level}, {"event", event}, {"fields", std::move(metadata)}}.dump(-1, ' ', false, Json::error_handler_t::replace) + "\n";
                         }
                         if (lost > reported_dropped) data += Json{{"version", 1}, {"time_unix_us", micros()}, {"process_id", process_id()}, {"writer_id", writer}, {"generation", batch_generation}, {"component", component}, {"level", "warning"}, {"event", "logger.dropped"}, {"fields", {{"count", std::to_string(lost)}}}}.dump() + "\n";
                         { std::lock_guard lock(mutex); serialization_capacity = data.capacity(); }
@@ -460,6 +616,7 @@ LocalLog::LocalLog(std::filesystem::path directory, std::string component, bool 
         try {
             impl_->root_guard(true); DirectoryLease lease(impl_->root / (impl_->component + "-control.lock"), std::chrono::milliseconds(500));
             impl_->generation = lease.epoch();
+            if (!impl_->clean_settings_temporary()) ++impl_->retention_errors;
         } catch (...) { ++impl_->io_errors; }
         try { impl_->worker = std::thread([state = impl_.get()] { state->run(); }); write("info", "process.logger_started"); }
         catch (...) { ++impl_->io_errors; impl_->exited = true; }
@@ -473,9 +630,10 @@ LocalLog::~LocalLog() {
     impl_->output.close();
 }
 void LocalLog::write(std::string_view level, std::string_view event, const Fields &fields) noexcept { impl_->send(level, event, fields); }
+void LocalLog::write(const fqdb_log_event &event, bool throttle) noexcept { impl_->send(event, throttle); }
 Json LocalLog::status() const {
     std::lock_guard lock(impl_->mutex);
-    return {{"directory", path_text(impl_->root)}, {"component", impl_->component}, {"writer_id", impl_->writer}, {"reader_only", impl_->reader_only}, {"enabled", impl_->settings.enabled}, {"retention_days", impl_->settings.days}, {"max_bytes", impl_->settings.bytes}, {"queued", impl_->queued()}, {"queued_bytes", impl_->queued_bytes}, {"inflight", impl_->inflight}, {"inflight_bytes", impl_->inflight_bytes}, {"serialization_capacity", impl_->serialization_capacity}, {"queue_limit", queue_limit}, {"queue_byte_limit", byte_limit}, {"high_water_queued", impl_->high_water_count}, {"high_water_bytes", impl_->high_water_bytes}, {"submitted", impl_->submitted}, {"written", impl_->written}, {"dropped", impl_->dropped}, {"cleared", impl_->cleared}, {"io_errors", impl_->io_errors}, {"flush_timeouts", impl_->flush_timeouts}, {"generation", impl_->generation}, {"settled_sequence", impl_->settled}, {"last_sequence", impl_->sequence}, {"worker_running", !impl_->reader_only && !impl_->exited}, {"disk_bytes_at_maintenance", impl_->observed_bytes}, {"files_at_maintenance", impl_->observed_files}, {"protected_files", impl_->protected_files}, {"retention_errors", impl_->retention_errors}, {"directory_truncated", impl_->directory_truncated}, {"sensitive_payloads", false}};
+    return {{"directory", path_text(impl_->root)}, {"component", impl_->component}, {"writer_id", impl_->writer}, {"reader_only", impl_->reader_only}, {"enabled", impl_->settings.enabled}, {"retention_days", impl_->settings.days}, {"max_bytes", impl_->settings.bytes}, {"queued", impl_->queued()}, {"queued_bytes", impl_->queued_bytes}, {"inflight", impl_->inflight}, {"inflight_bytes", impl_->inflight_bytes}, {"serialization_capacity", impl_->serialization_capacity}, {"queue_limit", queue_limit}, {"queue_byte_limit", byte_limit}, {"high_water_queued", impl_->high_water_count}, {"high_water_bytes", impl_->high_water_bytes}, {"submitted", impl_->submitted}, {"written", impl_->written}, {"dropped", impl_->dropped}, {"rate_limited", impl_->rate_limited}, {"cleared", impl_->cleared}, {"io_errors", impl_->io_errors}, {"flush_timeouts", impl_->flush_timeouts}, {"generation", impl_->generation}, {"settled_sequence", impl_->settled}, {"last_sequence", impl_->sequence}, {"worker_running", !impl_->reader_only && !impl_->exited}, {"disk_bytes_at_maintenance", impl_->observed_bytes}, {"files_at_maintenance", impl_->observed_files}, {"protected_files", impl_->protected_files}, {"retention_errors", impl_->retention_errors}, {"directory_truncated", impl_->directory_truncated}, {"sensitive_payloads", false}};
 }
 bool LocalLog::flush(std::chrono::milliseconds timeout) {
     if (timeout < std::chrono::milliseconds::zero() || timeout > std::chrono::minutes(1)) throw std::invalid_argument("Diagnostic flush timeout is out of range");
@@ -555,7 +713,8 @@ Json LocalLog::configure(const Json &args) {
     try { candidate = read_settings(impl_->root / (impl_->component + "-settings.json")); }
     catch (...) { std::lock_guard lock(impl_->mutex); candidate = impl_->settings; }
     candidate.patch(args);
-    const auto file = impl_->root / (impl_->component + "-settings.json"), temporary = impl_->root / (impl_->component + "--" + next_id() + "-settings.tmp");
+    if (!impl_->clean_settings_temporary()) throw std::runtime_error("Diagnostic settings temporary is protected");
+    const auto file = impl_->root / (impl_->component + "-settings.json"), temporary = impl_->root / (impl_->component + "-settings.tmp");
     try {
         { std::ofstream output(temporary, std::ios::binary | std::ios::trunc); const auto text = candidate.json().dump(); output.write(text.data(), static_cast<std::streamsize>(text.size())); output.flush(); if (!output) throw std::runtime_error("Cannot save diagnostic settings"); }
 #ifdef _WIN32
