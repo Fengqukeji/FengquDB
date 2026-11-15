@@ -24,8 +24,11 @@ fn deploy_runtime(root: &std::path::Path, out: &std::path::Path) {
         "linux" => "libfengqudb.so.2", _ => return,
     };
     let source = native.join(file);
-    // OUT_DIR is <target>/<profile>/build/<package>/out, also with CARGO_TARGET_DIR.
-    let profile = out.ancestors().nth(3).expect("Cargo profile directory");
+    // Cargo may add package/hash/execution directories below build/. Their
+    // number is internal (and changed in Cargo 1.100), so never count parents.
+    let profile = out.ancestors()
+        .find(|path| path.file_name().is_some_and(|name| name == "build"))
+        .and_then(std::path::Path::parent).expect("Cargo profile build directory");
     let bytes = std::fs::read(&source).expect("read SDK native runtime");
     for destination in [profile.to_path_buf(), profile.join("deps"), profile.join("examples")] {
         std::fs::create_dir_all(&destination).expect("create runtime directory");

@@ -173,8 +173,14 @@ Console.WriteLine("PASS shared singleton, close and reopen");
                 (project/'src/student.rs').write_text(next(b for b in blocks if 'pub struct Student' in b),encoding='utf-8')
                 (project/'src/main.rs').write_text(next(b for b in blocks if 'fn main()' in b),encoding='utf-8')
                 run('rust-generated',['cargo','run','--offline'],project,env)
-                run('rust-published',[project/('target/debug/consumer.exe' if os.name=='nt' else 'target/debug/consumer')],work,env);checks+=['cargo-hook-deploy-native-call']
+                executable=project/('target/debug/consumer.exe' if os.name=='nt' else 'target/debug/consumer')
+                published=project/'published';published.mkdir()
+                shutil.copy2(executable,published/executable.name)
+                runtime='fengqudb.dll' if os.name=='nt' else 'libfengqudb.so.2'
+                shutil.copy2(executable.parent/runtime,published/runtime)
+                run('rust-published',[published/executable.name],work,env);checks+=['cargo-hook-deploy-native-call','relocated-runtime-deployment']
         report.append({'language':lang,'ok':True,'checks':checks})
+        (work/'report.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
     (work/'report.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
     print(json.dumps(report,ensure_ascii=False))
 

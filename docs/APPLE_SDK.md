@@ -1,12 +1,10 @@
 # Apple 库与 Unity SDK
 
-2026-11-15 已使用 GitHub 标准 macOS runner 构建实际 Apple 库，无需在本机安装 macOS。私有构建仓库使用账号包含的额度，付费预算保持零。
+1.0.0 的真实 macOS、iOS 库使用 GitHub macOS runner 和 Xcode，从本仓库原生核心源码构建。
 
-[成功运行 #1](https://github.com/Fengqukeji/FengquDB-build/actions/runs/43672128035)：任务用时 1 分 31 秒，环境为 macOS 15.8.2、Xcode 16.4、Apple Clang 17。
+## 取得 SDK
 
-## 本地产物
-
-Unity SDK 位于 `artifacts/unity-sdk-20261115-complete/`。选择开发电脑对应的包：
+正式 ZIP 在本仓库 Releases 附件中。Unity 按开发电脑选择：
 
 | 开发电脑 | 文件 |
 | --- | --- |
@@ -14,28 +12,26 @@ Unity SDK 位于 `artifacts/unity-sdk-20261115-complete/`。选择开发电脑�
 | Mac Apple Silicon | FengquDB-unity-macos-arm64.zip |
 | Mac Intel | FengquDB-unity-macos-x64.zip |
 
-每个包包含全部发布平台原生库、托管库、自动生成器、手动生成工具和接入文档。把包中的 `FengquDB` 文件夹放到 `Assets/Plugins` 并保留 `.meta`。macOS 包的区别是开发期序列化工具的 CPU 架构。
+每个 Unity 包均包含 Windows x64、Linux x64、Android arm64、iOS arm64、macOS arm64/x64 原生库，以及托管库、自动生成器、手动生成工具和两份用户文档。包之间的区别是开发期生成工具的宿主架构。
 
-补充的 Windows LTO 精简包位于 `artifacts/unity-sdk-20261115-win-lto/`，宿主文件名与上表相同。Windows 核心由 1.15 MiB 缩小到 1.08 MiB，其他平台库不变；已完成原生接口、重开和并发备份等定向检查，未重做完整性能矩阵或 Unity Player 验收。验证口径见 [包体核查](PACKAGE_SIZE_AUDIT_20261115.md)。
+把 `FengquDB` 文件夹复制到 `Assets/Plugins` 并保留 `.meta`。接入流程见 [Unity 接入](languages/unity.md)，调用方法见 [Unity API](api/unity.md)。
 
-单独的 Apple 库位于 `artifacts/apple-sdk-20261115/`：
+`FengquDB-Apple-native-1.0.0.zip` 单独提供：
 
-- `macos/arm64/libfengqudb.dylib`
-- `macos/x86_64/libfengqudb.dylib`
-- `iphoneos/arm64/libfengqudb.a`
-- `iphonesimulator/arm64/libfengqudb.a`
-- `managed-ios/FengquDB.Managed.dll`
+- `macos/arm64`、`macos/x86_64`：动态库及其安装名对应的 `libfengqudb.2.dylib`。
+- `iphoneos/arm64`：iOS 真机静态库。
+- `iphonesimulator/arm64`：iOS 模拟器静态库。
+- `Tools/arm64`、`Tools/x86_64`：macOS 原生生成工具。
+- `managed-ios`：使用 `__Internal` 调用静态插件的托管程序集。
 
-## 已验证范围
+## 验证范围
 
-云端编译了以上四种目标和两个 macOS 生成工具，macOS 原生宿主实际执行保存、关闭和重开读取；iOS 真机与模拟器各完成 C ABI 可执行文件链接。三个 Unity 包通过文件清单、CRC、文档链接与哈希检查。
+[1.0.0 平台验证运行](https://github.com/Fengqukeji/FengquDB/actions/runs/43706853433) 的 Apple 任务已完成两种 macOS 架构和 iOS 真机/模拟器 arm64 的编译链接，并在 macOS 原生宿主实际执行写入、关闭、重开读取。桌面 SDK 独立接入由 [发布包验证流程](../.github/workflows/release-sdk.yml) 执行；附件提供 SHA-256。
 
-本机再次核对 GitHub 产物 SHA-256、每个 SDK 文件的大小和哈希、Mach-O CPU/平台、静态库对象的目标平台和动态库系统依赖。未执行 Unity macOS/iOS 构建或 iOS 真机运行验收。
-
-固定源代码包、workflow、逐文件输入清单、校验结果和成功截图保存在 `artifacts/apple-cloud-20261115/`。输入使用 Index 工作树已验证的核心源码，以及当前工作树的 C# 绑定、生成器和组包脚本；具体输入哈希在 `snapshot/snapshot.json`，下载产物的输入清单在 `artifacts/apple-sdk-20261115/snapshot.json`。
-
-GitHub 下载产物 SHA-256：`2b7efcab6e1d91947cd9ff538f3a0fd3984d1ccec930af7a1c08a96714a588bb`。
+Unity 包检查文件清单、文档、原生目标架构和 `.meta` 平台选择配置，并验证从 `Assets/Plugins` 运行手动生成工具。尚未完成 Unity macOS/iOS Player 和移动真机运行验收。
 
 ## 再次构建
 
-`scripts/prepare-apple-cloud.py` 生成固定源代码 ZIP 和与其校验值绑定的手动 workflow。它仅收集必要源码和指定预编译输入。将 ZIP 和 workflow 更新到私有构建仓库后运行 Apple SDK 任务；保留标准 runner 和零付费预算。常规源码仓库 CI 的 Apple 任务仍使用 `scripts/build-apple-sdk.sh`。
+生产方在 macOS/Xcode 环境运行 `sh scripts/build-apple-sdk.sh`。常规 CI 的 Apple 任务使用同一脚本；`scripts/assemble-unity-sdk.py` 合并各平台真实构建产物。用户通过独立 ZIP 接入，脚本与编译环境属于生产方工具链。
+
+早期私有构建输入与体积核查属于发布前历史，见 [Windows 包体核查](PACKAGE_SIZE_AUDIT_20261115.md)。历史性能测量没有因 1.0.0 发布而重新测量。

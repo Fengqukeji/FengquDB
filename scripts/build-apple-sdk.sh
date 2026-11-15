@@ -19,6 +19,8 @@ for arch in arm64 x86_64; do
   cmake --build "$work/macos-$arch" --target fengqudb --parallel 2
   mkdir -p "$output/macos/$arch"
   cp "$work/macos-$arch/libfengqudb.dylib" "$output/macos/$arch/libfengqudb.dylib"
+  # Direct C/C++ consumers need the filename recorded in LC_ID_DYLIB too.
+  cp "$work/macos-$arch/libfengqudb.dylib" "$output/macos/$arch/libfengqudb.2.dylib"
   xcrun --sdk macosx clang++ -arch "$arch" -mmacosx-version-min=11.0 \
     -std=c++17 -Iinclude tests/apple/link_probe.cpp \
     "$output/macos/$arch/libfengqudb.dylib" -Wl,-rpath,@executable_path \

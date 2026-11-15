@@ -60,6 +60,7 @@ jobs:
           python examples/quickstart/main.py --sdk "artifacts/client/FengquDB-python-$platform/FengquDB" --root build/release-quickstart
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: FengquDB-release-${{ matrix.os }}
           if-no-files-found: error
