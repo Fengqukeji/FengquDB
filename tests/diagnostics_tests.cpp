@@ -20,12 +20,53 @@ static void check_at(bool value, int line) {
 static Json parse(Buffer value) {
     return Json::parse(value.view());
 }
+static void rate_limits(const fs::path &root) {
+    fs::create_directory(root/"rate-logs");
+    std::ofstream(root/"rate-logs/fengqudb-settings.tmp") << "interrupted settings update";
+    Diagnostics log((root/"rate-logs").u8string());
+    check(!fs::exists(root/"rate-logs/fengqudb-settings.tmp"));
+    log.configure(R"({"rate_limit_per_second":1})");
+    StoreOptions options; options.durability = Durability::buffered;
+    Store db((root/"rate-db").u8string(), options);
+    db.put("same", "initial");
+    auto conflict = [&](unsigned i) {
+        auto tx = db.transaction();
+        (void)tx.get("same");
+        db.put("same", std::to_string(i));
+        tx.put("same", "stale");
+        check(tx.commit().status == Status::conflict);
+    };
+    for (unsigned i=0;i<100;++i) conflict(i);
+    check(log.flush(10000));
+    const auto first = parse(log.status());
+    check(first["rate_limited"].get<uint64_t>() > 0);
+    check(first["submitted"].get<uint64_t>() == first["written"].get<uint64_t>() +
+          first["dropped"].get<uint64_t>() + first["cleared"].get<uint64_t>());
+    const auto events = parse(log.query(R"({"event":"transaction.conflict","limit":100})"));
+    check(!events["items"].empty());
+    check(events["items"][0]["fields"]["error_code"] == std::to_string(FQDB_CONFLICT));
+    log.configure(R"({"rate_limit_per_second":0})");
+    const auto limited = first["rate_limited"].get<uint64_t>();
+    for (unsigned i=100;i<110;++i) conflict(i);
+    check(log.flush(10000));
+    check(parse(log.status())["rate_limited"].get<uint64_t>() == limited);
+}
 int main() {
     try {
         auto root = fs::temp_directory_path() /
                     ("fqdb-diagnostics-" +
                      std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
         fs::create_directories(root);
+        struct Cleanup {
+            fs::path root; bool success = false;
+            ~Cleanup() {
+                if (success && root.parent_path() == fs::temp_directory_path() &&
+                    root.filename().u8string().rfind("fqdb-diagnostics-", 0) == 0) {
+                    std::error_code ignored; fs::remove_all(root, ignored);
+                }
+            }
+        } cleanup{root};
+        rate_limits(root);
         auto logs = root / "logs", file = root / "PRIVATE-FILENAME.fdb";
         DiagnosticsOptions options;
         options.min_level = FQDB_LOG_INFO;
@@ -177,6 +218,7 @@ int main() {
         std::cout << "PASS PTpma diagnostics: async accounting, privacy, recovery/I/O events, "
                      "clear isolation, reader, disk failure; "
                   << root << '\n';
+        cleanup.success = true;
         return 0;
     } catch (const std::exception &error) {
         std::cerr << error.what() << '\n';

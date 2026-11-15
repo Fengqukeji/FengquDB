@@ -31,7 +31,7 @@ archive_increment(Core &core, const std::string &destination, uint64_t from,
     auto base = job.capture();
     auto source = base->view;
     require(from >= history_floor(*source) && from <= source->version, FQDB_HISTORY_LOST);
-    OutputDirectory output(destination);
+    OutputDirectory output(destination, core.directory, source->generation->uuid);
     auto uuid = new_uuid();
     auto filename = generation_name(uuid, 1);
     output.retain_file(join(output.path(), "CURRENT"));
@@ -141,7 +141,7 @@ inline fqdb_store_maintenance_info recover_chain(const std::string &base_path,
     }
     require(!target_version || target_version <= chain_end, FQDB_HISTORY_LOST);
     require(!target_time || target_time <= coverage_end, FQDB_HISTORY_LOST);
-    OutputDirectory output(destination);
+    OutputDirectory output(destination, source->directory, base->view->generation->uuid);
     copy_directory(*source, *base, output, job);
     output.release_lease();
     fqdb_store_maintenance_info info{};
