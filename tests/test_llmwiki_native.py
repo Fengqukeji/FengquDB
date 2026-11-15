@@ -213,6 +213,35 @@ class NativeWikiLibraryIntegrationTests(unittest.TestCase):
                     self.assertTrue(limited["truncated"])
                     self.assertFalse(limited["empty_result_confirmed"])
 
+    def test_chinese_whitespace_and_repeated_query_positions(self):
+        content = "背景音乐。切换曲目时取消旧请求，避免覆盖新曲目。"
+        with Wiki(self.path, library=CORE) as wiki:
+            source = wiki.ingest("query:music", content)
+            wiki.ingest("query:resource", "通用资源加载与缓存。处理旧请求和曲目资源。")
+            options = {"filters": {"kind": "chunk"}, "include_positions": True}
+            results = []
+            for query in ("音乐连续切换时如何防止旧请求覆盖新曲目",
+                          "音乐 连续切换时如何防止旧请求覆盖新曲目"):
+                found = wiki.search(query, **options)
+                self.assertEqual("finished", found["termination"])
+                self.assertEqual(source["id"], found["results"][0]["source_id"])
+                results.append([(item["id"], item["score"]) for item in found["results"]])
+            self.assertEqual(results[0], results[1])
+            for query, budget in (("音乐 " * 280, 3), ("a " * 400, 1)):
+                if budget == 1:
+                    expected = wiki.ingest("query:ascii", "a")["id"]
+                else:
+                    expected = source["id"]
+                found = wiki.search(query, term_budget=budget, **options)
+                self.assertEqual("finished", found["termination"])
+                self.assertEqual({expected}, {item["source_id"] for item in found["results"]})
+                self.assertTrue(found["results"][0]["positions"])
+                self.assertTrue(all(position["offset_unit"] == "utf8_bytes"
+                                    for position in found["results"][0]["positions"]))
+            answer = wiki.ask("音乐 " * 280, term_budget=3, **options)
+            self.assertTrue(answer["citation_validated"])
+            self.assertEqual("finished", answer["termination"])
+
     def test_wiki_ingest_publish_snapshot_invalidate_and_delete(self):
         with Wiki(self.path, library=CORE) as wiki:
             self.assertIsInstance(wiki.index, NativeIndexProvider)

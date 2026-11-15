@@ -811,7 +811,7 @@ class Wiki(KnowledgeMixin):
                                  "title": item["title"], "citations": item["citations"], "document_id": item["id"]})
             conflicts, remaining, conflict_truncated = self._answer_conflicts(view, evidence, remaining)
             evidence.extend(conflicts)
-            observed_version = self.repo.store.info().version
+            observed_version = view.handle.native_identity().snapshot_version
             epoch = view.get("runtime/knowledge-epoch", 0)
         if not evidence:
             message = ("No supporting evidence found." if found["empty_result_confirmed"] else
@@ -936,8 +936,9 @@ class Wiki(KnowledgeMixin):
 
     def enable_maintenance(self):
         # Process-local native maintenance policy, independent of the write durability policy.
-        self.repo.store.configure(background=True, interval_ms=1000, job_timeout_ms=1000,
-                                  job_max_read_bytes=512 * 1024 * 1024, job_max_write_bytes=512 * 1024 * 1024)
+        # Use the SDK defaults for optional maintenance I/O quotas. Finite
+        # budgets can put Core into recovery-required when reclamation exhausts them.
+        self.repo.store.configure(background=True, interval_ms=1000, job_timeout_ms=1000)
 
     def compact(self):
         result = self.repo.store.compact(timeout_ms=30000)

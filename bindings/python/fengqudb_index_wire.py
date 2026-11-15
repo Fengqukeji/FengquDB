@@ -36,6 +36,7 @@ class Maintenance(IntEnum):
     REPAIR_GRAPH = 2
     VERIFY_RECORDS = 3
     COLLECT_GRAPH_GENERATIONS = 4
+    DROP_PARTITION = 5
 
 
 @dataclass(frozen=True)

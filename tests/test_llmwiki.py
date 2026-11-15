@@ -291,6 +291,25 @@ class WikiTests(unittest.TestCase):
         with self.assertRaises(ProviderError):
             self.wiki.ask("atomic")
 
+    def test_answer_version_matches_evidence_snapshot_during_unrelated_write(self):
+        self.add(content="snapshotversionterm supporting evidence")
+        captured = {}
+        search = self.wiki.index.search
+
+        def advancing_search(view, *args, **options):
+            captured["evidence"] = view.handle.native_identity().snapshot_version
+            result = search(view, *args, **options)
+            self.wiki.repo.write(lambda tx: tx.put("test/unrelated-write", True))
+            captured["current"] = self.wiki.repo.store.native_identity().snapshot_version
+            return result
+
+        with patch.object(self.wiki.index, "search", side_effect=advancing_search), patch.object(
+                self.wiki.repo.store, "info", side_effect=AssertionError("answer reads must not take the statistics writer lock")):
+            answer = self.wiki.ask("snapshotversionterm")
+        self.assertTrue(answer["citation_validated"])
+        self.assertGreater(captured["current"], captured["evidence"])
+        self.assertEqual(captured["evidence"], answer["observed_database_version"])
+
     def test_ask_marks_changed_evidence(self):
         self.add(content="beforeanswerterm")
         wiki = self.wiki
