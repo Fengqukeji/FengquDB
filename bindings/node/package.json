@@ -1,8 +1,8 @@
 {
   "name": "fengqudb",
-  "version": "0.3.2",
+  "version": "1.0.0",
   "description": "Node.js / TypeScript binding for the FengquDB embedded key-value database (N-API, zero-copy shared reads, typed query builder).",
-  "license": "UNLICENSED",
+  "license": "Apache-2.0",
   "private": true,
   "main": "dist/src/index.js",
   "types": "dist/src/index.d.ts",

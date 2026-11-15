@@ -3,9 +3,9 @@ resolver = "2"
 members = ["fengqudb-sys", "fengqudb"]
 
 [workspace.package]
-version = "0.3.2"
+version = "1.0.0"
 edition = "2021"
-license = "MIT"
+license = "Apache-2.0"
 rust-version = "1.70"
 
 [profile.release]

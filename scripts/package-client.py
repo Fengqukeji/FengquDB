@@ -10,6 +10,8 @@ import zipfile
 from unity_assets import write_unity_assets
 
 ROOT = Path(__file__).resolve().parents[1]
+VERSION = re.search(r'project\(FengquDB VERSION ([0-9]+\.[0-9]+\.[0-9]+)',
+                    (ROOT/'CMakeLists.txt').read_text(encoding='utf-8')).group(1)
 LANGUAGES = ('c','cpp','csharp','unity','java','python','go','rust','node')
 TARGETS = ('win-x64','linux-x64','android-arm64','ios-arm64','macos-arm64','macos-x64')
 SKIP = {'bin','obj','build','target','node_modules','dist','__pycache__','.git','.agents','test','tests','bench','cmd','examples'}
@@ -82,7 +84,7 @@ def build(args, language, output):
     archive=output/(name+'.zip');sdk=output/name/'FengquDB'
     if archive.exists() or sdk.parent.exists():raise ValueError('Output already exists: '+str(archive))
     sdk.mkdir(parents=True)
-    metadata={'format':'fqdb-language-sdk-1','version':'0.3.2','abi':2,'language':language,'host':args.platform,'preview':bool(missing),'missing_native_targets':missing}
+    metadata={'format':'fqdb-language-sdk-1','version':VERSION,'abi':2,'language':language,'host':args.platform,'preview':bool(missing),'missing_native_targets':missing}
     (sdk/'.fqdb-sdk').write_text(json.dumps(metadata),encoding='utf-8')
     tool_dir='Editor/Tools' if language=='unity' else 'Tools'
     copy(args.codegen,sdk/tool_dir/('fqdb-codegen.exe' if args.platform.startswith('win') else 'fqdb-codegen'))
@@ -112,7 +114,7 @@ def build(args, language, output):
     elif language=='node':
         shutil.copytree(args.clients/'node/dist/src',sdk/'dist/src');copy(args.node_addon,sdk/'Native/fengqudb_native.node')
         copy(ROOT/'integrations/node/fqdb-generate.cjs',sdk/'fqdb-generate.cjs')
-        (sdk/'package.json').write_text(json.dumps({'name':'fengqudb','version':'0.3.2','main':'dist/src/index.js','types':'dist/src/index.d.ts'}),encoding='utf-8')
+        (sdk/'package.json').write_text(json.dumps({'name':'fengqudb','version':VERSION,'license':'Apache-2.0','main':'dist/src/index.js','types':'dist/src/index.d.ts'}),encoding='utf-8')
     elif language=='go':
         for path in (ROOT/'bindings/go').iterdir():
             if path.is_file() and path.suffix in ('.go','.h','.mod') and not path.name.endswith('_test.go'):copy(path,sdk/path.name)

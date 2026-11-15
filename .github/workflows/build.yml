@@ -75,6 +75,8 @@ jobs:
         with:
           python-version: '3.12'
       - run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DFQDB_BUILD_JNI=ON
+      - uses: ilammy/msvc-dev-cmd@v1
+        if: runner.os == 'Windows'
       - run: cmake --build build --config Release --parallel
       - run: ctest --test-dir build -C Release --output-on-failure
       - name: Bindings and SDK
@@ -123,6 +125,8 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python tests/codegen/package_verify.py --packages "$PWD/artifacts/client" --output "$PWD/build/ci-client-consumer" --java-bin "$env:JAVA_HOME/bin" --dotnet
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python examples/quickstart/main.py --sdk "$PWD/artifacts/client/FengquDB-python-$platform/FengquDB" --root "$PWD/build/ci-quickstart"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
           cmake -S . -B build/static -DCMAKE_BUILD_TYPE=Release -DFQDB_SHARED=OFF -DFQDB_BUILD_JNI=OFF
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           cmake --build build/static --config Release --parallel
@@ -133,6 +137,19 @@ jobs:
         with:
           name: FengquDB-client-${{ matrix.os }}
           path: artifacts/client/*.zip
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: FengquDB-verification-${{ matrix.os }}
+          path: |
+            build/Testing/Temporary/
+            build/ci-client-consumer/*.log
+            build/ci-client-consumer/report.json
+            build/ci-bindings/*.log
+            build/ci-bindings/report.json
+            build/ci-native-codegen/*.log
+            build/ci-source-codegen/*.log
+            build/ci-codegen/*.log
   android-compile:
     runs-on: ubuntu-latest
     strategy:
@@ -211,6 +228,11 @@ jobs:
         run: >-
           python tests/codegen/package_verify.py --packages artifacts/unity-sdk
           --output build/ci-unity-packages --manifest-only
+      - name: Run Unity manual generator from the packaged Plugins folder
+        run: >-
+          python tests/codegen/package_verify.py
+          --sdk artifacts/unity-sdk/FengquDB-unity-win-x64/FengquDB
+          --output build/ci-unity-consumer
       - uses: actions/upload-artifact@v4
         with:
           name: FengquDB-Unity-SDK

@@ -13,7 +13,7 @@ internal static class Program {
     internal static async Task<int> Main(string[] args) {
         try {
             if (args.Length == 0 || args.Contains("--help")) { Console.WriteLine(Options.Help); return 0; }
-            if (args is ["--version"]) { Console.WriteLine("0.3.2"); return 0; }
+            if (args is ["--version"]) { Console.WriteLine("1.0.0"); return 0; }
             var options = Options.Parse(args);
             using var cancellation = new CancellationTokenSource();
             Console.CancelKeyPress += (_, e) => { e.Cancel = true; cancellation.Cancel(); };

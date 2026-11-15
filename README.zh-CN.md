@@ -27,7 +27,7 @@
 
 ## 快速体验
 
-SDK 按语言和开发平台提供独立 ZIP，正式发行时放在仓库的 Releases 附件中。取得对应平台的 **Python SDK** 后，解压并把 `FengquDB` 文件夹放在 `main.py` 旁边：
+SDK 按语言和开发平台提供独立 ZIP，放在仓库的 Releases 附件中。取得对应平台的 **Python SDK** 后，解压并把 `FengquDB` 文件夹放在 `main.py` 旁边：
 
 ```text
 my-app/
@@ -152,7 +152,7 @@ Deleted: None
 
 ## 各语言接入
 
-每种语言一个独立 SDK 文件夹，包含预编译库、生成工具、接入和 API 两份文档。原生目标覆盖 Windows、Linux、Android 和 iOS；Unity SDK 也包含 macOS 两种 CPU 架构。按开发电脑选择对应包。
+每种语言一个独立 SDK 文件夹，包含预编译库、生成工具、接入和 API 两份文档。桌面 SDK 提供 Windows 和 Linux 包；Unity SDK 还包含 Android、iOS 和 macOS 两种 CPU 架构的原生库。按开发电脑选择对应包。
 
 | 语言 | 快速接入 | API、用途与调用例子 |
 | --- | --- | --- |

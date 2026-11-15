@@ -128,7 +128,7 @@ static void publish(const fs::path &path, const std::string &content) {
 static int run(const std::vector<std::string> &args) {
     if (args.empty() || args[0] == "--help" || args[0] == "help") {
         std::cout
-            << "FengquDB native codegen 0.3.2\n"
+            << "FengquDB native codegen " FQDB_PRODUCT_VERSION "\n"
                "fqdb-codegen generate --schema student.fqmodel.json --output Generated [--lang "
                "all|c,cpp,csharp,java,python,go,rust,node] [--check]\n"
                "fqdb-codegen generate --source Models --output Generated [--source-language "
@@ -143,7 +143,7 @@ static int run(const std::vector<std::string> &args) {
         return 0;
     }
     if (args.size() == 1 && args[0] == "--version") {
-        std::cout << "0.3.2\n";
+        std::cout << FQDB_PRODUCT_VERSION "\n";
         return 0;
     }
     if (args[0] == "project") {

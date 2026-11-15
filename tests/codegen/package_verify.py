@@ -53,14 +53,29 @@ def main():
         r=subprocess.run(list(map(str,cmd)),cwd=cwd,env=env,capture_output=True,text=True,encoding='utf-8',errors='replace')
         (work/(name+'.log')).write_text(r.stdout+r.stderr,encoding='utf-8')
         if r.returncode:raise RuntimeError(name+'\n'+r.stdout+r.stderr)
+        return r.stdout
     for sdk in sdks:
         m=manifest_check(sdk);lang=m['language'];checks=['independent-zip-manifest-docs']
         if not args.manifest_only and (not args.languages or lang in args.languages.split(',')):
-            project=work/lang;project.mkdir();local=project/'FengquDB';shutil.copytree(sdk,local)
+            project=work/lang;project.mkdir();local=project/'FengquDB'
+            archive=sdk.parent.parent/(sdk.parent.name+'.zip')
+            with zipfile.ZipFile(archive) as package:
+                for item in package.infolist():
+                    if not (project/item.filename).resolve().is_relative_to(project):
+                        raise ValueError('Unsafe SDK archive member')
+                package.extractall(project)
+                if os.name!='nt':
+                    for item in package.infolist():
+                        if not item.is_dir():os.chmod(project/item.filename,(item.external_attr>>16)&0o777)
             # Consumers must run with their normal environment, without a test-only library path.
             env=dict(os.environ,CI='1')
             tool=local/('Editor/Tools' if lang=='unity' else 'Tools')/('fqdb-codegen.exe' if os.name=='nt' else 'fqdb-codegen')
-            run(lang+'-tool',[tool,'--version'],project,env)
+            assert run(lang+'-tool',[tool,'--version'],project,env).strip()==m['version']
+            checks+=['extracted-release-zip','matching-tool-version']
+            if lang=='csharp' and not args.dotnet:raise RuntimeError('C# consumer verification requires --dotnet')
+            if lang=='java' and not args.java_bin:raise RuntimeError('Java consumer verification requires --java-bin')
+            if lang=='go' and not shutil.which('go'):raise RuntimeError('Go compiler is required')
+            if lang=='rust' and not shutil.which('cargo'):raise RuntimeError('Rust compiler is required')
             if lang=='unity':
                 (project/'Assets/Plugins').mkdir(parents=True);(project/'ProjectSettings').mkdir()
                 # The whole folder is the sole integration operation.

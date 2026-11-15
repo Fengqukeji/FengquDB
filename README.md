@@ -27,7 +27,7 @@ Throughput figures use the 128 B profile-body business benchmark in performance 
 
 ## Quick start
 
-SDKs come as separate ZIPs for each language and development platform, distributed as repository release assets when published. Once you have the **Python SDK for your platform**, unzip it and copy its `FengquDB` folder beside `main.py`:
+SDKs come as separate ZIPs for each language and development platform in the repository's Releases. Once you have the **Python SDK for your platform**, unzip it and copy its `FengquDB` folder beside `main.py`:
 
 ```text
 my-app/
@@ -152,7 +152,7 @@ Locks, allocations, cold reads and disk costs still exist. Gains depend on chang
 
 ## Language SDKs
 
-One independent SDK folder per language, with binaries, generation tools and two guides. Native release targets include Windows, Linux, Android and iOS; Unity SDKs include both macOS architectures. Select the SDK for your development host.
+One independent SDK folder per language, with binaries, generation tools and two guides. Desktop SDKs are provided for Windows and Linux. Unity SDKs also bundle Android, iOS and both macOS architectures. Select the SDK for your development host.
 
 | Language | Get started | API, use cases and examples |
 | --- | --- | --- |
