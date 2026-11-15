@@ -14,6 +14,24 @@ db.erase("student/1");
 
 `transaction()` 原子处理多个键；`snapshot()` 提供固定视图；`get_many` 一次读取多条，`backup` 备份，`sync` 等待已确认写入可靠落盘。业务实体可以用项目自己的序列化器变成二进制再存入。
 
+## 读取版本（轻量）
+
+| 接口 | 返回内容 |
+| --- | --- |
+| `db.version()` | 当前数据库已发布的版本；可用于判断数据是否变化 |
+| `snapshot.version()` | 创建快照时捕获的固定版本 |
+| `transaction.version()` | 当前活动事务捕获的基础版本；提交后的版本看 `CommitResult.version` |
+
+```cpp
+const auto current = db.version();
+auto view = db.snapshot();
+const auto captured = view.version();
+auto tx = db.transaction();
+const auto base = tx.version();
+```
+
+这些方法读取已发布视图，不调用 `info()`、不统计文件、不取得写入锁，也不触发刷盘。性能模式下返回值可包含尚未可靠落盘的提交；它不代表持久化进度。事务仍需处于有效、未取消且未超时状态。底层复用现有 bridge ABI 1 的三个 identity 接口，`fqdb_store_get_version(store,key,...)` 则是单个键的版本。
+
 ## 同事务全文索引
 
 ```cpp
