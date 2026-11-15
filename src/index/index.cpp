@@ -534,9 +534,55 @@ struct Detail {
     uint64_t tf = 0, length = 0;
     double average = 0, idf = 0, weight = 0, contribution = 0;
 };
+// Most queries fit in one machine word. Long AND queries grow only the tail;
+// all allocations are charged to the same query budget before they occur.
+struct QueryMask {
+    uint64_t head = 0;
+    std::vector<uint64_t> tail;
+    void grow(size_t words, Work &work) {
+        if (words <= tail.size())
+            return;
+        work.take(uint64_t(words - tail.size()) * sizeof(uint64_t) * 2);
+        tail.resize(words);
+    }
+    void set(size_t bit, Work &work) {
+        if (bit < 64)
+            head |= uint64_t(1) << bit;
+        else {
+            const auto word = bit / 64;
+            grow(word, work);
+            tail[word - 1] |= uint64_t(1) << (bit % 64);
+        }
+    }
+    void merge(const QueryMask &other, Work &work) {
+        head |= other.head;
+        grow(other.tail.size(), work);
+        for (size_t i = 0; i < other.tail.size(); ++i)
+            tail[i] |= other.tail[i];
+    }
+    bool overlaps(const QueryMask &other) const {
+        if (head & other.head)
+            return true;
+        for (size_t i = 0; i < std::min(tail.size(), other.tail.size()); ++i)
+            if (tail[i] & other.tail[i])
+                return true;
+        return false;
+    }
+    bool covers(const QueryMask &other) const {
+        if ((head & other.head) != other.head || tail.size() < other.tail.size())
+            return false;
+        for (size_t i = 0; i < other.tail.size(); ++i)
+            if ((tail[i] & other.tail[i]) != other.tail[i])
+                return false;
+        return true;
+    }
+    explicit operator bool() const {
+        return head || !tail.empty();
+    }
+};
 struct Candidate {
     double score = 0;
-    uint64_t mask = 0;
+    QueryMask mask;
     std::set<std::string> fields;
     std::vector<Detail> details;
 };
@@ -624,20 +670,25 @@ void scan_search(const Reader &r, const Query &q, const Stats &st, Work &work, R
 }
 struct Needle {
     std::string term;
-    uint64_t df = 0, mask = 0;
+    uint64_t df = 0;
+    QueryMask mask;
 };
 std::vector<Needle> plan_terms(const Reader &r, const Query &q, Work &work, Result &out) {
-    std::map<std::string, uint64_t> terms;
-    auto add = [&](std::string term, uint64_t mask) {
+    std::map<std::string, QueryMask> terms;
+    constexpr size_t no_group = SIZE_MAX;
+    auto add = [&](std::string term, size_t group = SIZE_MAX) {
         auto it = terms.find(term);
         if (it != terms.end()) {
-            it->second |= mask;
+            if (q.all && group != no_group)
+                it->second.set(group, work);
             return;
         }
         if (terms.size() >= q.term_budget)
             throw Stop{FQIDX_TERM_LIMIT};
         work.take(term.size() + 128);
-        terms.emplace(std::move(term), mask);
+        auto &mask = terms.emplace(std::move(term), QueryMask{}).first->second;
+        if (q.all && group != no_group)
+            mask.set(group, work);
     };
     std::string_view text = q.text;
     PrimaryToken last;
@@ -649,12 +700,15 @@ std::vector<Needle> plan_terms(const Reader &r, const Query &q, Work &work, Resu
         require(!last.term.empty());
         text = text.substr(0, last.begin);
     }
-    auto ts = tokens(text, 256);
+    // Query text is bounded at 4096 bytes. Account for the transient rune/token
+    // vectors, then let the configured DISTINCT term budget bound the plan.
+    // A raw-token cap would reject repeated words before de-duplication.
+    ScopedCharge token_memory(work, text.size() * 64 + 256);
+    auto ts = tokens(text);
     std::sort(ts.begin(), ts.end());
     ts.erase(std::unique(ts.begin(), ts.end()), ts.end());
-    require(ts.size() <= 32, FQDB_LIMIT);
     for (size_t i = 0; i < ts.size(); ++i)
-        add(ts[i], uint64_t(1) << i);
+        add(ts[i], i);
     if (q.prefix) {
         auto encoded = component(last.term);
         encoded.resize(encoded.size() - 2);
@@ -671,23 +725,23 @@ std::vector<Needle> plan_terms(const Reader &r, const Query &q, Work &work, Resu
                 return true;
             });
             if (n)
-                add(uncomponent(key, q.base.size() + 1), uint64_t(1) << ts.size());
+                add(uncomponent(key, q.base.size() + 1), ts.size());
             return true;
         });
     } else {
         auto exact = exact_term(q.text);
         if (!exact.empty())
-            add(std::move(exact), 0);
+            add(std::move(exact));
     }
     for (const auto &p : q.phrases)
         for (const auto &t : p.terms)
-            add(t, 0);
+            add(t);
     std::vector<Needle> result;
     result.reserve(terms.size());
     for (auto &[term, mask] : terms) {
         work.check();
         auto n = df(r, q.base, term);
-        result.push_back({term, n, mask});
+        result.push_back({term, n, std::move(mask)});
     }
     if (!q.prefix)
         out.terms = result.size();
@@ -829,10 +883,10 @@ void lexical(const Reader &r, const Query &q, const Stats &partition, Work &work
     auto st = filtered_statistics(r, q, partition, needles, work, out);
     if (q.statistics_policy)
         out.scoped_counts = std::pair{st.count, st.vectors};
-    uint64_t required = 0;
+    QueryMask required;
     for (const auto &n : needles) {
         require(n.df <= st.count, FQDB_CORRUPT);
-        required |= n.mask;
+        required.merge(n.mask, work);
     }
     // Missing one mandatory token proves that an AND query cannot match.
     if (q.all)
@@ -840,7 +894,7 @@ void lexical(const Reader &r, const Query &q, const Stats &partition, Work &work
             if (n.mask && !n.df) {
                 bool alternate = false;
                 for (const auto &other : needles)
-                    if (other.df && (other.mask & n.mask))
+                    if (other.df && other.mask.overlaps(n.mask))
                         alternate = true;
                 if (!alternate)
                     return;
@@ -923,7 +977,8 @@ void lexical(const Reader &r, const Query &q, const Stats &partition, Work &work
                             {n.term, name, f.frequency, f.length, avg, idf, f.weight, score});
                     }
                 }
-                at->second.mask |= n.mask;
+                if (q.all)
+                    at->second.mask.merge(n.mask, work);
             }
         }
     } catch (const Stop &s) {
@@ -931,7 +986,7 @@ void lexical(const Reader &r, const Query &q, const Stats &partition, Work &work
         out.counted = false;
     }
     for (auto &[id, c] : candidates) {
-        if (q.all && (c.mask & required) != required)
+        if (q.all && !c.mask.covers(required))
             continue;
         ++out.total;
         offer(out, {id, c.score, std::move(c.fields), std::move(c.details)}, q.limit);

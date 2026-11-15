@@ -33,7 +33,8 @@ def check_shared_sources(rag, wiki):
         raise ValueError("Synchronize shared Core/bindings before packaging:\n" + "\n".join(mismatches))
 
 
-def build(output, rag, wiki):
+def build(output, rag, wiki, legal_root=None):
+    legal_root = legal_root or ROOT
     check_shared_sources(rag, wiki)
     # Refuse stale mixed packages; a caller chooses a fresh output directory.
     output.mkdir(parents=True, exist_ok=False)
@@ -107,8 +108,21 @@ set_target_properties(FengquDB::Index PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "
     for language, target in (("PYTHON", python), ("CPP", cpp)):
         for kind, title in (("SETUP", "接入"), ("API", "API")):
             shutil.copy2(ROOT / "docs" / f"FOUNDATION_{language}_{kind}.md", target / (title + ".md"))
-        if (ROOT / "LICENSE").exists():
-            shutil.copy2(ROOT / "LICENSE", target / "LICENSE")
+        for name in ("LICENSE", "NOTICE"):
+            if (legal_root / name).is_file():
+                shutil.copy2(legal_root / name, target / name)
+        if (legal_root / "licenses").is_dir():
+            copy_tree(legal_root / "licenses", target / "licenses")
+        notices = legal_root / "THIRD_PARTY_NOTICES.md"
+        if notices.is_file():
+            (target / "licenses").mkdir(exist_ok=True)
+            text = notices.read_text(encoding="utf-8")
+            text = text.replace("(LICENSE)", "(../LICENSE)").replace("(NOTICE)", "(../NOTICE)").replace("(licenses/", "(")
+            (target / "licenses/THIRD_PARTY_NOTICES.md").write_text(text, encoding="utf-8")
+        json_license = legal_root / "third_party/json/LICENSE.MIT"
+        if json_license.is_file():
+            (target / "licenses").mkdir(exist_ok=True)
+            shutil.copy2(json_license, target / "licenses/nlohmann-json.LICENSE.MIT")
     manifest = {"format": 1, "files": {}}
     for file in sorted(output.rglob("*")):
         if file.is_file():
@@ -137,5 +151,6 @@ if __name__ == "__main__":
     parser.add_argument("--rag", type=Path, required=True)
     parser.add_argument("--wiki", type=Path, required=True)
     parser.add_argument("--output", type=Path, default=ROOT / "artifacts/foundation")
+    parser.add_argument("--legal-root", type=Path, default=ROOT)
     args = parser.parse_args()
-    build(args.output.resolve(), args.rag.resolve(), args.wiki.resolve())
+    build(args.output.resolve(), args.rag.resolve(), args.wiki.resolve(), args.legal_root.resolve())
