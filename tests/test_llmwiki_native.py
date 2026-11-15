@@ -162,6 +162,57 @@ class NativeWikiLibraryIntegrationTests(unittest.TestCase):
     def tearDown(self):
         self.directory.cleanup()
 
+    def test_long_query_retains_all_terms_through_wiki(self):
+        terms = [f"q{i:03d}" for i in range(140)]
+        with Wiki(self.path, library=CORE) as wiki:
+            full = wiki.ingest("query:full", " ".join(terms))
+            missing65 = wiki.ingest("query:missing65", " ".join(terms[:65] + terms[66:]))
+            missing_last = wiki.ingest("query:missing-last", " ".join(terms[:-1]))
+            tail = wiki.ingest("query:tail", terms[69])
+            options = {"filters": {"kind": "chunk"}, "term_budget": 1024}
+            for prefix in (False, True):
+                for count in (33, 64, 65, 66, 128, 129, 140):
+                    with self.subTest(prefix=prefix, count=count):
+                        found = wiki.search(" ".join(terms[:count]), prefix_last=prefix,
+                                            match_all_terms=True, **options)
+                        expected = {full["id"]}
+                        if count <= 65:
+                            expected.add(missing65["id"])
+                        if count < 140:
+                            expected.add(missing_last["id"])
+                        self.assertEqual("finished", found["termination"])
+                        self.assertFalse(found["truncated"])
+                        self.assertEqual(expected, {item["source_id"] for item in found["results"]})
+            found = wiki.search(" ".join(terms[:70]), **options)
+            self.assertIn(tail["id"], {item["source_id"] for item in found["results"]})
+            answer = wiki.ask(" ".join(terms), match_all_terms=True, **options)
+            self.assertTrue(answer["citation_validated"])
+            self.assertEqual("finished", answer["termination"])
+            self.assertEqual({full["id"]}, {citation["source_id"]
+                for item in answer["evidence"] for citation in item["citations"]})
+
+    def test_natural_chinese_repetition_and_query_budgets(self):
+        question = "数据库写入任务遇到超时后如何恢复工作并保证来源引用版本一致以及避免旧的处理进程覆盖新的结果"
+        with Wiki(self.path, library=CORE) as wiki:
+            source = wiki.ingest("query:chinese", question)
+            repeated = wiki.ingest("query:repeated", "a")
+            answer = wiki.ask(question, filters={"kind": "chunk"}, match_all_terms=True)
+            self.assertTrue(answer["citation_validated"])
+            self.assertEqual("finished", answer["termination"])
+            self.assertEqual(source["id"], answer["evidence"][0]["citations"][0]["source_id"])
+            found = wiki.search("a " * 400, filters={"kind": "chunk"},
+                                match_all_terms=True, term_budget=1)
+            self.assertEqual("finished", found["termination"])
+            self.assertEqual({repeated["id"]}, {item["source_id"] for item in found["results"]})
+            query = " ".join(f"q{i:03d}" for i in range(70))
+            for budget, termination in (({"term_budget": 20}, "term_limit"),
+                                        ({"term_budget": 1024, "memory_budget": 4096}, "memory_limit")):
+                with self.subTest(termination=termination):
+                    limited = wiki.search(query, **budget)
+                    self.assertEqual(termination, limited["termination"])
+                    self.assertTrue(limited["truncated"])
+                    self.assertFalse(limited["empty_result_confirmed"])
+
     def test_wiki_ingest_publish_snapshot_invalidate_and_delete(self):
         with Wiki(self.path, library=CORE) as wiki:
             self.assertIsInstance(wiki.index, NativeIndexProvider)
