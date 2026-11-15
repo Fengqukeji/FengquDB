@@ -2,6 +2,7 @@
 from collections import defaultdict
 from pathlib import Path
 import re
+import json
 
 HERE = Path(__file__).resolve().parent
 LABELS = {'c': 'C', 'cpp': 'C++', 'csharp': 'C#', 'unity': 'Unity', 'java': 'Java',
@@ -46,7 +47,7 @@ def group(row):
     return 'other'
 
 
-def brief(row):
+def brief_zh(row):
     name = row['name'].lower().replace('_', '')
     if name.startswith('fqdbstore'): name = name[len('fqdbstore'):]
     if row['kind'] == 'constructor': return '创建对象'
@@ -68,16 +69,53 @@ def brief(row):
             'serialization': '实体或二进制编解码', 'other': '辅助操作'}[group(row)]
 
 
-def table(rows):
-    result = ['| 所属类型 | 函数与参数 | 用途 |', '| --- | --- | --- |']
+EN_BRIEF = dict(zip(
+    ('创建对象', '释放对象或借用的资源', '回退到保存点', '创建或操作事务保存点',
+     '提交事务或查看提交结果', '查看查询计划', '读取对应的数据或状态', '保存或设置数据',
+     '删除记录或成员', '读取数据', '保存数据', '条件更新或局部修改', '删除数据', '批量处理',
+     '事务操作', '查询构建或结果读取', '定义或使用索引', '控制可靠确认或提交等待', '到期数据操作',
+     '复用键、缓冲或共享字节', '一致读取或范围遍历', '备份、恢复或历史保留', '原生集合操作',
+     '查看状态或维护数据库', '消费变更或定位问题', '实体或二进制编解码', '辅助操作'),
+    ('Create an object', 'Release an object or borrowed resource', 'Roll back to a savepoint',
+     'Create or manage a transaction savepoint', 'Commit a transaction or inspect its result',
+     'Inspect the query plan', 'Read data or status', 'Save or set data', 'Delete a record or member',
+     'Read data', 'Save data', 'Conditional update or partial modification', 'Delete data',
+     'Process a batch', 'Transaction operation', 'Build a query or read its results',
+     'Define or use an index', 'Control durability or wait for a commit', 'Manage expiring data',
+     'Reuse keys, buffers, or shared bytes', 'Consistent reads or range iteration',
+     'Backup, restore, or history retention', 'Native collection operation',
+     'Inspect status or maintain the database', 'Consume changes or diagnose issues',
+     'Encode or decode entities or bytes', 'Utility operation')))
+
+# These inventory comments describe public declarations; translating them
+# changes no signature, field, constant value, or API grouping.
+EN_SIGNATURE_COMMENTS = json.loads((HERE/'signature_comments.en.json').read_text(encoding='utf-8'))
+
+
+def signature_text(row, locale):
+    signature = row['signature']
+    if locale == 'en':
+        for original, translated in EN_SIGNATURE_COMMENTS.items():
+            signature = signature.replace(original, translated)
+    return signature.replace('|', r'\|').replace('`', '&#96;')
+
+
+def table(rows, locale='zh-CN'):
+    english = locale == 'en'
+    result = ['| Owner | Function and parameters | Purpose |' if english else
+              '| 所属类型 | 函数与参数 | 用途 |', '| --- | --- | --- |']
     for row in sorted(rows, key=lambda r: (r['owner'], r['name'], r['signature'])):
-        signature = row['signature'].replace('|', r'\|').replace('`', '&#96;')
-        result.append(f"| `{row['owner'] or '全局'}` | `{signature}` | {brief(row)} |")
+        signature = signature_text(row, locale)
+        purpose = brief_zh(row)
+        if english: purpose = EN_BRIEF[purpose]
+        result.append(f"| `{row['owner'] or ('Global' if english else '全局')}` | `{signature}` | {purpose} |")
     return '\n'.join(result) + '\n'
 
 
-def render(lang, rows):
-    recipes = (HERE/'recipes'/f'{lang}.md').read_text(encoding='utf-8')
+def render(lang, rows, locale='zh-CN'):
+    if locale not in ('zh-CN', 'en'): raise ValueError('Unsupported documentation locale: '+locale)
+    english = locale == 'en'
+    recipes = (HERE/'recipes'/('en' if english else '')/f'{lang}.md').read_text(encoding='utf-8')
     parts = re.split(r'<!-- api:([a-z]+) -->', recipes)
     sections = {parts[i]: parts[i+1].strip() for i in range(1, len(parts), 2)}
     groups = defaultdict(list)
@@ -86,25 +124,31 @@ def render(lang, rows):
         if row['kind'] in ('method', 'constructor'):
             groups[group(row)].append(row)
         else:
-            types[row['owner'] or '全局'].append(row)
-    output = [f'# {LABELS[lang]} API 与调用例子',
-              f'[接入文档](../languages/{lang}.md)',
-              '从前面的常用操作开始。本页每节都包含用途、调用例子和对应函数；展开“函数与参数”可查完整重载。']
+            types[row['owner'] or ('Global' if english else '全局')].append(row)
+    output = ([f'# {LABELS[lang]} API and examples',
+               f'[Getting started](../languages/{lang}.md) · [简体中文](../../api/{lang}.md)',
+               'Start with the common operations below. Each section combines purpose, examples, and methods. Expand “Functions and parameters” for all overloads.'] if english else
+              [f'# {LABELS[lang]} API 与调用例子',
+               f'[接入文档](../languages/{lang}.md) · [English](../en/api/{lang}.md)',
+               '从前面的常用操作开始。本页每节都包含用途、调用例子和对应函数；展开“函数与参数”可查完整重载。'])
     for key in ORDER:
         if key not in sections and not groups[key]: continue
-        body = sections.get(key, '## 其他辅助接口' if key == 'other' else '## '+key)
+        body = sections.get(key, ('## Other utilities' if english else '## 其他辅助接口') if key == 'other' else '## '+key)
         output.append(body)
         if groups[key]:
-            output.append(f'<details>\n<summary>函数与参数（{len(groups[key])}项）</summary>\n\n'+table(groups[key])+'\n</details>')
-    output.append('## 参数类型、返回值和常量\n\n需要设置 options 或检查返回状态时在这里查字段。普通增删改查不需要逐项阅读。')
+            summary = f'Functions and parameters ({len(groups[key])})' if english else f'函数与参数（{len(groups[key])}项）'
+            output.append(f'<details>\n<summary>{summary}</summary>\n\n'+table(groups[key], locale)+'\n</details>')
+    output.append('## Parameter types, return values, and constants\n\nLook up fields here when setting options or checking returned status. You can start with the CRUD examples above.' if english else
+                  '## 参数类型、返回值和常量\n\n需要设置 options 或检查返回状态时在这里查字段。普通增删改查不需要逐项阅读。')
     for owner, entries in sorted(types.items()):
-        lines = ['| 声明 |', '| --- |']
+        lines = ['| Declaration |' if english else '| 声明 |', '| --- |']
         for row in sorted(entries, key=lambda r: (r['name'], r['signature'])):
-            signature = row['signature'].replace('|', r'\|').replace('`', '&#96;')
+            signature = signature_text(row, locale)
             lines.append(f'| `{signature}` |')
         output.append('<details>\n<summary>'+owner+'</summary>\n\n'+'\n'.join(lines)+'\n\n</details>')
     if lang == 'c':
         for name in ('store_select', 'store_query'):
             proto = (HERE.parents[1]/'proto'/f'{name}.proto').read_text(encoding='utf-8')
-            output.append(f'<details>\n<summary>查询格式：{name}</summary>\n\n```protobuf\n{proto.strip()}\n```\n\n</details>')
+            title = 'Query format: ' if english else '查询格式：'
+            output.append(f'<details>\n<summary>{title}{name}</summary>\n\n```protobuf\n{proto.strip()}\n```\n\n</details>')
     return '\n\n'.join(output) + '\n'

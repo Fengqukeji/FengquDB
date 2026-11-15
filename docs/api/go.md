@@ -1,6 +1,6 @@
 # Go API 与调用例子
 
-[接入文档](../languages/go.md)
+[接入文档](../languages/go.md) · [English](../en/api/go.md)
 
 从前面的常用操作开始。本页每节都包含用途、调用例子和对应函数；展开“函数与参数”可查完整重载。
 

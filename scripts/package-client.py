@@ -73,6 +73,33 @@ def finish(sdk, archive, metadata):
     with zipfile.ZipFile(archive) as package:
         if package.testzip(): raise ValueError('Archive CRC failure')
 
+DOCUMENTS = {
+    ('en', 'languages'): 'GettingStarted.md',
+    ('en', 'api'): 'API.md',
+    ('zh-CN', 'languages'): '接入.md',
+    ('zh-CN', 'api'): 'API.zh-CN.md',
+}
+
+
+def write_docs(sdk, language, preview=False):
+    """Bundle both editions and rewrite all guide/API/language-switch links."""
+    for (locale, section), filename in DOCUMENTS.items():
+        source = ROOT/'docs'/('en' if locale == 'en' else '')/section/(language+'.md')
+        text = source.read_text(encoding='utf-8')
+        for (target_locale, target_section), target in DOCUMENTS.items():
+            if locale == target_locale:
+                relative = '../'+target_section+'/'+language+'.md'
+            elif locale == 'en':
+                relative = '../../'+target_section+'/'+language+'.md'
+            else:
+                relative = '../en/'+target_section+'/'+language+'.md'
+            text = text.replace(']('+relative+')', ']('+target+')')
+        if preview:
+            text = ('Development preview: some mobile native libraries are missing.\n\n' if locale == 'en' else
+                    '开发预览：本包缺少部分移动平台原生库。\n\n') + text
+        (sdk/filename).write_text(text, encoding='utf-8')
+
+
 def build(args, language, output):
     libraries={args.platform:args.library}
     for target in TARGETS:
@@ -84,7 +111,7 @@ def build(args, language, output):
     archive=output/(name+'.zip');sdk=output/name/'FengquDB'
     if archive.exists() or sdk.parent.exists():raise ValueError('Output already exists: '+str(archive))
     sdk.mkdir(parents=True)
-    metadata={'format':'fqdb-language-sdk-1','version':VERSION,'abi':2,'language':language,'host':args.platform,'preview':bool(missing),'missing_native_targets':missing}
+    metadata={'format':'fqdb-language-sdk-1','version':VERSION,'abi':2,'language':language,'host':args.platform,'preview':bool(missing),'missing_native_targets':missing,'documentation_languages':['en','zh-CN']}
     (sdk/'.fqdb-sdk').write_text(json.dumps(metadata),encoding='utf-8')
     tool_dir='Editor/Tools' if language=='unity' else 'Tools'
     copy(args.codegen,sdk/tool_dir/('fqdb-codegen.exe' if args.platform.startswith('win') else 'fqdb-codegen'))
@@ -130,11 +157,7 @@ def build(args, language, output):
                 dest=sdk/'Crates'/rel;dest.parent.mkdir(parents=True,exist_ok=True);dest.write_text(text,encoding='utf-8')
             else:copy(path,sdk/'Crates'/rel)
         copy(ROOT/'integrations/rust/build.rs',sdk/'generate.rs')
-    for source_dir,filename in (('languages','接入.md'),('api','API.md')):
-        text=(ROOT/'docs'/source_dir/(language+'.md')).read_text(encoding='utf-8')
-        text=text.replace('../api/'+language+'.md','API.md').replace('../languages/'+language+'.md','接入.md')
-        if missing and filename=='接入.md':text='开发预览：本包尚缺 iOS 原生库，暂不能发布 iOS。\n\n'+text
-        (sdk/filename).write_text(text,encoding='utf-8')
+    write_docs(sdk, language, preview=bool(missing))
     copy(ROOT/'third_party/json/LICENSE.MIT',sdk/'licenses/nlohmann-json.LICENSE.MIT')
     for name in ('LICENSE','NOTICE'):
         copy(ROOT/name,sdk/name)

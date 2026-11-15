@@ -1,5 +1,7 @@
 # Python 接入
 
+[English](../en/languages/python.md)
+
 [API、用途和调用例子](../api/python.md)
 
 应用启动时打开数据库句柄，交给各业务模块复用，退出时统一关闭。

@@ -53,4 +53,5 @@ dotnet build bindings/csharp/FengquDB.csproj -c Release -p:DefineConstants=UNITY
   -o "$output/managed-ios" --nologo
 cp LICENSE NOTICE THIRD_PARTY_NOTICES.md "$output/"
 cp -R licenses "$output/"
+python3 scripts/package-apple-docs.py "$output"
 printf '%s\n' 'PASS: Apple libraries and both macOS codegen tools compiled; native-host probe ran; iOS device/simulator C ABI linked; iOS managed variant built.'

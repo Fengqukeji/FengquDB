@@ -25,7 +25,8 @@ def manifest_check(sdk):
             data=(sdk/item['path']).read_bytes()
             assert len(data)==item['size'] and hashlib.sha256(data).hexdigest()==item['sha256']
             assert z.read('FengquDB/'+item['path'])==data
-    assert {p.name for p in sdk.glob('*.md')}=={'接入.md','API.md'}
+    assert {p.name for p in sdk.glob('*.md')}=={'GettingStarted.md','API.md','接入.md','API.zh-CN.md'}
+    assert m['documentation_languages']==['en','zh-CN']
     for p in sdk.glob('*.md'):
         text=p.read_text(encoding='utf-8')
         assert not any(x in text for x in ('旧包','ProjectReference','共同契约','unity/Assets'))

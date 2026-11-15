@@ -12,7 +12,7 @@
 | Mac Apple Silicon | FengquDB-unity-macos-arm64.zip |
 | Mac Intel | FengquDB-unity-macos-x64.zip |
 
-每个 Unity 包均包含 Windows x64、Linux x64、Android arm64、iOS arm64、macOS arm64/x64 原生库，以及托管库、自动生成器、手动生成工具和两份用户文档。包之间的区别是开发期生成工具的宿主架构。
+每个 Unity 包均包含 Windows x64、Linux x64、Android arm64、iOS arm64、macOS arm64/x64 原生库，以及托管库、自动生成器、手动生成工具和中英文接入、API 文档。包之间的区别是开发期生成工具的宿主架构。
 
 把 `FengquDB` 文件夹复制到 `Assets/Plugins` 并保留 `.meta`。接入流程见 [Unity 接入](languages/unity.md)，调用方法见 [Unity API](api/unity.md)。
 

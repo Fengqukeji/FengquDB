@@ -1,6 +1,6 @@
 # Node.js / TypeScript API 与调用例子
 
-[接入文档](../languages/node.md)
+[接入文档](../languages/node.md) · [English](../en/api/node.md)
 
 从前面的常用操作开始。本页每节都包含用途、调用例子和对应函数；展开“函数与参数”可查完整重载。
 

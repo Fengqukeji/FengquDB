@@ -1,5 +1,7 @@
 # Unity 接入
 
+[English](../en/languages/unity.md)
+
 [API、用途和调用例子](../api/unity.md)
 
 ## 1. 放入 SDK
@@ -14,8 +16,10 @@ Assets/Plugins/FengquDB/
   Editor/Tools/
   fqdb-generate.bat
   fqdb-generate.command
-  接入.md
+  GettingStarted.md
   API.md
+  接入.md
+  API.zh-CN.md
 ```
 
 发布时 Unity 根据随包 .meta 选择当前平台的原生库，并编入业务用到的托管代码和生成代码。生成器、Editor/Tools、手动脚本与文档留在开发工程中。Runtime 这个目录名本身不决定打包范围。

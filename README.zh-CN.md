@@ -152,7 +152,9 @@ Deleted: None
 
 ## 各语言接入
 
-每种语言一个独立 SDK 文件夹，包含预编译库、生成工具、接入和 API 两份文档。桌面 SDK 提供 Windows 和 Linux 包；Unity SDK 还包含 Android、iOS 和 macOS 两种 CPU 架构的原生库。按开发电脑选择对应包。
+每个 SDK ZIP 同时包含英文（`GettingStarted.md`、`API.md`）和简体中文（`接入.md`、`API.zh-CN.md`）文档。
+
+每种语言一个独立 SDK 文件夹，包含预编译库、生成工具及中英文接入和 API 文档。桌面 SDK 提供 Windows 和 Linux 包；Unity SDK 还包含 Android、iOS 和 macOS 两种 CPU 架构的原生库。按开发电脑选择对应包。
 
 | 语言 | 快速接入 | API、用途与调用例子 |
 | --- | --- | --- |

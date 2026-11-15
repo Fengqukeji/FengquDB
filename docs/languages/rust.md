@@ -1,5 +1,7 @@
 # Rust 接入
 
+[English](../en/languages/rust.md)
+
 [API、用途和调用例子](../api/rust.md)
 
 应用启动时打开数据库句柄，交给各业务模块复用，退出时统一关闭。

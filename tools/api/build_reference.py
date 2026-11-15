@@ -161,7 +161,23 @@ def rust_rows(crate='fengqudb'):
     return rows
 
 
+def render_guides(manifest):
+    from user_reference import render
+    for locale, directory in (('zh-CN', ROOT/'docs/api'), ('en', ROOT/'docs/en/api')):
+        directory.mkdir(parents=True, exist_ok=True)
+        for lang, inventory in manifest.items():
+            (directory/(lang+'.md')).write_text(render(lang,inventory['entries'],locale),encoding='utf-8')
+        (directory/'unity.md').write_text(render('unity',manifest['csharp']['entries'],locale),encoding='utf-8')
+
+
 def main():
+    import argparse
+    parser=argparse.ArgumentParser(description='Generate Chinese and English API guides from one public API inventory.')
+    parser.add_argument('--from-manifest',type=Path,help='Reuse an existing inventory without running compilers')
+    args=parser.parse_args()
+    if args.from_manifest:
+        render_guides(json.loads(args.from_manifest.read_text(encoding='utf-8')))
+        return
     all_rows=[]
     for lang in ('csharp','java','go','node'):all_rows.extend(load('api-'+lang+'.json'))
     all_rows.extend(python_rows());all_rows.extend(rust_rows());all_rows.extend(rust_rows('fengqudb_sys'))
@@ -184,11 +200,9 @@ def main():
             key=(r['owner'],r['name'],r['signature']);unique[key]=r
         rows=sorted(unique.values(),key=lambda r:(r['owner'],r['name'],r['signature']))
         if not rows:raise ValueError('Empty API inventory '+lang)
-        from user_reference import render
-        (out/(lang+'.md')).write_text(render(lang,rows),encoding='utf-8')
         manifest[lang]={'count':len(rows),'entries':rows}
     (out/'manifest.json').write_text(json.dumps(manifest,ensure_ascii=False,indent=2),encoding='utf-8')
-    (out/'unity.md').write_text(render('unity',manifest['csharp']['entries']),encoding='utf-8')
+    render_guides(manifest)
     print({k:v['count'] for k,v in manifest.items()})
 
 

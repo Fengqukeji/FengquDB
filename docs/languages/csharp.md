@@ -1,5 +1,7 @@
 # C# 接入
 
+[English](../en/languages/csharp.md)
+
 [API、用途和调用例子](../api/csharp.md)
 
 ## 1. 放入 SDK

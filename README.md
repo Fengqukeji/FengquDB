@@ -53,7 +53,7 @@ python main.py
 # Alice 95
 ```
 
-Strings and integers can be encoded to bytes and stored without defining an entity. For application entities, define your class and use the SDK's automatic codec generation; the manual generation tool is included as a fallback. [Entity example](docs/languages/python.md).
+Strings and integers can be encoded to bytes and stored without defining an entity. For application entities, define your class and use the SDK's automatic codec generation; the manual generation tool is included as a fallback. [Entity example](docs/en/languages/python.md).
 
 A [complete runnable example](examples/quickstart/main.py) also updates a score with reliable persistence, closes and reopens the database, then deletes the example records. Expected output:
 
@@ -152,21 +152,23 @@ Locks, allocations, cold reads and disk costs still exist. Gains depend on chang
 
 ## Language SDKs
 
-One independent SDK folder per language, with binaries, generation tools and two guides. Desktop SDKs are provided for Windows and Linux. Unity SDKs also bundle Android, iOS and both macOS architectures. Select the SDK for your development host.
+Each SDK ZIP includes English (`GettingStarted.md`, `API.md`) and Simplified Chinese (`接入.md`, `API.zh-CN.md`) documentation.
+
+One independent SDK folder per language, with binaries, generation tools and getting-started/API guides in both languages. Desktop SDKs are provided for Windows and Linux. Unity SDKs also bundle Android, iOS and both macOS architectures. Select the SDK for your development host.
 
 | Language | Get started | API, use cases and examples |
 | --- | --- | --- |
-| C++ | [Guide](docs/languages/cpp.md) | [API](docs/api/cpp.md) |
-| C# | [Guide](docs/languages/csharp.md) | [API](docs/api/csharp.md) |
-| Unity | [Guide](docs/languages/unity.md) | [API](docs/api/unity.md) |
-| Python | [Guide](docs/languages/python.md) | [API](docs/api/python.md) |
-| Java | [Guide](docs/languages/java.md) | [API](docs/api/java.md) |
-| Node.js / TypeScript | [Guide](docs/languages/node.md) | [API](docs/api/node.md) |
-| Go | [Guide](docs/languages/go.md) | [API](docs/api/go.md) |
-| Rust | [Guide](docs/languages/rust.md) | [API](docs/api/rust.md) |
-| C | [Guide](docs/languages/c.md) | [API](docs/api/c.md) |
+| C++ | [Guide](docs/en/languages/cpp.md) | [API](docs/en/api/cpp.md) |
+| C# | [Guide](docs/en/languages/csharp.md) | [API](docs/en/api/csharp.md) |
+| Unity | [Guide](docs/en/languages/unity.md) | [API](docs/en/api/unity.md) |
+| Python | [Guide](docs/en/languages/python.md) | [API](docs/en/api/python.md) |
+| Java | [Guide](docs/en/languages/java.md) | [API](docs/en/api/java.md) |
+| Node.js / TypeScript | [Guide](docs/en/languages/node.md) | [API](docs/en/api/node.md) |
+| Go | [Guide](docs/en/languages/go.md) | [API](docs/en/api/go.md) |
+| Rust | [Guide](docs/en/languages/rust.md) | [API](docs/en/api/rust.md) |
+| C | [Guide](docs/en/languages/c.md) | [API](docs/en/api/c.md) |
 
-Unity: copy the SDK's `FengquDB` folder into `Assets/Plugins`, preserving `.meta` files. The package includes the target-specific native libraries and generation tools. [Apple build verification](docs/APPLE_SDK.md).
+Unity: copy the SDK's `FengquDB` folder into `Assets/Plugins`, preserving `.meta` files. The package includes the target-specific native libraries and generation tools. [Apple libraries](docs/en/languages/apple-native.md).
 
 ## Where it fits
 
@@ -174,7 +176,7 @@ Use FengquDB for **in-process server state, desktop applications, Unity game sav
 
 The core offers structured query APIs rather than a complete SQL language. Network serving, database users/permissions and replication are outside its current scope. Index, RAG and LLM Wiki foundations are separate layers; a core SDK does not include an embedding model or a ready-made RAG application. Apple libraries have passed build/link checks; Unity iOS device acceptance is still pending.
 
-Performance-mode acknowledgement can precede persistence. Use reliable writes for payments, entitlements and other critical state. [Persistence and API examples](docs/api/python.md).
+Performance-mode acknowledgement can precede persistence. Use reliable writes for payments, entitlements and other critical state. [Persistence and API examples](docs/en/api/python.md).
 
 ## Contact and support
 
