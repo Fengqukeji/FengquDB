@@ -10,6 +10,8 @@ jobs:
       matrix:
         sanitizer: [address, thread]
     env:
+      CC: gcc-12
+      CXX: g++-12
       ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
       UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
       TSAN_OPTIONS: halt_on_error=1
@@ -50,7 +52,11 @@ jobs:
             build/sanitizer-${{ matrix.sanitizer }}/results.xml
             build/sanitizer-${{ matrix.sanitizer }}/Testing/Temporary/
   build:
+    env:
+      DOTNET_CLI_USE_MSBUILD_SERVER: '0'
+      MSBUILDDISABLENODEREUSE: '1'
     strategy:
+      fail-fast: false
       matrix:
         os: [windows-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
@@ -159,6 +165,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
       - run: sdkmanager "ndk;${{ matrix.ndk }}"
       - name: Android ARM64 shared and static
         shell: bash

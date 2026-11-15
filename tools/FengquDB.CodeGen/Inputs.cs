@@ -60,7 +60,9 @@ internal static class ProjectInput {
     static async Task<GeneratorInput> LoadRegisteredAsync(Options options, CancellationToken token) {
         if (!options.NoRestore) {
             var start = new ProcessStartInfo("dotnet") { RedirectStandardOutput = true, RedirectStandardError = true };
-            foreach (string arg in new[] { "restore", options.Project!, "--nologo", "--verbosity", "quiet" }) start.ArgumentList.Add(arg);
+            // A short-lived generator must not depend on a pre-existing build
+            // server or inherit its lifecycle from the host application's build.
+            foreach (string arg in new[] { "restore", options.Project!, "--disable-build-servers", "--nologo", "--verbosity", "quiet" }) start.ArgumentList.Add(arg);
             if (options.Framework != null) start.ArgumentList.Add("-p:TargetFramework=" + options.Framework);
             using var process = Process.Start(start) ?? throw new InvalidOperationException("Could not start dotnet restore");
             var stdout = process.StandardOutput.ReadToEndAsync(token);
