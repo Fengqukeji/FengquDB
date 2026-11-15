@@ -29,7 +29,7 @@ static auto open_core(const std::string &path, bool segmented = false) {
     return core;
 }
 static auto launch(const std::shared_ptr<p::Core> &core, p::Transaction &tx) {
-    return std::async(std::launch::async, [core, &tx]() -> fqdb_status {
+    return test_support::async_thread( [core, &tx]() -> fqdb_status {
         try {
             core->commit(tx);
             return FQDB_OK;
@@ -40,7 +40,7 @@ static auto launch(const std::shared_ptr<p::Core> &core, p::Transaction &tx) {
         }
     });
 }
-static fqdb_status take(std::future<fqdb_status> &future) {
+static fqdb_status take(test_support::ThreadFuture<fqdb_status> &future) {
     need(future.wait_for(3s) == std::future_status::ready, "probe request hung");
     return future.get();
 }
@@ -185,7 +185,7 @@ static void metered_caller(bool segmented) {
     await([&] { return core->buffered_active.load() != 0; });
     std::atomic<unsigned> checks{0};
     fqdb_store_maintenance_io io{};
-    auto metered = std::async(std::launch::async, [&]() -> fqdb_status {
+    auto metered = test_support::async_thread( [&]() -> fqdb_status {
         const auto caller = std::this_thread::get_id();
         auto policy = p::maintenance_defaults();
         policy.max_write_bytes = 100;
@@ -221,9 +221,9 @@ static void repeated_handoffs(bool segmented) {
         auto core = open_core(path, segmented);
         std::atomic<unsigned> ready{0};
         std::atomic<bool> go{false};
-        std::vector<std::future<void>> workers;
+        std::vector<test_support::ThreadFuture<void>> workers;
         for (unsigned thread = 0; thread < 8; ++thread)
-            workers.push_back(std::async(std::launch::async, [&, thread] {
+            workers.push_back(test_support::async_thread( [&, thread] {
                 ready.fetch_add(1);
                 while (!go.load())
                     std::this_thread::yield();

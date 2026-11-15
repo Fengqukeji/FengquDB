@@ -2,6 +2,7 @@
 #include "store_trace.hpp"
 #include "fengqudb_store.hpp"
 #include "strict_store.hpp"
+#include "thread_future.hpp"
 #include "paged/maintenance.hpp"
 #include <future>
 #include <iostream>

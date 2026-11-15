@@ -25,6 +25,7 @@ jobs:
     env:
       DOTNET_CLI_USE_MSBUILD_SERVER: '0'
       MSBUILDDISABLENODEREUSE: '1'
+      FQDB_REUSE_RUN_ID: ${{ inputs.reuse_run_id }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -76,7 +77,7 @@ jobs:
           $native = if ($IsWindows) { "$PWD/build/release/Release" } else { "$PWD/build/release" }
           $codegen = if ($IsWindows) { "$PWD/build/release/tools/codegen/Release/fqdb-codegen.exe" } else { "$PWD/build/release/tools/codegen/fqdb-codegen" }
           $platform = if ($IsWindows) { 'win-x64' } else { 'linux-x64' }
-          if ('${{ inputs.reuse_run_id }}' -eq '') {
+          if ([string]::IsNullOrEmpty($env:FQDB_REUSE_RUN_ID)) {
             ./scripts/build-client-sdk.ps1 -Platform $platform -NativeDir $native -Codegen $codegen -BuildDir build/release-client -OutputDir artifacts/client
             if ($LASTEXITCODE) { exit $LASTEXITCODE }
           } else {

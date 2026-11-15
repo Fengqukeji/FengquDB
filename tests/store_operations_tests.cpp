@@ -118,10 +118,10 @@ static void concurrent_atomic() {
     fengqudb::StoreRuntimeOptions options;
     options.group_delay_us = 1000;
     store.configure(options);
-    std::vector<std::future<void>> writers;
+    std::vector<test_support::ThreadFuture<void>> writers;
     std::atomic<unsigned> starts{0};
     for (unsigned i = 0; i < 8; ++i)
-        writers.push_back(std::async(std::launch::async, [&] {
+        writers.push_back(test_support::async_thread( [&] {
             ++starts;
             while (starts.load() != 8)
                 std::this_thread::yield();
@@ -141,7 +141,7 @@ static void atomic_faults() {
         Store store(path);
         store.add_i64("counter", 1);
         Held hold(40);
-        auto pending = std::async(std::launch::async,
+        auto pending = test_support::async_thread(
                                   [&] { return status([&] { store.add_i64("counter", 1); }); });
         reached();
         check(store.get("counter")->view()[0] == 1, "unflushed atomic view leaked");
@@ -300,12 +300,12 @@ static void input_and_budget_boundaries() {
           "atomic failure output");
     {
         Held hold(40);
-        auto pending = std::async(std::launch::async, [&] {
+        auto pending = test_support::async_thread( [&] {
             fqdb_store_atomic_info out{};
             return fqdb_store_add_i64(raw, {"c", 1}, 1, 0, 10, 0, &out);
         });
         reached();
-        auto release = std::async(std::launch::async, [&] {
+        auto release = test_support::async_thread( [&] {
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
             hold.release();
         });

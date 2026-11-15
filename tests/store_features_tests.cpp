@@ -439,9 +439,9 @@ static void grouping_and_background() {
     store.configure(options);
     std::atomic<unsigned> ready{0};
     std::atomic<bool> start{false};
-    std::vector<std::future<void>> writers;
+    std::vector<test_support::ThreadFuture<void>> writers;
     for (unsigned i = 0; i < 8; ++i)
-        writers.push_back(std::async(std::launch::async, [&, i] {
+        writers.push_back(test_support::async_thread( [&, i] {
             auto tx = store.transaction();
             tx.put("thread/" + std::to_string(i), "value");
             ++ready;
@@ -482,9 +482,9 @@ static void fault_boundaries() {
     {
         Store store(path);
         put(store, "old", "published");
-        std::future<fqdb_status> first;
+        test_support::ThreadFuture<fqdb_status> first;
         Held hold(40);
-        first = std::async(std::launch::async, [&] {
+        first = test_support::async_thread( [&] {
             auto tx = store.transaction();
             tx.put("new", "pending");
             return static_cast<fqdb_status>(tx.commit().status);
@@ -553,9 +553,9 @@ static void automatic_index_resume() {
     commit(records);
     check(status([&] { store.define_index("bad", "bad/", 1, 4, 2); }) == FQDB_CONSTRAINT,
           "bad index setup");
-    std::future<fqdb_status> builder;
+    test_support::ThreadFuture<fqdb_status> builder;
     Held hold(45);
-    builder = std::async(std::launch::async, [&] {
+    builder = test_support::async_thread( [&] {
         return status([&] { store.define_index("good", "good/", 1, 4, 2); });
     });
     reached();
@@ -754,9 +754,9 @@ static void concurrent_stress() {
     fengqudb::StoreRuntimeOptions policy;
     policy.group_delay_us = 500;
     store.configure(policy);
-    std::vector<std::future<void>> jobs;
+    std::vector<test_support::ThreadFuture<void>> jobs;
     for (unsigned worker = 0; worker < 8; ++worker)
-        jobs.push_back(std::async(std::launch::async, [&, worker] {
+        jobs.push_back(test_support::async_thread( [&, worker] {
             for (unsigned i = 0; i < 64; ++i)
                 put(store, "worker/" + std::to_string(worker) + "/" + std::to_string(i),
                     std::to_string(i));
