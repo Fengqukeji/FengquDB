@@ -4,20 +4,20 @@
 
 - **Read throughput is ~400× that of MySQL**: single-thread complete-profile reads measured at **442.74×**.
 - **Single-record insert throughput is ~40× that of MySQL**: single-thread inserts measured at **44.03×**.
-- **Just 1.08 MiB for the native core**: approximately **1/46** of the MySQL Windows server executable.
+- **Just 1.07 MiB for the native core**: approximately **1/46** of the MySQL Windows server executable.
 
-Throughput figures use the 128 B profile-body business benchmark in performance mode. Size uses the Windows x64 LTO validation DLL versus MySQL `mysqld.exe` (49.25 MiB), excluding other tools and dependencies on both sides. Charts retain the earlier benchmark results. [Test settings](#benchmarks) · [Size evidence](docs/SIZE_COMPARISON.md)
+Throughput figures use the 128 B profile-body business benchmark in performance mode. Size uses the 1.0.0 Windows x64 release DLL versus MySQL `mysqld.exe` (49.25 MiB), excluding other tools and dependencies on both sides. Charts retain the earlier benchmark results. [Test settings](#benchmarks) · [Size evidence](docs/SIZE_COMPARISON.md)
 
 ### Goal: the world's fastest database
 
-**A native C++ database in a 1.08 MiB core, built to be the storage foundation for the AI era.** Embed it in your application for fast local persistence, from game saves and application state to the data behind agents, retrieval, RAG and knowledge systems.
+**A native C++ database in a 1.07 MiB core, built to be the storage foundation for the AI era.** Embed it in your application for fast local persistence, from game saves and application state to the data behind agents, retrieval, RAG and knowledge systems.
 
 [Quick start](#quick-start) · [Benchmarks](#benchmarks) · [API guides](#language-sdks) · [Apache-2.0](LICENSE)
 
 ## Why FengquDB
 
 - **Fast where applications spend their time.** In our published performance-mode benchmark, FengquDB led confirmed throughput in all **44 tested configurations**, reaching **3.32 million complete-profile reads/second with one calling thread**.
-- **A tiny native core.** The Windows x64 LTO validation DLL is **1.08 MiB** (1,128,960 bytes). SDK tools and language bindings are additional; platform binaries differ in size.
+- **A tiny native core.** The Windows x64 release DLL is **1.07 MiB** (1,126,912 bytes). SDK tools and language bindings are additional; platform binaries differ in size.
 - **Embed a library and keep control.** No separate database service. Set your storage directory, share a handle across your application, and create separate databases when needed.
 - **Binary data with less work.** A purpose-built C++ storage engine, Protobuf-compatible wire encoding, shared reads, incremental updates and cached-binary subtraction avoid unnecessary copies and reconstruction.
 - **Choose the confirmation your data needs.** Performance mode makes writes visible in memory before periodic persistence. Reliable mode, or `force_reliable` on an individual write, waits for persistence before success.

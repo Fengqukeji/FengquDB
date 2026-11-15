@@ -1,0 +1,15 @@
+{
+  "version": "1.0.0",
+  "platform": "win-x64",
+  "file": "Native/fengqudb.dll",
+  "bytes": 1126912,
+  "mib": 1.07470703125,
+  "sha256": "25aa95bf0fadca634ea72e8794a9b1160e96e1dcbc74c1fe3c12fae353a67226",
+  "sdk_asset": "FengquDB-python-win-x64.zip",
+  "build_commit": "c2766b73fa1ba7e54ee23e54be790b4b99b5f44e",
+  "build_run": "https://github.com/Fengqukeji/FengquDB/actions/runs/43708764733",
+  "consumer_run": "https://github.com/Fengqukeji/FengquDB/actions/runs/43709637468",
+  "mysql_executable_bytes": 51644544,
+  "mysql_size_ratio": 45.82837346660609,
+  "benchmark_rerun": false
+}
