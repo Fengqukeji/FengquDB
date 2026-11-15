@@ -68,7 +68,7 @@ def main():
                     for item in package.infolist():
                         if not item.is_dir():os.chmod(project/item.filename,(item.external_attr>>16)&0o777)
             # Consumers must run with their normal environment, without a test-only library path.
-            env=dict(os.environ,CI='1')
+            env=dict(os.environ,CI='1',PYTHONUTF8='1',PYTHONIOENCODING='utf-8')
             tool=local/('Editor/Tools' if lang=='unity' else 'Tools')/('fqdb-codegen.exe' if os.name=='nt' else 'fqdb-codegen')
             assert run(lang+'-tool',[tool,'--version'],project,env).strip()==m['version']
             checks+=['extracted-release-zip','matching-tool-version']

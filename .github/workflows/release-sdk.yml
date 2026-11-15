@@ -7,8 +7,13 @@ on:
         default: all
         options: [all, windows, linux]
         description: SDK host to build and verify
+      reuse_run_id:
+        type: string
+        default: ''
+        description: Optional run containing existing SDK ZIPs for consumer-only revalidation
 permissions:
   contents: read
+  actions: read
 jobs:
   desktop:
     strategy:
@@ -47,6 +52,7 @@ jobs:
         shell: pwsh
         run: '"Platform=" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append'
       - name: Build release libraries and native generator
+        if: inputs.reuse_run_id == ''
         shell: pwsh
         run: |
           cmake -S . -B build/release -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF -DFQDB_BUILD_TOOLS=ON -DFQDB_BUILD_DIAGNOSTICS=OFF -DFQDB_BUILD_JNI=ON
@@ -57,14 +63,25 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           dotnet build bindings/csharp/Generator/FengquDB.Generator.csproj -c Release --nologo
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - uses: actions/download-artifact@v4
+        if: inputs.reuse_run_id != ''
+        with:
+          name: FengquDB-release-${{ matrix.os }}
+          run-id: ${{ inputs.reuse_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: artifacts/client
       - name: Package and execute eight independent SDKs
         shell: pwsh
         run: |
           $native = if ($IsWindows) { "$PWD/build/release/Release" } else { "$PWD/build/release" }
           $codegen = if ($IsWindows) { "$PWD/build/release/tools/codegen/Release/fqdb-codegen.exe" } else { "$PWD/build/release/tools/codegen/fqdb-codegen" }
           $platform = if ($IsWindows) { 'win-x64' } else { 'linux-x64' }
-          ./scripts/build-client-sdk.ps1 -Platform $platform -NativeDir $native -Codegen $codegen -BuildDir build/release-client -OutputDir artifacts/client
-          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          if ('${{ inputs.reuse_run_id }}' -eq '') {
+            ./scripts/build-client-sdk.ps1 -Platform $platform -NativeDir $native -Codegen $codegen -BuildDir build/release-client -OutputDir artifacts/client
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          } else {
+            Get-ChildItem artifacts/client/*.zip | ForEach-Object { Expand-Archive -LiteralPath $_.FullName -DestinationPath (Join-Path $_.DirectoryName $_.BaseName) }
+          }
           python tests/codegen/package_verify.py --packages artifacts/client --output build/release-consumers --java-bin "$env:JAVA_HOME/bin" --dotnet
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python examples/quickstart/main.py --sdk "artifacts/client/FengquDB-python-$platform/FengquDB" --root build/release-quickstart
