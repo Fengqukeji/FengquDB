@@ -1,0 +1,14 @@
+{
+  "version": "1.0.1",
+  "platform": "win-x64",
+  "file": "Native/fengqudb.dll",
+  "bytes": 1170432,
+  "mib": 1.1162109375,
+  "sha256": "1b6b05ff4491258a6635e916ef3c86cd58dbbdd472c3413206346d5045a158ca",
+  "sdk_asset": "FengquDB-python-win-x64.zip",
+  "build_commit": "5378af097c370639c065848cf58ed8a53b65e90e",
+  "build_method": "Local Visual Studio Release build, FQDB_BUILD_JNI=ON",
+  "mysql_executable_bytes": 51644544,
+  "mysql_size_ratio": 44.124343832021,
+  "benchmark_rerun": false
+}
